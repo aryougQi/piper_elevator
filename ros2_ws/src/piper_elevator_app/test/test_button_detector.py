@@ -1,0 +1,216 @@
+"""Unit tests for model decoding, tracking, and RGB-D geometry."""
+
+import numpy as np
+import pytest
+
+from piper_elevator_app.detector_core import Detection
+from piper_elevator_app.detector_core import project_pixel
+from piper_elevator_app.detector_core import robust_box_depth
+from piper_elevator_app.detector_core import TemporalButtonTracker
+from piper_elevator_app.detector_core import YoloOnnxDetector
+
+
+CLASS_NAMES = [
+    'button_up',
+    'button_3',
+    'button_2',
+    'button_1',
+    'button_open',
+    'button_close',
+    'button_down',
+    'display_2',
+    'display_1',
+    'display_3',
+]
+
+
+class FakeInput:
+    """Minimal ONNX input descriptor."""
+
+    name = 'images'
+    shape = [1, 3, 640, 640]
+
+
+class FakeModelMetadata:
+    """Minimal ONNX metadata descriptor."""
+
+    custom_metadata_map = {
+        'names': "{0: 'UP', 1: 'down', 2: 'open'}",
+    }
+
+
+class FakeSession:
+    """Minimal ONNX Runtime test double."""
+
+    def __init__(self, output):
+        self.output = output
+        self.input_blob = None
+
+    def get_inputs(self):
+        return [FakeInput()]
+
+    def run(self, output_names, inputs):
+        del output_names
+        self.input_blob = inputs['images']
+        return [self.output]
+
+    def get_modelmeta(self):
+        return FakeModelMetadata()
+
+
+def make_detection(
+    center_x=320.0,
+    center_y=240.0,
+    confidence=0.90,
+    class_id=3,
+):
+    """Create one square detection for tracking tests."""
+    return Detection(
+        center_x - 40.0,
+        center_y - 40.0,
+        center_x + 40.0,
+        center_y + 40.0,
+        confidence,
+        class_id,
+        CLASS_NAMES[class_id],
+    )
+
+
+def test_decodes_yolov8_output_and_filters_display():
+    output = np.zeros((1, 14, 3), dtype=np.float32)
+    output[0, 0:4, 0] = [320.0, 320.0, 100.0, 100.0]
+    output[0, 4 + 3, 0] = 0.90
+    output[0, 0:4, 1] = [120.0, 120.0, 80.0, 80.0]
+    output[0, 4 + 7, 1] = 0.99
+    output[0, 0:4, 2] = [500.0, 400.0, 60.0, 60.0]
+    output[0, 4 + 1, 2] = 0.20
+    fake_session = FakeSession(output)
+    detector = YoloOnnxDetector(
+        model_path=None,
+        class_names=CLASS_NAMES,
+        target_classes=[name for name in CLASS_NAMES if 'button_' in name],
+        confidence_threshold=0.60,
+        session=fake_session,
+    )
+
+    detections = detector.infer(
+        np.full((480, 640, 3), 50, dtype=np.uint8)
+    )
+
+    assert fake_session.input_blob.shape == (1, 3, 640, 640)
+    assert len(detections) == 1
+    detection = detections[0]
+    assert detection.class_name == 'button_1'
+    assert detection.confidence == pytest.approx(0.90)
+    assert detection.center == pytest.approx((320.0, 240.0))
+    assert detection.width == pytest.approx(100.0)
+    assert detection.height == pytest.approx(100.0)
+
+
+def test_decodes_yolov10_end_to_end_output_and_model_metadata():
+    output = np.zeros((1, 300, 6), dtype=np.float32)
+    output[0, 0] = [270.0, 270.0, 370.0, 370.0, 0.90, 1.0]
+    output[0, 1] = [100.0, 100.0, 180.0, 180.0, 0.95, 2.0]
+    detector = YoloOnnxDetector(
+        model_path=None,
+        class_names=['__model_metadata__'],
+        target_classes=['UP', 'down'],
+        confidence_threshold=0.60,
+        session=FakeSession(output),
+    )
+
+    detections = detector.infer(
+        np.full((480, 640, 3), 50, dtype=np.uint8)
+    )
+
+    assert len(detections) == 1
+    detection = detections[0]
+    assert detection.class_name == 'down'
+    assert detection.confidence == pytest.approx(0.90)
+    assert detection.center == pytest.approx((320.0, 240.0))
+    assert detection.width == pytest.approx(100.0)
+    assert detection.height == pytest.approx(100.0)
+
+
+def test_tracker_requires_stability_and_tolerates_one_miss():
+    tracker = TemporalButtonTracker(
+        required_stable_frames=3,
+        max_missed_frames=2,
+        smoothing_alpha=0.5,
+    )
+
+    first, first_valid = tracker.update(
+        [make_detection()],
+        640,
+        480,
+    )
+    second, second_valid = tracker.update(
+        [make_detection(322.0, 239.0)],
+        640,
+        480,
+    )
+    third, third_valid = tracker.update(
+        [make_detection(321.0, 241.0)],
+        640,
+        480,
+    )
+    missed, missed_valid = tracker.update([], 640, 480)
+    recovered, recovered_valid = tracker.update(
+        [make_detection(320.0, 240.0)],
+        640,
+        480,
+    )
+
+    assert first is not None and not first_valid
+    assert second is not None and not second_valid
+    assert third is not None and third_valid
+    assert missed is None and not missed_valid
+    assert recovered is not None and recovered_valid
+
+
+def test_tracker_does_not_switch_silently_to_another_class():
+    tracker = TemporalButtonTracker(required_stable_frames=2)
+    tracker.update([make_detection(class_id=3)], 640, 480)
+    selected, valid = tracker.update(
+        [make_detection(center_x=500.0, class_id=4)],
+        640,
+        480,
+    )
+
+    assert selected is not None
+    assert selected.class_name == 'button_open'
+    assert not valid
+    assert tracker.stable_frames == 1
+
+
+def test_robust_depth_rejects_holes_and_outliers():
+    depth_image = np.full((300, 300), 800, dtype=np.uint16)
+    depth_image[130:135, 130:135] = 0
+    depth_image[160:165, 160:165] = 5000
+    detection = Detection(100, 100, 200, 200, 0.9, 3, 'button_1')
+
+    depth_m = robust_box_depth(
+        depth_image,
+        detection,
+        unit_scale=0.001,
+        inner_ratio=0.5,
+        min_depth_m=0.1,
+        max_depth_m=2.0,
+        min_samples=20,
+    )
+
+    assert depth_m == pytest.approx(0.8)
+
+
+def test_projects_pixel_to_camera_coordinates():
+    camera_matrix = np.asarray(
+        [
+            [600.0, 0.0, 320.0],
+            [0.0, 600.0, 240.0],
+            [0.0, 0.0, 1.0],
+        ]
+    )
+
+    position = project_pixel(camera_matrix, 380.0, 210.0, 0.8)
+
+    assert position == pytest.approx([0.08, -0.04, 0.8])

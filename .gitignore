@@ -1,0 +1,8 @@
+.env
+ros2_ws/build/
+ros2_ws/install/
+ros2_ws/log/
+ros2_ws/src/agx_arm_ros/
+ros2_ws/src/pika_ros/
+__pycache__/
+*.py[cod]

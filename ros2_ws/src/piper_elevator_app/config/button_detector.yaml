@@ -1,0 +1,53 @@
+button_detector:
+  ros__parameters:
+    # Pika 鱼眼相机默认只有 RGB；RealSense 启动文件会覆盖为 true。
+    use_depth: false
+    color_topic: /camera_fisheye/color/image_raw
+    depth_topic: /camera/aligned_depth_to_color/image_raw
+    camera_info_topic: /camera_fisheye/color/camera_info
+
+    button_pixel_topic: /button_pixel
+    button_pose_topic: /button_pose
+    button_detections_topic: /button_detections
+    button_valid_topic: /button_detection_valid
+    button_confidence_topic: /button_detection_confidence
+    debug_image_topic: /button_detector/debug_image
+
+    # 相对路径会从 piper_elevator_app 的安装目录解析。
+    model_path: models/elevator_buttons_yolov10s.onnx
+    model_input_size: 1280
+    # cuda: 必须使用 RTX GPU，加载失败时直接报错，避免静默退回慢速 CPU。
+    # 调试无 GPU 环境时可临时改为 cpu；auto 才允许自动回退。
+    inference_device: cuda
+    confidence_threshold: 0.60
+    nms_iou_threshold: 0.45
+
+    # 类别直接读取新 YOLOv10 ONNX 的元数据。该模型专门检测电梯按钮，
+    # 因此保留模型中的全部电梯按钮类别（上下、开关门、楼层等）。
+    class_names:
+      - __model_metadata__
+    target_classes:
+      - '*'
+
+    sync_queue_size: 10
+    sync_slop_seconds: 0.08
+
+    # 归一化 ROI；默认检测整张图，现场可缩小到按钮面板区域。
+    roi_x: 0.0
+    roi_y: 0.0
+    roi_width: 1.0
+    roi_height: 1.0
+
+    # 对检测框中心区域的深度取中位数，并用 MAD 排除飞点。
+    depth_unit_scale: 0.001
+    depth_inner_ratio: 0.45
+    minimum_depth_samples: 20
+    min_depth_m: 0.10
+    max_depth_m: 2.00
+
+    # 连续确认、短时漏检保持关联，以及指数平滑。
+    required_stable_frames: 5
+    max_missed_frames: 2
+    tracking_minimum_iou: 0.15
+    max_center_jump_ratio: 0.10
+    position_smoothing_alpha: 0.35
