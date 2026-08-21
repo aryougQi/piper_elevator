@@ -1,9 +1,11 @@
 """Unit tests for model decoding, tracking, and RGB-D geometry."""
 
+import cv2
 import numpy as np
 import pytest
 
 from piper_elevator_app.detector_core import Detection
+from piper_elevator_app.detector_core import filter_detections_by_class
 from piper_elevator_app.detector_core import project_pixel
 from piper_elevator_app.detector_core import robust_box_depth
 from piper_elevator_app.detector_core import TemporalButtonTracker
@@ -45,12 +47,14 @@ class FakeSession:
     def __init__(self, output):
         self.output = output
         self.input_blob = None
+        self.run_count = 0
 
     def get_inputs(self):
         return [FakeInput()]
 
     def run(self, output_names, inputs):
         del output_names
+        self.run_count += 1
         self.input_blob = inputs['images']
         return [self.output]
 
@@ -132,6 +136,22 @@ def test_decodes_yolov10_end_to_end_output_and_model_metadata():
     assert detection.height == pytest.approx(100.0)
 
 
+def test_warmup_runs_requested_number_of_dummy_frames():
+    output = np.zeros((1, 300, 6), dtype=np.float32)
+    session = FakeSession(output)
+    detector = YoloOnnxDetector(
+        model_path=None,
+        class_names=['__model_metadata__'],
+        target_classes=['*'],
+        session=session,
+    )
+
+    detector.warmup(2)
+
+    assert session.run_count == 2
+    assert session.input_blob.shape == (1, 3, 640, 640)
+
+
 def test_tracker_requires_stability_and_tolerates_one_miss():
     tracker = TemporalButtonTracker(
         required_stable_frames=3,
@@ -183,6 +203,18 @@ def test_tracker_does_not_switch_silently_to_another_class():
     assert tracker.stable_frames == 1
 
 
+def test_filters_coordinates_to_operator_selected_button_class():
+    detections = [
+        Detection(10, 10, 30, 30, 0.9, 53, '3'),
+        Detection(40, 10, 60, 30, 0.8, 256, 'UP'),
+    ]
+
+    assert filter_detections_by_class(detections, '') == []
+    assert filter_detections_by_class(detections, '  up  ') == [
+        detections[1]
+    ]
+
+
 def test_robust_depth_rejects_holes_and_outliers():
     depth_image = np.full((300, 300), 800, dtype=np.uint16)
     depth_image[130:135, 130:135] = 0
@@ -214,3 +246,38 @@ def test_projects_pixel_to_camera_coordinates():
     position = project_pixel(camera_matrix, 380.0, 210.0, 0.8)
 
     assert position == pytest.approx([0.08, -0.04, 0.8])
+
+
+def test_projects_distorted_realsense_pixel_to_camera_coordinates():
+    camera_matrix = np.asarray(
+        [
+            [432.35, 0.0, 430.15],
+            [0.0, 431.36, 245.92],
+            [0.0, 0.0, 1.0],
+        ],
+        dtype=np.float64,
+    )
+    distortion = np.asarray(
+        [-0.0541, 0.0622, -0.00029, 0.00033, -0.0206],
+        dtype=np.float64,
+    )
+    expected = np.asarray([0.18, -0.09, 0.8], dtype=np.float64)
+    projected, _ = cv2.projectPoints(
+        expected.reshape(1, 1, 3),
+        np.zeros(3),
+        np.zeros(3),
+        camera_matrix,
+        distortion,
+    )
+    u, v = projected.reshape(2)
+
+    position = project_pixel(
+        camera_matrix,
+        u,
+        v,
+        expected[2],
+        distortion,
+        'plumb_bob',
+    )
+
+    assert position == pytest.approx(expected, abs=1e-6)

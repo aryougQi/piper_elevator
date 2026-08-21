@@ -1,0 +1,14 @@
+The Pika mesh geometry and its inertial/joint dimensions are derived from:
+
+  https://github.com/agilexrobotics/agx_arm_sim
+  commit f8cd8b147c75d59e14f90fb0646770eefa268ed0
+
+Upstream files:
+
+  agx_arm_description/urdf/pika2_gripper.urdf
+  agx_arm_description/meshes/pika_gripper_base.dae
+  agx_arm_description/meshes/gripper_left_link.dae
+  agx_arm_description/meshes/gripper_right_link.dae
+
+AgileX Robotics is the source and owner of the upstream model assets. This
+package keeps that provenance explicit and does not relicense those assets.

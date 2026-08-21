@@ -50,6 +50,21 @@ class Detection:
         )
 
 
+def filter_detections_by_class(
+    detections: Sequence[Detection],
+    selected_class: str,
+) -> List[Detection]:
+    """Return only detections matching the operator-selected class."""
+    normalized = str(selected_class).strip().casefold()
+    if not normalized:
+        return []
+    return [
+        detection
+        for detection in detections
+        if detection.class_name.strip().casefold() == normalized
+    ]
+
+
 def intersection_over_union(first: Detection, second: Detection) -> float:
     """Calculate intersection-over-union for two detections."""
     left = max(first.x1, second.x1)
@@ -151,7 +166,7 @@ class YoloOnnxDetector:
 
     @staticmethod
     def _select_providers(inference_device: str):
-        """Choose CUDA explicitly and never silently fall back when required."""
+        """Choose CUDA without silently falling back when required."""
         device = str(inference_device).strip().casefold()
         if device not in {'cuda', 'cpu', 'auto'}:
             raise ValueError(
@@ -230,6 +245,16 @@ class YoloOnnxDetector:
             pad_x,
             pad_y,
         )
+
+    def warmup(self, iterations: int = 2) -> None:
+        """Run dummy frames before subscribing to remove first-frame stalls."""
+        dummy = np.full(
+            (self.input_size, self.input_size, 3),
+            114,
+            dtype=np.uint8,
+        )
+        for _ in range(max(0, int(iterations))):
+            self.infer(dummy)
 
     def _letterbox(
         self,
@@ -574,16 +599,51 @@ def project_pixel(
     u: float,
     v: float,
     depth_m: float,
+    distortion_coefficients: Optional[np.ndarray] = None,
+    distortion_model: str = '',
 ) -> np.ndarray:
-    """Project a color pixel and aligned depth into camera coordinates."""
+    """Project a possibly distorted color pixel into camera coordinates."""
     fx = camera_matrix[0, 0]
     fy = camera_matrix[1, 1]
     cx = camera_matrix[0, 2]
     cy = camera_matrix[1, 2]
+    normalized_x = (u - cx) / fx
+    normalized_y = (v - cy) / fy
+    coefficients = np.asarray(
+        distortion_coefficients
+        if distortion_coefficients is not None
+        else [],
+        dtype=np.float64,
+    ).reshape(-1)
+    model = str(distortion_model).strip().casefold()
+    if coefficients.size > 0 and np.any(np.abs(coefficients) > 1e-12):
+        pixel = np.asarray([[[u, v]]], dtype=np.float64)
+        if model in {'plumb_bob', 'rational_polynomial'}:
+            normalized = cv2.undistortPoints(
+                pixel,
+                camera_matrix,
+                coefficients,
+            ).reshape(2)
+        elif model in {'equidistant', 'fisheye'}:
+            if coefficients.size < 4:
+                raise ValueError(
+                    'Fisheye projection requires four coefficients'
+                )
+            normalized = cv2.fisheye.undistortPoints(
+                pixel,
+                camera_matrix,
+                coefficients[:4],
+            ).reshape(2)
+        else:
+            raise ValueError(
+                f'Unsupported camera distortion model: {distortion_model}'
+            )
+        normalized_x = float(normalized[0])
+        normalized_y = float(normalized[1])
     return np.asarray(
         [
-            (u - cx) * depth_m / fx,
-            (v - cy) * depth_m / fy,
+            normalized_x * depth_m,
+            normalized_y * depth_m,
             depth_m,
         ],
         dtype=np.float64,

@@ -16,6 +16,8 @@ setup(
         ),
         ('share/' + package_name, ['package.xml']),
         ('share/' + package_name + '/config', glob('config/*.yaml')),
+        ('share/' + package_name + '/config', glob('config/*.xacro')),
+        ('share/' + package_name + '/config', glob('config/*.srdf')),
         ('share/' + package_name + '/launch', glob('launch/*.launch.py')),
         ('share/' + package_name + '/models', glob('models/*.onnx')),
         ('share/' + package_name + '/models', glob('models/*.md')),
@@ -32,8 +34,28 @@ setup(
     entry_points={
         'console_scripts': [
             (
+                'pika_fisheye_camera = '
+                'piper_elevator_app.pika_fisheye_camera:main'
+            ),
+            (
                 'button_detector = '
                 'piper_elevator_app.yolo_button_detector:main'
+            ),
+            (
+                'button_approach_planner = '
+                'piper_elevator_app.button_approach_planner:main'
+            ),
+            (
+                'mock_button_pose = '
+                'piper_elevator_app.mock_button_pose:main'
+            ),
+            (
+                'piper_pika_joint_state_mux = '
+                'piper_elevator_app.joint_state_mux:main'
+            ),
+            (
+                'piper_pika_control_gate = '
+                'piper_elevator_app.control_gate:main'
             ),
         ],
     },

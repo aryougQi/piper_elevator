@@ -1,0 +1,67 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="piper_pika">
+  <xacro:arg name="initial_positions_file" default="piper_pika_initial_positions.yaml"/>
+  <!-- Official mesh fingertip midpoint, rounded to the nearest millimetre. -->
+  <xacro:arg name="tcp_offset_xyz" default="0.006 0 0.189"/>
+  <xacro:arg name="tcp_offset_rpy" default="0 0 0"/>
+
+  <xacro:include filename="$(find agx_arm_description)/agx_arm_urdf/piper/urdf/piper_description.urdf"/>
+  <xacro:include filename="$(find pika_gripper_description)/urdf/pika_gripper.urdf.xacro"/>
+
+  <!-- AgileX's official Pika model mounts directly to Piper link6. -->
+  <xacro:pika_gripper parent="link6"/>
+
+  <!-- The planning target stays at the calibrated Pika tool centre point. -->
+  <link name="tcp_link"/>
+  <joint name="tcp_joint" type="fixed">
+    <origin xyz="$(arg tcp_offset_xyz)" rpy="$(arg tcp_offset_rpy)"/>
+    <parent link="pika_gripper_base_link"/>
+    <child link="tcp_link"/>
+  </joint>
+
+  <xacro:property
+    name="initial_positions"
+    value="${xacro.load_yaml('$(arg initial_positions_file)')['initial_positions']}"/>
+
+  <ros2_control name="PiperPikaFakeSystem" type="system">
+    <hardware>
+      <plugin>mock_components/GenericSystem</plugin>
+    </hardware>
+
+    <joint name="joint1">
+      <command_interface name="position"/>
+      <state_interface name="position"><param name="initial_value">${initial_positions['joint1']}</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint2">
+      <command_interface name="position"/>
+      <state_interface name="position"><param name="initial_value">${initial_positions['joint2']}</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint3">
+      <command_interface name="position"/>
+      <state_interface name="position"><param name="initial_value">${initial_positions['joint3']}</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint4">
+      <command_interface name="position"/>
+      <state_interface name="position"><param name="initial_value">${initial_positions['joint4']}</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint5">
+      <command_interface name="position"/>
+      <state_interface name="position"><param name="initial_value">${initial_positions['joint5']}</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="joint6">
+      <command_interface name="position"/>
+      <state_interface name="position"><param name="initial_value">${initial_positions['joint6']}</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="center_joint">
+      <command_interface name="position"/>
+      <state_interface name="position"><param name="initial_value">${initial_positions['center_joint']}</param></state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+  </ros2_control>
+</robot>

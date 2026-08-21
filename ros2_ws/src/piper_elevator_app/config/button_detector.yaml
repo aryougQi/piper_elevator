@@ -1,10 +1,10 @@
 button_detector:
   ros__parameters:
-    # Pika 鱼眼相机默认只有 RGB；RealSense 启动文件会覆盖为 true。
-    use_depth: false
-    color_topic: /camera_fisheye/color/image_raw
+    # 默认使用 RealSense 彩图检测，并从对齐深度图计算三维位置。
+    use_depth: true
+    color_topic: /camera/color/image_raw
     depth_topic: /camera/aligned_depth_to_color/image_raw
-    camera_info_topic: /camera_fisheye/color/camera_info
+    camera_info_topic: /camera/color/camera_info
 
     button_pixel_topic: /button_pixel
     button_pose_topic: /button_pose
@@ -12,6 +12,11 @@ button_detector:
     button_valid_topic: /button_detection_valid
     button_confidence_topic: /button_detection_confidence
     debug_image_topic: /button_detector/debug_image
+    # 运行时向 /button_selection 发布 String（如 3、up、open）选择目标。
+    # 未选择时不发布 /button_pixel 和 /button_pose。
+    button_selection_topic: /button_selection
+    button_selected_topic: /button_selected
+    selected_button_class: ''
 
     # 相对路径会从 piper_elevator_app 的安装目录解析。
     model_path: models/elevator_buttons_yolov10s.onnx
@@ -19,6 +24,8 @@ button_detector:
     # cuda: 必须使用 RTX GPU，加载失败时直接报错，避免静默退回慢速 CPU。
     # 调试无 GPU 环境时可临时改为 cpu；auto 才允许自动回退。
     inference_device: cuda
+    # 订阅相机前先预热 CUDA，消除首帧内核初始化卡顿。
+    warmup_iterations: 2
     confidence_threshold: 0.60
     nms_iou_threshold: 0.45
 
@@ -29,8 +36,24 @@ button_detector:
     target_classes:
       - '*'
 
-    sync_queue_size: 10
+    # 只保留最新输入，避免 30 FPS 相机超过推理速度后积压旧帧。
+    input_queue_size: 1
+    # 与 RealSense 传感器数据 QoS 保持一致。
+    reliable_input: false
+    # RGB-D 只保留足够完成近似时间同步的少量帧。
+    sync_queue_size: 2
     sync_slop_seconds: 0.08
+
+    # 没有订阅者时跳过调试图复制、绘制和序列化。
+    publish_debug_image: true
+    debug_image_only_when_subscribed: true
+    # 调试图仅供显示；降低尺寸可避免跨容器 raw 图分片卡顿。
+    # 检测仍使用 848x480 原图，输出坐标也保持原图坐标系。
+    debug_image_scale: 0.5
+    # 0 表示跟随检测帧率发布；缩小后的带宽足以保持窗口流畅。
+    debug_max_fps: 0.0
+    # 设为 0 可关闭周期性能日志。
+    performance_log_interval_seconds: 5.0
 
     # 归一化 ROI；默认检测整张图，现场可缩小到按钮面板区域。
     roi_x: 0.0

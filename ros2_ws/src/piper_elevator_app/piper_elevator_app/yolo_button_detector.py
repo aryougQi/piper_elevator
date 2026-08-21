@@ -1,6 +1,7 @@
 """Run the YOLO ONNX elevator-button ROS 2 node."""
 
 from pathlib import Path
+from time import monotonic
 from typing import List, Optional, Tuple
 
 from ament_index_python.packages import get_package_share_directory
@@ -11,9 +12,12 @@ import message_filters
 import numpy as np
 import rclpy
 from rclpy.node import Node
-from rclpy.qos import qos_profile_sensor_data
+from rclpy.qos import QoSDurabilityPolicy
+from rclpy.qos import QoSHistoryPolicy
+from rclpy.qos import QoSProfile
+from rclpy.qos import QoSReliabilityPolicy
 from sensor_msgs.msg import CameraInfo, Image
-from std_msgs.msg import Bool, Float32
+from std_msgs.msg import Bool, Float32, String
 from vision_msgs.msg import (
     Detection2D,
     Detection2DArray,
@@ -21,6 +25,7 @@ from vision_msgs.msg import (
 )
 
 from piper_elevator_app.detector_core import Detection
+from piper_elevator_app.detector_core import filter_detections_by_class
 from piper_elevator_app.detector_core import project_pixel
 from piper_elevator_app.detector_core import robust_box_depth
 from piper_elevator_app.detector_core import TemporalButtonTracker
@@ -36,9 +41,17 @@ class ButtonDetector(Node):
 
         self._bridge = CvBridge()
         self._camera_matrix: Optional[np.ndarray] = None
+        self._distortion_coefficients = np.asarray([], dtype=np.float64)
+        self._distortion_model = ''
         self._camera_frame = ''
         self._filtered_position: Optional[np.ndarray] = None
         self._use_depth = bool(self.get_parameter('use_depth').value)
+        self._input_qos = self._sensor_qos(
+            int(self.get_parameter('input_queue_size').value),
+            reliable=bool(
+                self.get_parameter('reliable_input').value
+            ),
+        )
 
         model_path = self._resolve_model_path(
             self._string_parameter('model_path')
@@ -55,6 +68,16 @@ class ButtonDetector(Node):
             ),
             input_size=int(self.get_parameter('model_input_size').value),
             inference_device=self._string_parameter('inference_device'),
+        )
+        warmup_iterations = max(
+            0,
+            int(self.get_parameter('warmup_iterations').value),
+        )
+        warmup_started = monotonic()
+        self._model.warmup(warmup_iterations)
+        self.get_logger().info(
+            f'Model warmup completed: iterations={warmup_iterations}, '
+            f'elapsed={monotonic() - warmup_started:.3f}s'
         )
         self._tracker = TemporalButtonTracker(
             required_stable_frames=int(
@@ -73,15 +96,28 @@ class ButtonDetector(Node):
                 self.get_parameter('position_smoothing_alpha').value
             ),
         )
+        self._selected_button_class = self._string_parameter(
+            'selected_button_class'
+        ).strip()
 
         self._create_publishers()
         self._create_subscriptions()
+        self._publish_selection_state()
+        self._performance_window_started = monotonic()
+        self._performance_frame_count = 0
+        self._performance_total_seconds = 0.0
+        self._performance_max_seconds = 0.0
+        self._last_debug_publish_time: Optional[float] = None
+        self._debug_frame_count = 0
         mode = 'RGB-D' if self._use_depth else 'RGB'
         self.get_logger().info(
             f'YOLO button detector ready in {mode} mode. '
             f'model={model_path}, '
             f'providers={self._model.active_providers}, '
-            f'color={self._string_parameter("color_topic")}'
+            f'color={self._string_parameter("color_topic")}, '
+            f'input_queue={self._input_qos.depth}, '
+            f'input_reliability={self._input_qos.reliability.name}, '
+            f'selected_button={self._selection_log_text()}'
         )
 
     def _declare_parameters(self) -> None:
@@ -116,6 +152,9 @@ class ButtonDetector(Node):
             'debug_image_topic',
             '/button_detector/debug_image',
         )
+        self.declare_parameter('button_selection_topic', '/button_selection')
+        self.declare_parameter('button_selected_topic', '/button_selected')
+        self.declare_parameter('selected_button_class', '')
 
         self.declare_parameter(
             'model_path',
@@ -131,11 +170,22 @@ class ButtonDetector(Node):
         )
         self.declare_parameter('model_input_size', 1280)
         self.declare_parameter('inference_device', 'cuda')
+        self.declare_parameter('warmup_iterations', 2)
         self.declare_parameter('confidence_threshold', 0.60)
         self.declare_parameter('nms_iou_threshold', 0.45)
 
-        self.declare_parameter('sync_queue_size', 10)
+        # Inference is slower than a typical 30 FPS camera. Keep only the
+        # newest input so the robot never acts on a growing queue of old
+        # images.
+        self.declare_parameter('input_queue_size', 1)
+        self.declare_parameter('reliable_input', False)
+        self.declare_parameter('sync_queue_size', 2)
         self.declare_parameter('sync_slop_seconds', 0.08)
+        self.declare_parameter('publish_debug_image', True)
+        self.declare_parameter('debug_image_only_when_subscribed', True)
+        self.declare_parameter('debug_image_scale', 0.5)
+        self.declare_parameter('debug_max_fps', 0.0)
+        self.declare_parameter('performance_log_interval_seconds', 5.0)
         self.declare_parameter('roi_x', 0.0)
         self.declare_parameter('roi_y', 0.0)
         self.declare_parameter('roi_width', 1.0)
@@ -157,32 +207,43 @@ class ButtonDetector(Node):
         self._pose_publisher = self.create_publisher(
             PoseStamped,
             self._string_parameter('button_pose_topic'),
-            10,
+            1,
         )
         self._pixel_publisher = self.create_publisher(
             PointStamped,
             self._string_parameter('button_pixel_topic'),
-            10,
+            1,
         )
         self._detections_publisher = self.create_publisher(
             Detection2DArray,
             self._string_parameter('button_detections_topic'),
-            10,
+            1,
         )
         self._valid_publisher = self.create_publisher(
             Bool,
             self._string_parameter('button_valid_topic'),
-            10,
+            1,
         )
         self._confidence_publisher = self.create_publisher(
             Float32,
             self._string_parameter('button_confidence_topic'),
-            10,
+            1,
         )
         self._debug_publisher = self.create_publisher(
             Image,
             self._string_parameter('debug_image_topic'),
-            qos_profile_sensor_data,
+            self._sensor_qos(1),
+        )
+        selection_state_qos = QoSProfile(
+            history=QoSHistoryPolicy.KEEP_LAST,
+            depth=1,
+            reliability=QoSReliabilityPolicy.RELIABLE,
+            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+        )
+        self._selection_state_publisher = self.create_publisher(
+            String,
+            self._string_parameter('button_selected_topic'),
+            selection_state_qos,
         )
 
     def _create_subscriptions(self) -> None:
@@ -192,24 +253,30 @@ class ButtonDetector(Node):
         self._depth_subscription = None
         self._synchronizer = None
         self._color_only_subscription = None
+        self._selection_subscription = self.create_subscription(
+            String,
+            self._string_parameter('button_selection_topic'),
+            self._selection_callback,
+            10,
+        )
         if self._use_depth:
             self._camera_info_subscription = self.create_subscription(
                 CameraInfo,
                 self._string_parameter('camera_info_topic'),
                 self._camera_info_callback,
-                qos_profile_sensor_data,
+                self._input_qos,
             )
             self._color_subscription = message_filters.Subscriber(
                 self,
                 Image,
                 color_topic,
-                qos_profile=qos_profile_sensor_data,
+                qos_profile=self._input_qos,
             )
             self._depth_subscription = message_filters.Subscriber(
                 self,
                 Image,
                 self._string_parameter('depth_topic'),
-                qos_profile=qos_profile_sensor_data,
+                qos_profile=self._input_qos,
             )
             self._synchronizer = message_filters.ApproximateTimeSynchronizer(
                 [self._color_subscription, self._depth_subscription],
@@ -226,8 +293,49 @@ class ButtonDetector(Node):
                 Image,
                 color_topic,
                 self._color_callback,
-                qos_profile_sensor_data,
+                self._input_qos,
             )
+
+    def _selection_callback(self, message: String) -> None:
+        requested = str(message.data).strip()
+        if requested.casefold() in {'clear', 'none'}:
+            requested = ''
+        if requested == self._selected_button_class:
+            self._publish_selection_state()
+            return
+        self._selected_button_class = requested
+        self._tracker.reset()
+        self._filtered_position = None
+        self._publish_selection_state()
+        self._publish_state(None, False)
+        self.get_logger().info(
+            f'Button selection changed: {self._selection_log_text()}'
+        )
+
+    def _publish_selection_state(self) -> None:
+        self._selection_state_publisher.publish(
+            String(data=self._selected_button_class)
+        )
+
+    def _selection_log_text(self) -> str:
+        return self._selected_button_class or '<none>'
+
+    @staticmethod
+    def _sensor_qos(
+        depth: int,
+        reliable: bool = False,
+    ) -> QoSProfile:
+        """Return a low-depth profile suitable for live sensor data."""
+        return QoSProfile(
+            history=QoSHistoryPolicy.KEEP_LAST,
+            depth=max(1, int(depth)),
+            reliability=(
+                QoSReliabilityPolicy.RELIABLE
+                if reliable
+                else QoSReliabilityPolicy.BEST_EFFORT
+            ),
+            durability=QoSDurabilityPolicy.VOLATILE,
+        )
 
     def _resolve_model_path(self, configured_path: str) -> Path:
         path = Path(configured_path).expanduser()
@@ -255,9 +363,15 @@ class ButtonDetector(Node):
             self.get_logger().warning('Ignoring invalid camera intrinsics.')
             return
         self._camera_matrix = matrix
+        self._distortion_coefficients = np.asarray(
+            message.d,
+            dtype=np.float64,
+        )
+        self._distortion_model = message.distortion_model
         self._camera_frame = message.header.frame_id
 
     def _color_callback(self, color_message: Image) -> None:
+        started = monotonic()
         try:
             color_image = self._bridge.imgmsg_to_cv2(
                 color_message,
@@ -268,12 +382,14 @@ class ButtonDetector(Node):
             self._publish_state(None, False)
             return
         self._process_frame(color_message, color_image, None)
+        self._record_performance(color_message, monotonic() - started)
 
     def _rgbd_callback(
         self,
         color_message: Image,
         depth_message: Image,
     ) -> None:
+        started = monotonic()
         try:
             color_image = self._bridge.imgmsg_to_cv2(
                 color_message,
@@ -288,6 +404,63 @@ class ButtonDetector(Node):
             self._publish_state(None, False)
             return
         self._process_frame(color_message, color_image, depth_image)
+        self._record_performance(color_message, monotonic() - started)
+
+    def _record_performance(
+        self,
+        source_message: Image,
+        processing_seconds: float,
+    ) -> None:
+        """Periodically report throughput and source-frame age."""
+        self._performance_frame_count += 1
+        self._performance_total_seconds += processing_seconds
+        self._performance_max_seconds = max(
+            self._performance_max_seconds,
+            processing_seconds,
+        )
+
+        interval = max(
+            0.0,
+            float(
+                self.get_parameter(
+                    'performance_log_interval_seconds'
+                ).value
+            ),
+        )
+        elapsed = monotonic() - self._performance_window_started
+        if interval <= 0.0 or elapsed < interval:
+            return
+
+        count = max(1, self._performance_frame_count)
+        average_ms = 1000.0 * self._performance_total_seconds / count
+        maximum_ms = 1000.0 * self._performance_max_seconds
+        throughput = count / max(elapsed, 1e-6)
+        debug_throughput = self._debug_frame_count / max(elapsed, 1e-6)
+        age_text = 'unavailable'
+        stamp_ns = (
+            int(source_message.header.stamp.sec) * 1_000_000_000
+            + int(source_message.header.stamp.nanosec)
+        )
+        if stamp_ns > 0:
+            age_seconds = (
+                self.get_clock().now().nanoseconds - stamp_ns
+            ) / 1_000_000_000.0
+            if 0.0 <= age_seconds <= 60.0:
+                age_text = f'{age_seconds * 1000.0:.1f} ms'
+
+        self.get_logger().info(
+            'Performance: '
+            f'{throughput:.1f} FPS, '
+            f'debug={debug_throughput:.1f} FPS, '
+            f'average={average_ms:.1f} ms, '
+            f'max={maximum_ms:.1f} ms, '
+            f'input_age={age_text}'
+        )
+        self._performance_window_started = monotonic()
+        self._performance_frame_count = 0
+        self._performance_total_seconds = 0.0
+        self._performance_max_seconds = 0.0
+        self._debug_frame_count = 0
 
     def _process_frame(
         self,
@@ -297,8 +470,12 @@ class ButtonDetector(Node):
     ) -> None:
         detections = self._detect(color_image)
         self._publish_detections(color_message, detections)
-        selected, stable = self._tracker.update(
+        selected_detections = filter_detections_by_class(
             detections,
+            self._selected_button_class,
+        )
+        selected, stable = self._tracker.update(
+            selected_detections,
             color_image.shape[1],
             color_image.shape[0],
         )
@@ -341,6 +518,8 @@ class ButtonDetector(Node):
                         center_x,
                         center_y,
                         depth_m,
+                        self._distortion_coefficients,
+                        self._distortion_model,
                     )
                     position = self._smooth_position(measured)
                     valid = True
@@ -476,6 +655,30 @@ class ButtonDetector(Node):
         depth_m: Optional[float],
         valid: bool,
     ) -> None:
+        if not bool(self.get_parameter('publish_debug_image').value):
+            return
+        if (
+            bool(
+                self.get_parameter(
+                    'debug_image_only_when_subscribed'
+                ).value
+            )
+            and self._debug_publisher.get_subscription_count() == 0
+        ):
+            return
+
+        now = monotonic()
+        maximum_fps = max(
+            0.0,
+            float(self.get_parameter('debug_max_fps').value),
+        )
+        if (
+            maximum_fps > 0.0
+            and self._last_debug_publish_time is not None
+            and now - self._last_debug_publish_time < 1.0 / maximum_fps
+        ):
+            return
+
         debug_image = image.copy()
         height, width = debug_image.shape[:2]
         x0, y0, x1, y1 = self._roi_bounds(width, height)
@@ -494,8 +697,10 @@ class ButtonDetector(Node):
                 1,
             )
 
-        status = 'NO BUTTON'
+        status = 'SELECT BUTTON'
         status_color = (0, 0, 255)
+        if self._selected_button_class:
+            status = f'NO {self._selected_button_class}'
         if selected is not None:
             status = 'STABLE' if valid else 'TRACKING'
             status_color = (0, 255, 0) if valid else (0, 215, 255)
@@ -520,12 +725,29 @@ class ButtonDetector(Node):
             2,
             cv2.LINE_AA,
         )
+        scale = float(
+            np.clip(
+                self.get_parameter('debug_image_scale').value,
+                0.1,
+                1.0,
+            )
+        )
+        if scale < 1.0:
+            debug_image = cv2.resize(
+                debug_image,
+                None,
+                fx=scale,
+                fy=scale,
+                interpolation=cv2.INTER_AREA,
+            )
         debug_message = self._bridge.cv2_to_imgmsg(
             debug_image,
             encoding='bgr8',
         )
         debug_message.header = source_message.header
         self._debug_publisher.publish(debug_message)
+        self._last_debug_publish_time = now
+        self._debug_frame_count += 1
 
     @staticmethod
     def _draw_detection(
@@ -562,8 +784,15 @@ def main(args=None) -> None:
     except KeyboardInterrupt:
         pass
     finally:
-        node.destroy_node()
-        rclpy.shutdown()
+        try:
+            node.destroy_node()
+        except (KeyboardInterrupt, RuntimeError):
+            pass
+        if rclpy.ok():
+            try:
+                rclpy.shutdown()
+            except RuntimeError:
+                pass
 
 
 if __name__ == '__main__':
