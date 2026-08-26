@@ -4,7 +4,7 @@
 
 **Goal:** Build a Gazebo Fortress virtual-hardware package for Piper + Pika + an eye-in-hand RGB-D camera, with hardware-like ROS interfaces and no FakeSystem in the Gazebo path.
 
-**Architecture:** `piper_elevator_gazebo` owns Gazebo physics, `gz_ros2_control`, the elevator world, camera bridges, depth normalization, and hardware-only launch scripts. `piper_elevator_app` keeps MoveIt, detector, and planner code, and gains a description-only robot model plus an external-hardware launch mode so those components can connect to Gazebo without starting a second controller manager.
+**Architecture:** `piper_elevator_gazebo` is a thin integration package around official robot descriptions and official ROS/Gazebo plugins. It owns only the project-specific Gazebo extensions, elevator world, bridge configuration, depth normalization, and hardware-only launch script. `piper_elevator_app` keeps MoveIt, detector, and planner code, and gains a description-only robot model plus an external-hardware launch mode so those components can connect to Gazebo without starting a second controller manager.
 
 **Tech Stack:** ROS 2 Humble, Gazebo Fortress, `ros_gz_sim`, `ros_gz_bridge`, `gz_ros2_control`, xacro/URDF, SDFormat, `ros2_control`, Python 3, `rclpy`, NumPy, pytest, Docker Compose.
 
@@ -20,6 +20,43 @@
 - Do not publish Gazebo ground truth to `/button_pose`; the existing YOLO inference path must produce that message.
 - Keep automatic motion disabled. Planning and execution are explicit user actions.
 - Preserve unrelated user work, especially the existing deletion of `AI_PROJECT_CONTEXT.md`; never stage that path.
+
+## Official Reuse Audit
+
+Checked against AgileX `agx_arm_sim` commit
+`f8cd8b147c75d59e14f90fb0646770eefa268ed0`, the currently downloaded
+`agx_arm_ros` ROS 2 package, the currently downloaded RealSense description,
+and the ROS 2 Humble Gazebo packages.
+
+Use these official components directly:
+
+- Piper links, joints, inertials, collisions, and meshes from the downloaded
+  `agx_arm_description` package. Never copy or redraw the Piper model.
+- Pika geometry from AgileX `agx_arm_sim`. The existing
+  `pika_gripper_description` package already pins those official meshes and
+  dimensions; its only local adaptation is the `center_joint` interface used by
+  the real Pika ROS driver.
+- D405 body, collision, inertial, mesh, and complete nominal frame tree from
+  `realsense2_description/urdf/_d405.urdf.xacro` by calling the official
+  `sensor_d405` macro. Do not create a camera box, mesh, or optical-frame chain.
+- Gazebo Fortress process and entity creation from `ros_gz_sim`, transport
+  conversion from `ros_gz_bridge`, simulation control from `gz_ros2_control`,
+  controllers from `ros2_controllers`, and joint-state forwarding from
+  `topic_tools relay`. Do not implement replacements for these nodes/plugins.
+
+Do **not** add the whole `agx_arm_sim` repository to this workspace. Its
+`agx_arm_description` package name conflicts with the package already supplied
+by `agx_arm_ros`. Its ready-made Gazebo launch uses Gazebo Classic
+(`gazebo_ros` plus `gazebo_ros2_control`), the stock two-joint Piper gripper,
+and starts MoveIt in the same launch. It therefore cannot satisfy the approved
+Fortress, Pika `center_joint`, and hardware-only boundary without adaptation.
+
+The local code left in this plan is integration that no official package can
+know about: the Piper/Pika/TCP composition wrapper, Fortress-specific sensor
+and control tags, project topic/controller configuration, the elevator scene,
+and the `32FC1` metres to RealSense-style `16UC1` millimetres boundary adapter.
+The official `depth_image_proc/convert_metric_node` performs the opposite
+conversion and cannot replace that adapter.
 
 ---
 
@@ -49,7 +86,7 @@
 
 ### Existing application and infrastructure
 
-- `ros2_ws/src/piper_elevator_app/config/piper_pika_description.xacro` — shared Piper/Pika/TCP geometry fragment.
+- `ros2_ws/src/piper_elevator_app/config/piper_pika_description.xacro` — thin composition wrapper for official Piper, official-derived Pika, and project TCP.
 - `ros2_ws/src/piper_elevator_app/config/piper_pika_description.urdf.xacro` — description-only MoveIt model.
 - `ros2_ws/src/piper_elevator_app/config/piper_pika.urdf.xacro` — legacy GenericSystem wrapper, unchanged by default.
 - `ros2_ws/src/piper_elevator_app/piper_elevator_app/launch_mode.py` — pure external/legacy MoveIt launch policy.
@@ -114,7 +151,7 @@ Do not install `gazebo_ros_pkgs` or `gazebo_ros2_control`.
 
 - [ ] **Step 4: Create the package manifest**
 
-Use package format 3 with `ament_python`. Declare direct runtime dependencies on `ament_index_python`, `controller_manager`, `cv_bridge`, `gz_ros2_control`, `joint_state_broadcaster`, `joint_trajectory_controller`, `launch`, `launch_ros`, `piper_elevator_app`, `python3-numpy`, `rclpy`, `robot_state_publisher`, `ros_gz_bridge`, `ros_gz_sim`, `rosgraph_msgs`, `sensor_msgs`, `topic_tools`, and `xacro`. Declare test dependencies on `ament_flake8`, `ament_pep257`, `control_msgs`, `python3-pytest`, and `tf2_ros`.
+Use package format 3 with `ament_python`. Declare direct runtime dependencies on `ament_index_python`, `controller_manager`, `cv_bridge`, `gz_ros2_control`, `joint_state_broadcaster`, `joint_trajectory_controller`, `launch`, `launch_ros`, `piper_elevator_app`, `python3-numpy`, `rclpy`, `realsense2_description`, `robot_state_publisher`, `ros_gz_bridge`, `ros_gz_sim`, `rosgraph_msgs`, `sensor_msgs`, `topic_tools`, and `xacro`. Declare test dependencies on `ament_flake8`, `ament_pep257`, `control_msgs`, `python3-pytest`, and `tf2_ros`.
 
 Export the build type and model path:
 
@@ -238,7 +275,10 @@ Run the focused pytest inside the container. Expected: FAIL because `piper_pika_
 
 - [ ] **Step 3: Extract the shared geometry fragment**
 
-Move the official includes, Pika mount, and TCP link/joint into `piper_pika_description.xacro`. Expose:
+Move only the composition calls, Pika mount, and TCP link/joint into
+`piper_pika_description.xacro`. Continue including the official Piper macro and
+the existing official-derived Pika macro; do not copy their link, inertial,
+collision, or mesh definitions into this fragment. Expose:
 
 ```xml
 <xacro:macro name="piper_pika_end_effector"
@@ -284,7 +324,7 @@ git commit -m "refactor: separate Piper Pika robot description"
 
 ---
 
-### Task 3: Implement RealSense-compatible depth conversion
+### Task 3: Implement the missing RealSense-compatible depth boundary adapter
 
 **Files:**
 - Create: `ros2_ws/src/piper_elevator_gazebo/piper_elevator_gazebo/depth_conversion.py`
@@ -294,6 +334,12 @@ git commit -m "refactor: separate Piper Pika robot description"
 **Interfaces:**
 - Consumes: `32FC1` metres on `/sim/camera/depth_image`.
 - Produces: `16UC1` millimetres on `/camera/aligned_depth_to_color/image_raw`, preserving the header.
+
+This custom node exists only because the official Gazebo bridge preserves the
+floating-point depth representation, while the official
+`depth_image_proc/convert_metric_node` converts `16UC1` millimetres to `32FC1`
+metres, not the required reverse direction. Do not add any color, CameraInfo,
+TF, or generic bridge behavior to this adapter.
 
 - [ ] **Step 1: Write failing conversion tests**
 
@@ -382,7 +428,8 @@ git commit -m "feat: normalize simulated depth for detector"
 - Create: `ros2_ws/src/piper_elevator_gazebo/test/test_gazebo_description.py`
 
 **Interfaces:**
-- Consumes: shared Piper/Pika geometry and initial positions.
+- Consumes: official Piper geometry, official-derived Pika geometry, the
+  official RealSense D405 xacro, shared composition, and initial positions.
 - Produces: seven physical position-command joints and `/piper_d405/{image,depth_image,camera_info}` Gazebo topics.
 
 - [ ] **Step 1: Write the failing xacro contract test**
@@ -395,6 +442,7 @@ assert robot.findtext('ros2_control/hardware/plugin') == (
 )
 assert 'mock_components/GenericSystem' not in expanded_xml
 assert expanded_xml.count('gz_ros2_control::GazeboSimROS2ControlPlugin') == 1
+assert robot.find("link[@name='camera_bottom_screw_frame']") is not None
 assert robot.find("link[@name='camera_link']") is not None
 assert robot.find("link[@name='camera_color_optical_frame']") is not None
 assert robot.find(
@@ -430,11 +478,27 @@ Use a 200 Hz manager update rate. Keep controller names and joint lists identica
 </gazebo>
 ```
 
-- [ ] **Step 5: Add camera frames and sensor**
+- [ ] **Step 5: Compose the official D405 and add only the Gazebo sensor tag**
 
-Declare `camera_xyz` default `0 0 -0.10` and `camera_rpy` default `0 0 0`. Fix `camera_link` to `tcp_link`; fix the optical frame with RPY `-1.57079632679 0 -1.57079632679`. Attach:
+Declare `camera_xyz` default `0 0 -0.10` and `camera_rpy` default `0 0 0`.
+Include the D405 description already shipped in the downloaded official
+RealSense package and instantiate its complete nominal frame tree:
 
 ```xml
+<xacro:include
+  filename="$(find realsense2_description)/urdf/_d405.urdf.xacro"/>
+<xacro:sensor_d405 parent="tcp_link" name="camera"
+                   use_nominal_extrinsics="true">
+  <origin xyz="$(arg camera_xyz)" rpy="$(arg camera_rpy)"/>
+</xacro:sensor_d405>
+```
+
+Do not define `camera_link`, D405 dimensions, inertials, collision, mesh, or
+optical joints locally. Attach only the simulator-specific sensor extension to
+the official `camera_link`:
+
+```xml
+<gazebo reference="camera_link">
 <sensor name="piper_d405" type="rgbd_camera">
   <always_on>true</always_on>
   <update_rate>30</update_rate>
@@ -445,6 +509,7 @@ Declare `camera_xyz` default `0 0 -0.10` and `camera_rpy` default `0 0 0`. Fix `
     <clip><near>0.1</near><far>2.0</far></clip>
   </camera>
 </sensor>
+</gazebo>
 ```
 
 - [ ] **Step 6: Build and test**
@@ -563,7 +628,11 @@ Read launch and script source. Require `ros_gz_sim`, `ros_gz_bridge`, `robot_sta
 
 Run the focused test. Expected: FAIL because launch/script paths are absent.
 
-- [ ] **Step 3: Add camera and clock bridge YAML**
+- [ ] **Step 3: Configure the official camera and clock bridge**
+
+Use the official `ros_gz_bridge` `parameter_bridge` executable and its YAML
+schema; this file contains only project topic mappings, not a custom bridge
+node:
 
 ```yaml
 - ros_topic_name: /camera/color/image_raw

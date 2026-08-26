@@ -22,9 +22,18 @@ hardware.
 ROS 2 Humble's supported modern Gazebo pairing is Gazebo Fortress. Gazebo
 Classic is outside the scope of this work.
 
+An official-source audit was completed before implementation. AgileX's
+`agx_arm_sim` does contain a Piper Gazebo launch, but it targets Gazebo Classic,
+the stock two-joint gripper, and a combined Gazebo + MoveIt bringup. The whole
+repository also exports an `agx_arm_description` package that conflicts with
+the same-named package already downloaded through `agx_arm_ros`. It is therefore
+not added wholesale. Official robot and camera descriptions are composed
+directly, while only the Fortress- and project-specific glue is local.
+
 ## Goals
 
 - Add an independent `piper_elevator_gazebo` ROS 2 package.
+- Reuse official Piper, Pika, and D405 geometry instead of recreating models.
 - Use Gazebo physics and `gz_ros2_control/GazeboSimSystem` for the Piper and
   Pika joints.
 - Ensure the Gazebo launch path contains no
@@ -66,14 +75,19 @@ ros2_ws/src/piper_elevator_gazebo/
 
 `piper_elevator_app` continues to own the application, MoveIt configuration,
 planner, and detector. Shared robot geometry remains single-source rather than
-being copied into the Gazebo package.
+being copied into the Gazebo package. Piper comes from the downloaded AgileX
+`agx_arm_description`; Pika uses the existing package derived from the pinned
+official `agx_arm_sim` model; and the camera calls RealSense's official
+`sensor_d405` xacro macro.
 
 ### Robot description layering
 
-The existing combined robot description will be separated into:
+The existing combined robot description will be separated into thin
+composition layers:
 
-1. A shared Piper + Pika + TCP geometry layer with joints, limits, inertials,
-   visuals, and collisions.
+1. A shared Piper + Pika + TCP composition layer which includes the official
+   Piper and official-derived Pika descriptions without copying their links,
+   inertials, visuals, collisions, or meshes.
 2. The existing legacy control wrapper used by the current real-hardware path.
 3. A Gazebo wrapper which adds `GazeboSimSystem`, the Gazebo control plugin,
    and the RGB-D sensor.
@@ -122,17 +136,23 @@ real launch's present behavior.
 
 ## Virtual RGB-D Camera
 
-The camera is rigidly attached to `tcp_link`:
+The official RealSense D405 description is rigidly attached to `tcp_link` with
+nominal extrinsics enabled:
 
 ```text
 tcp_link
-└── camera_link
-    └── camera_color_optical_frame
+└── camera_bottom_screw_frame
+    └── camera_link
+        ├── camera_depth_optical_frame
+        └── camera_color_optical_frame
 ```
 
-Mount translation and rotation are xacro parameters. Defaults use the current
-simulation's approximate eye-in-hand location; calibrated real extrinsics can
-replace them later without changing perception code.
+The D405 body mesh, collision, inertial, and optical-frame rotations come from
+`realsense2_description/urdf/_d405.urdf.xacro`; they are not recreated in this
+project. Only the mount translation/rotation and the Gazebo RGB-D sensor tag
+are local. Defaults use the current simulation's approximate eye-in-hand
+location; calibrated real extrinsics can replace them later without changing
+perception code.
 
 Initial sensor settings are:
 
@@ -333,9 +353,17 @@ The milestone is complete when:
 
 ## References
 
+- AgileX official arm simulation repository and Gazebo Classic integration:
+  <https://github.com/agilexrobotics/agx_arm_sim>
+- Intel RealSense official ROS description repository:
+  <https://github.com/IntelRealSense/realsense-ros/tree/ros2-master/realsense2_description>
 - Gazebo ROS 2 installation and version pairing:
   <https://gazebosim.org/docs/jetty/ros_installation/>
 - `gz_ros2_control` for ROS 2 Humble:
   <https://control.ros.org/humble/doc/gz_ros2_control/doc/index.html>
 - Gazebo ROS 2 interoperability:
   <https://gazebosim.org/docs/fortress/ros2_interop/>
+- Official `ros_gz_bridge` RGB-D bridge example:
+  <https://github.com/gazebosim/ros_gz/blob/ros2/ros_gz_sim_demos/config/rgbd_camera_bridge.yaml>
+- Official depth image conversion implementation:
+  <https://github.com/ros-perception/image_pipeline/tree/humble/depth_image_proc>
