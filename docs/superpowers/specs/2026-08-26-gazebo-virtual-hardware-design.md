@@ -2,8 +2,9 @@
 
 ## Status
 
-Approved in conversation on 2026-08-26. This document describes the first
-Gazebo milestone; it is not yet an implementation plan.
+Approved in conversation on 2026-08-26 and revised after scope clarification to
+focus on the elevator button rather than a complete elevator. This document
+describes the first Gazebo milestone.
 
 ## Background
 
@@ -27,8 +28,12 @@ An official-source audit was completed before implementation. AgileX's
 the stock two-joint gripper, and a combined Gazebo + MoveIt bringup. The whole
 repository also exports an `agx_arm_description` package that conflicts with
 the same-named package already downloaded through `agx_arm_ros`. It is therefore
-not added wholesale. Official robot and camera descriptions are composed
-directly, while only the Fortress- and project-specific glue is local.
+not added wholesale. The project does not need a complete elevator model:
+Gazebo's official Contact, `TouchPlugin`, and `TriggeredPublisher` systems cover
+button contact and event publication, while SDFormat already defines prismatic
+joint limits, damping, and spring return. Official robot and camera descriptions
+are composed directly; only the small elevator-button test fixture and
+Fortress-specific integration remain local.
 
 ## Goals
 
@@ -40,8 +45,9 @@ directly, while only the Fortress- and project-specific glue is local.
   `mock_components/GenericSystem`.
 - Simulate an eye-in-hand RGB-D camera with a RealSense-compatible ROS topic
   contract.
-- Add a deterministic elevator wall and button panel which the current YOLOv10
-  ONNX inference path detects from rendered images.
+- Simulate a deterministic elevator `up` button which can be rendered for
+  YOLOv10, physically depressed by the Piper tool, spring back, and publish a
+  contact event.
 - Launch only virtual hardware from the Gazebo convenience script. MoveIt,
   detector, and planner remain separately launched application components.
 - Preserve the current real-hardware control path for this milestone.
@@ -49,8 +55,8 @@ directly, while only the Fortress- and project-specific glue is local.
 ## Non-goals
 
 - Removing GenericSystem from the current real Piper trajectory proxy.
-- Simulating a moving button, switch travel, force threshold, or successful
-  button activation.
+- Simulating a complete elevator cabin, floor doors, floor dispatch, or people.
+- Claiming real-world force/feel fidelity from the simulated button spring.
 - Publishing a ground-truth button pose to the planner.
 - Replacing the existing YOLO model with a simulator-only detector.
 - Automatically executing motion when the simulator starts.
@@ -64,13 +70,13 @@ Simulation assets live in a separate package:
 ros2_ws/src/piper_elevator_gazebo/
 ├── config/       Gazebo ros2_control and bridge configuration
 ├── launch/       Virtual-hardware-only launch files
-├── models/       Elevator panel meshes, textures, and SDF
+├── models/       Local elevator-button test fixture
 ├── piper_elevator_gazebo/
-│   └── depth_adapter.py
+│   └── __init__.py
 ├── resource/
 ├── test/
 ├── urdf/         Gazebo-specific robot and sensor extensions
-└── worlds/       Deterministic elevator test world
+└── worlds/       Deterministic button-press test world
 ```
 
 `piper_elevator_app` continues to own the application, MoveIt configuration,
@@ -162,30 +168,38 @@ Initial sensor settings are:
 - approximately 0.1 to 2.0 metre useful depth range
 - ROS optical-frame convention on `camera_color_optical_frame`
 
-Gazebo transport topics remain internal. `ros_gz_bridge` and the virtual
-hardware adapter expose the same external topic names used by the D405:
+Gazebo transport topics remain internal. `ros_gz_bridge` exposes the same
+external topic names used by the D405:
 
 | External topic | ROS type | Required semantics |
 |---|---|---|
 | `/camera/color/image_raw` | `sensor_msgs/msg/Image` | BGR/RGB image convertible by `cv_bridge` |
-| `/camera/aligned_depth_to_color/image_raw` | `sensor_msgs/msg/Image` | `16UC1`, millimetres, aligned to color |
+| `/camera/aligned_depth_to_color/image_raw` | `sensor_msgs/msg/Image` | Gazebo: `32FC1` metres; real D405: `16UC1` millimetres |
 | `/camera/color/camera_info` | `sensor_msgs/msg/CameraInfo` | matching intrinsics and optical frame |
 
-Modern Gazebo commonly produces a floating-point depth image in metres. The
-simulation-only depth adapter converts finite `32FC1` metres to `16UC1`
-millimetres, maps invalid samples to zero, and preserves timestamp and frame.
-This keeps the existing detector parameter `depth_unit_scale: 0.001` valid in
-both simulation and real runs.
+Gazebo Sim 6's RGB-D sensor publishes floating-point depth in metres and
+`ros_gz_bridge` maps it to ROS `32FC1`. No conversion node is needed: the
+existing detector already leaves floating-point samples in metres and applies
+`depth_unit_scale: 0.001` only to integer RealSense depth. A characterization
+test must lock this dual-encoding contract in place.
 
 All simulator-side ROS nodes use `use_sim_time` and camera messages carry
 Gazebo timestamps. Color, depth, and CameraInfo must be close enough for the
 detector's current approximate-time synchronizer.
 
-## Elevator World and YOLO Target
+## Elevator Button Fixture
 
-The deterministic world contains a floor, wall, lighting, and an elevator
-button panel at a configurable pose. The panel starts inside the Piper workspace
-and in the initial camera field of view.
+The deterministic world is intentionally small: floor, a short wall/panel,
+lighting, Piper + Pika + camera, and one `up` button in the robot workspace. It
+does not contain an elevator cabin, doors, shaft, or floor controller. This
+keeps the simulator focused on the project's actual boundary: RGB-D detection,
+3-D localization, approach, contact, and button travel.
+
+No compatible Fortress model was found that provides the exact physical and
+visual button contract. The button's small SDF geometry is therefore local,
+but its behavior uses only official primitives: a prismatic joint with a 4 mm
+travel limit and spring/damping dynamics, a contact sensor, Gazebo Sim 6
+`TouchPlugin`, and `ros_gz_bridge`. No custom Gazebo plugin is required.
 
 The first target class is `up`, which exists in the current ONNX metadata. The
 panel uses raised collision geometry plus a realistic face material containing
@@ -199,9 +213,15 @@ error. If YOLO cannot recognize the rendered target, the response is to improve
 the scene assets or collect synthetic training images, not to substitute
 `mock_button_pose`.
 
-The button has a collision body in this milestone, but it does not translate or
-report an activation event. Motion acceptance ends at the configured approach
-pose in front of the panel.
+The button face moves only along its panel normal and returns when released.
+`TouchPlugin` publishes Gazebo Boolean state on `/elevator_button/touched`; the
+official bridge exposes it as ROS `std_msgs/msg/Bool` on
+`/elevator_button/pressed`. Joint state is retained as test instrumentation so
+tests can distinguish merely touching the face from depressing it through the
+configured threshold. The official plugin is one-shot, so repeatable tests
+re-arm it through `/elevator_button/enable` before each attempt.
+`TriggeredPublisher` is optional for later LED or mission events and does not
+justify a custom plugin.
 
 ## Launch Boundary
 
@@ -214,10 +234,10 @@ The convenience command is intentionally hardware-only:
 It starts:
 
 - Gazebo server and optional GUI
-- the elevator world
+- the elevator-button test world
 - Piper + Pika + RGB-D entity spawning
 - Gazebo's controller manager and controller spawners
-- the virtual camera bridges and depth adapter
+- the virtual camera bridges
 - joint-state normalization
 - `/clock`
 - robot-state publication when required by the spawn/control integration
@@ -260,11 +280,14 @@ extrinsics.
 | Boundary | Gazebo provider | Real provider | Application contract |
 |---|---|---|---|
 | Color | Gazebo RGB-D sensor | RealSense driver | same image topic/type |
-| Aligned depth | depth adapter | RealSense driver | same topic, `16UC1` millimetres |
+| Aligned depth | Gazebo bridge, `32FC1` metres | RealSense driver, `16UC1` millimetres | same topic; existing detector estimates metres from either encoding |
 | Intrinsics | Gazebo bridge | RealSense driver | same CameraInfo topic |
 | Arm trajectory | Gazebo arm controller | current MoveIt/controller proxy | same FollowJointTrajectory action |
 | Joint feedback | Gazebo normalization | Piper/Pika mux | `/piper_pika/joint_states` |
 | Button pose | existing YOLO detector | existing YOLO detector | `/button_pose` in camera optical frame |
+
+`/elevator_button/pressed` is simulator test instrumentation, not an interface
+that application code may require from the real elevator.
 
 Moving to the real robot still requires selecting the real hardware launch,
 using real camera extrinsics, enforcing the existing control gate, and starting
@@ -281,6 +304,8 @@ or real-hardware safety validation.
   used when explicitly requested for debugging.
 - No selected/detected button means no `/button_pose`; therefore the planner has
   no valid target and cannot execute a button approach.
+- Contact without sufficient prismatic travel fails the button-press acceptance
+  check instead of being reported as a successful press.
 - Automatic execution remains disabled. Gazebo hardware startup alone never
   moves the arm.
 - A failed YOLO synthetic-image test is reported as an unmet visual acceptance
@@ -307,10 +332,10 @@ Verification is layered so failures identify the responsible boundary.
    - Parse the generated XML.
    - Confirm GazeboSimSystem is present and GenericSystem is absent.
    - Confirm camera frames, joint names, and required plugins exist once.
-2. **Depth adapter unit tests**
-   - Convert finite metres to saturated millimetres.
-   - Map NaN, infinity, negative, and out-of-range values to zero.
-   - Preserve header metadata and array dimensions.
+2. **Depth encoding characterization test**
+   - Feed equivalent `float32` metre and `uint16` millimetre depth images to
+     the existing detector depth estimator.
+   - Require both encodings to produce the same metre-valued result.
 3. **Headless launch smoke test**
    - Start the world and robot with `gui:=false`.
    - Confirm `/clock`, controller manager, normalized joint states, and all three
@@ -322,13 +347,18 @@ Verification is layered so failures identify the responsible boundary.
    - Confirm no standalone FakeSystem controller manager is running.
 5. **Camera contract test**
    - Verify resolution, approximate frame rate, timestamps, frame IDs, and
-     `16UC1` depth encoding.
-6. **Perception acceptance test**
+     Gazebo-native `32FC1` depth encoding in metres.
+6. **Button mechanics test**
+   - Push the face along the panel normal, observe up to 4 mm joint travel, and
+     require it to return after release.
+   - Require `/elevator_button/pressed` only when the Piper tool contacts the
+     button; touching the surrounding panel must not trigger it.
+7. **Perception acceptance test**
    - Start the unchanged detector and select class `up`.
    - Require stable `/button_detection_valid` and `/button_pose` output.
    - Compare the detected 3-D target to test-only world ground truth with a
      documented tolerance.
-7. **Planning acceptance test**
+8. **Planning acceptance test**
    - Start MoveIt and the existing planner separately.
    - Plan, then explicitly execute, an approach trajectory.
    - Verify the TCP stops at the configured pre-contact offset without requiring
@@ -342,10 +372,13 @@ The milestone is complete when:
 - The expanded Gazebo robot contains GazeboSimSystem and no GenericSystem.
 - Existing detector and planner executables run without simulation-specific
   source-code branches.
-- Virtual camera topics match the current RealSense names and depth semantics.
+- Virtual camera topics match the current RealSense names, and the unchanged
+  detector produces metre-valued depth from Gazebo `32FC1` and real `16UC1`.
 - The current YOLO model detects the rendered `up` target and produces a stable
   3-D pose. If model adaptation or additional training is required, this
   milestone remains incomplete until that work passes the same test.
+- The button physically travels, returns after release, and publishes the
+  bridged press event without any custom Gazebo plugin.
 - MoveIt can execute a planned approach through the Gazebo controller.
 - The existing real launch still behaves as it did before this work.
 - `develop.md` contains concise commands for virtual hardware startup, topic
@@ -365,5 +398,14 @@ The milestone is complete when:
   <https://gazebosim.org/docs/fortress/ros2_interop/>
 - Official `ros_gz_bridge` RGB-D bridge example:
   <https://github.com/gazebosim/ros_gz/blob/ros2/ros_gz_sim_demos/config/rgbd_camera_bridge.yaml>
-- Official depth image conversion implementation:
-  <https://github.com/ros-perception/image_pipeline/tree/humble/depth_image_proc>
+- Gazebo Sim 6 built-in contact and message systems:
+  <https://gazebosim.org/api/sim/6/classignition_1_1gazebo_1_1systems_1_1TouchPlugin.html>
+  and
+  <https://gazebosim.org/api/sim/6/classignition_1_1gazebo_1_1systems_1_1TriggeredPublisher.html>
+- Gazebo Sim 6 built-in system inventory, including Contact,
+  JointStatePublisher, and ApplyLinkWrench:
+  <https://gazebosim.org/api/sim/6/namespaceignition_1_1gazebo_1_1systems.html>
+- SDFormat joint limits, damping, and spring dynamics:
+  <https://sdformat.org/spec/1.8/joint/>
+- Official Gazebo contact / TouchPlugin tutorial source:
+  <https://github.com/gazebosim/docs/blob/master/dome/sensors.md>
