@@ -32,6 +32,7 @@ RUN sed -i \
         python3-opencv \
         python3-pandas \
         python3-pip \
+        python3-pytest \
         python3-requests \
         python3-rosdep \
         python3-scipy \
@@ -39,6 +40,7 @@ RUN sed -i \
         python3-vcstool \
         ros-humble-controller-manager \
         ros-humble-gripper-controllers \
+        ros-humble-gz-ros2-control \
         ros-humble-joint-state-broadcaster \
         ros-humble-joint-state-publisher-gui \
         ros-humble-joint-trajectory-controller \
@@ -50,6 +52,7 @@ RUN sed -i \
         ros-humble-ros2-control \
         ros-humble-ros2-controllers \
         ros-humble-rosbag2-storage-mcap \
+        ros-humble-ros-gz \
         ros-humble-topic-tools \
         ros-humble-trajectory-msgs \
         ros-humble-vision-msgs \

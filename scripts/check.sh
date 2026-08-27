@@ -18,6 +18,7 @@ docker compose run --rm piper_ros2 bash -lc '
         data_msgs
         data_tools
         piper_elevator_app
+        piper_elevator_gazebo
         pika_gripper_description
         pika_remote_agx_arm
         realsense2_camera
@@ -29,6 +30,10 @@ docker compose run --rm piper_ros2 bash -lc '
     for package in "${expected_packages[@]}"; do
         ros2 pkg prefix "${package}" >/dev/null
     done
+
+    ros2 pkg prefix ros_gz_sim >/dev/null
+    ros2 pkg prefix ros_gz_bridge >/dev/null
+    ros2 pkg prefix gz_ros2_control >/dev/null
 
     ros2 pkg executables sensor_tools | grep -F "sensor_tools serial_gripper_imu" >/dev/null
     ros2 pkg executables sensor_tools | grep -F "sensor_tools usb_camera.py" >/dev/null
@@ -93,7 +98,7 @@ docker compose run --rm piper_ros2 bash -lc '
         exit 1
     fi
 
-    echo "OK: 13 ROS 2 packages are installed."
+    echo "OK: 14 ROS 2 packages are installed."
     echo "OK: Official Pika meshes and RealSense launch files are loadable."
     echo "OK: YOLO ONNX model runs with CUDAExecutionProvider."
     echo "OK: Piper + Pika MoveIt and all mock controllers are running."
