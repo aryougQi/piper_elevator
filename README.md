@@ -6,7 +6,9 @@
 2. 下载 AgileX 官方 Piper 和 Pika ROS 2 源码。
 3. 编译 Piper、Pika、MoveIt 2 和 RealSense ROS 2 功能包。
 
-当前包含第一个自研业务包 `piper_elevator_app`，已实现基于 YOLO ONNX 的电梯按钮检测、跨帧跟踪和 RGB-D 三维定位；暂不包含 Gazebo。
+当前包含业务包 `piper_elevator_app`，以及基于 Gazebo Fortress 的
+`piper_elevator_gazebo` 虚拟硬件包。后者复用官方 Piper、Pika、D405 描述和
+官方 ROS/Gazebo 插件，只自定义组合、话题映射和可按压按钮场景。
 
 ## 目录
 
@@ -17,7 +19,8 @@ piper_elevator/
 │   ├── agx_arm_ros/
 │   ├── pika_gripper_description/
 │   ├── pika_ros/
-│   └── piper_elevator_app/
+│   ├── piper_elevator_app/
+│   └── piper_elevator_gazebo/
 ├── scripts/
 └── docker-compose.yml
 ```
@@ -89,7 +92,7 @@ ros2_ws/log/
 ./scripts/check.sh
 ```
 
-该检查会确认 13 个功能包、业务检测节点、Pika/RealSense 启动入口，以及
+该检查会确认 14 个功能包、业务检测节点、Pika/RealSense/Gazebo 启动入口，以及
 Piper + 真实 Pika 模型的 MoveIt、ros2_control 和模拟控制器。它不会连接
 真实设备。
 
@@ -204,105 +207,92 @@ ros2 pkg list | grep agx_arm
 ros2 pkg list | grep -E 'pika|data_tools|sensor_tools|realsense2'
 ```
 
-## 七、运行 MoveIt + RViz 仿真
+## 七、启动 Gazebo 虚拟硬件
 
-首次运行 RViz 前，在宿主机执行：
-
-```bash
-xhost +si:localuser:root
-```
-
-然后运行：
+镜像使用 ROS 2 Humble 对应的 Gazebo Fortress、`ros_gz` 和
+`gz_ros2_control`。启动命令为：
 
 ```bash
-./scripts/sim.sh
+./scripts/gazebo_hardware.sh
 ```
 
-该模式不连接真实机械臂，只验证 Piper 模型、MoveIt 规划和 RViz 显示。
-
-由于基础环境暂未安装 `moveit_ros_perception`，启动日志可能提示无法加载 `PointCloudOctomapUpdater`。这是预期的非致命提示：MoveGroup、FakeSystem、控制器和轨迹规划仍可正常使用。等后期加入深度相机和三维场景更新时再补充该插件。
-
-## 八、按钮坐标转换和 MoveIt 靠近仿真
-
-当前已实现 `/button_pose` 从 `camera_color_optical_frame` 到 `base_link` 的
-TF 转换，并沿相机光轴在按钮前方生成安全靠近位姿。默认距离为 20 cm，当前
-阶段不执行按压和视觉伺服。MoveIt 规划和执行采用两个独立服务，检测到坐标
-后不会自动移动。
-
-首次打开 RViz 前，在宿主机执行：
+`./scripts/sim.sh` 是同一入口。无图形界面时使用：
 
 ```bash
-xhost +si:localuser:root
+./scripts/gazebo_hardware.sh gui:=false
 ```
 
-启动完整 FakeSystem 仿真、真实 Pika 夹爪模型、eye-in-hand 模拟相机和模拟
-按钮：
+这个入口只启动虚拟硬件：Piper、Pika、eye-in-hand D405、物理按钮、
+`ros2_control` 和话题桥。它不会启动 MoveIt、RViz、YOLO、Planner、模拟
+`/button_pose` 或自动动作。场景只包含一个有 4 mm 行程、弹簧回位和接触事件
+的按钮，不模拟完整电梯、轿厢或门。
+
+对外接口与实机保持一致：
+
+```text
+/camera/color/image_raw
+/camera/aligned_depth_to_color/image_raw   # 32FC1，单位 m
+/camera/color/camera_info
+/piper_pika/joint_states
+/arm_controller/follow_joint_trajectory
+/pika_gripper_controller/follow_joint_trajectory
+```
+
+仿真额外提供测试状态：
+
+```text
+/elevator_button/pressed
+/elevator_button/joint_states
+/clock
+```
+
+运行无界面验收：
 
 ```bash
-cd /home/qi/Project/piper_elevator
-./scripts/button_approach_sim.sh
+./scripts/check_gazebo.sh
 ```
 
-仿真默认 `auto_execute:=true`：MoveIt 和模拟按钮就绪后自动规划并执行一次，
-只会驱动独立 ROS 域中的 FakeSystem。需要先检查 RViz 再手动执行时使用：
+该检查会验证三个控制器、相机尺寸和坐标系、米制深度、按钮回位，以及一条
+0.1 rad 的安全轨迹。Gazebo 直接桥接 `32FC1` 深度；检测器对浮点深度按米
+处理，对实机 `16UC1` 深度仍按毫米处理，不需要转换节点。
+
+## 八、按需单独启动核心代码
+
+虚拟硬件启动后，核心代码必须在其他终端显式启动：
 
 ```bash
-./scripts/button_approach_sim.sh auto_execute:=false
+ros2 launch piper_elevator_app piper_pika_moveit.launch.py \
+  external_hardware:=true use_sim_time:=true
+
+ros2 launch piper_elevator_app button_detector.launch.py use_sim_time:=true
+
+ros2 launch piper_elevator_app button_approach_planner.launch.py \
+  use_sim_time:=true simulation_mode:=true \
+  camera_calibration_valid:=true allow_execution:=true
 ```
 
-该脚本固定使用 `ROS_DOMAIN_ID=42`，避免与正在运行的真实相机节点串话。新开
-一个宿主机终端进入同一个仿真域：
+所有终端必须使用同一个 `ROS_DOMAIN_ID`。规划和执行仍由用户分别调用，不会
+检测到按钮后自动移动：
 
 ```bash
-cd /home/qi/Project/piper_elevator
-ROS_DOMAIN_ID=42 ./scripts/shell.sh
-source /opt/ros/humble/setup.bash
-source /workspace/ros2_ws/install/setup.bash
+ros2 service call /button_approach_planner/plan std_srvs/srv/Trigger "{}"
+ros2 service call /button_approach_planner/execute std_srvs/srv/Trigger "{}"
+ros2 service call /button_approach_planner/clear_plan std_srvs/srv/Trigger "{}"
 ```
 
-查看相机坐标转换结果和靠近目标：
-
-```bash
-ros2 topic echo /button_pose_base --once
-ros2 topic echo /button_approach_pose --once
-ros2 topic echo /button_approach/status
-```
-
-先规划并在 RViz 中检查，然后明确执行虚拟轨迹：
-
-```bash
-ros2 service call /button_approach_planner/plan std_srvs/srv/Trigger {}
-ros2 service call /button_approach_planner/execute std_srvs/srv/Trigger {}
-```
-
-模拟按钮固定在更远的 `base_link (0.55, 0, 0.30)m`，20 cm 靠近点会根据
-当前相机光轴计算，初始约为 `(0.351, 0, 0.283)m`。仿真已使用 AgileX 官方
-`agx_arm_sim` 仓库中的 Pika2 彩色 DAE 网格和尺寸，不再使用
-`agx_gripper` 替代模型。模型来源固定为官方提交
-`f8cd8b147c75d59e14f90fb0646770eefa268ed0`。夹爪以官方驱动使用的
-`center_joint` 表示 0–98 mm 总开度，并加载独立的
-`pika_gripper_controller`；D405 采用 eye-in-hand 方式固定到 `tcp_link`。
-可以通过 launch 参数修改目标和 TCP：
-
-```bash
-./scripts/button_approach_sim.sh \
-  button_base_x:=0.55 button_base_y:=0.0 button_base_z:=0.30 \
-  pika_tcp_offset:='[0.006, 0.0, 0.189, 0.0, 0.0, 0.0]' \
-  auto_execute:=true
-```
-
-真机使用独立的 `button_approach_real.launch.py`。它复用同一套 Piper+Pika
-URDF、SRDF 和 MoveIt 控制器配置，并将官方 Piper CAN 驱动发布的六轴反馈与
-Pika `center_joint` 合并到 `/piper_pika/joint_states`。MoveIt 的关节轨迹仍按
-官方 `agx_arm_ros` 的方式，经 `/control/joint_states` 转交 CAN 驱动。
+旧的 `button_approach_sim.sh` 和 `button_approach_sim.launch.py` 只保留作
+FakeSystem 回归诊断，不再是支持的仿真流程。实机继续使用独立的
+`button_approach_real.launch.py` 和官方 Piper CAN 驱动；切换到实机不只是
+换相机话题，还必须恢复真实控制代理、真实关节反馈、手眼标定、TCP、CAN、
+限速和执行安全锁。
 
 ## 真机控制
 
-仿真和真机使用两个不同脚本，不能同时运行：
+虚拟硬件和真机不能在同一个 ROS 域同时运行：
 
 ```bash
-# 仿真（ROS_DOMAIN_ID=42）
-./scripts/button_approach_sim.sh
+# Gazebo 虚拟硬件
+./scripts/gazebo_hardware.sh
 
 # 真机（ROS_DOMAIN_ID=0）
 ./scripts/button_approach_real.sh

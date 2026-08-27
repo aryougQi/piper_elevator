@@ -1,3 +1,45 @@
+# Gazebo 虚拟硬件
+
+## 启动
+
+```bash
+cd /home/q/project/piper_elevator/piper_elevator
+./scripts/gazebo_hardware.sh
+```
+
+无界面运行：
+
+```bash
+./scripts/gazebo_hardware.sh gui:=false
+```
+
+该命令只启动 Piper、Pika、D405 和实体按钮仿真，不启动 MoveIt、视觉节点或
+Planner。`./scripts/sim.sh` 等价于该命令。
+
+## 发布
+
+| 话题 | 类型 | 说明 |
+| --- | --- | --- |
+| `/camera/color/image_raw` | `sensor_msgs/Image` | D405 彩色图 |
+| `/camera/aligned_depth_to_color/image_raw` | `sensor_msgs/Image` | `32FC1` 米制深度图 |
+| `/camera/color/camera_info` | `sensor_msgs/CameraInfo` | 相机内参 |
+| `/piper_pika/joint_states` | `sensor_msgs/JointState` | Piper + Pika 反馈 |
+| `/elevator_button/pressed` | `std_msgs/Bool` | 按钮接触事件 |
+| `/elevator_button/joint_states` | `sensor_msgs/JointState` | 按钮行程 |
+
+## 接收
+
+| 接口 | 类型 | 说明 |
+| --- | --- | --- |
+| `/arm_controller/follow_joint_trajectory` | `control_msgs/action/FollowJointTrajectory` | 六轴轨迹 |
+| `/pika_gripper_controller/follow_joint_trajectory` | `control_msgs/action/FollowJointTrajectory` | Pika 开度轨迹 |
+
+运行检查：
+
+```bash
+./scripts/check_gazebo.sh
+```
+
 # 视觉节点
 
 ## 启动

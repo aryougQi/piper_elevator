@@ -49,8 +49,13 @@ docker compose run --rm piper_ros2 bash -lc '
     ros2 launch piper_elevator_app button_approach_sim.launch.py --show-args >/dev/null
     ros2 launch piper_elevator_app button_approach_real.launch.py --show-args >/dev/null
     ros2 launch piper_elevator_app piper_pika_moveit.launch.py --show-args >/dev/null
+    ros2 launch piper_elevator_gazebo gazebo_hardware.launch.py --show-args >/dev/null
     ros2 launch sensor_tools open_single_gripper.launch.py --show-args >/dev/null
     ros2 launch realsense2_camera rs_launch.py --show-args >/dev/null
+    if ros2 pkg executables piper_elevator_gazebo | grep -F depth_adapter; then
+        echo "Gazebo package must bridge 32FC1 depth directly." >&2
+        exit 1
+    fi
     pika_share="$(ros2 pkg prefix pika_gripper_description)/share/pika_gripper_description"
     test -s "${pika_share}/meshes/pika_gripper_base.dae"
     test -s "${pika_share}/meshes/gripper_left_link.dae"

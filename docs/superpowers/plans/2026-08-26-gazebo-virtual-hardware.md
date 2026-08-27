@@ -4,6 +4,12 @@
 
 **Goal:** Build a Gazebo Fortress virtual-hardware package for Piper + Pika + an eye-in-hand RGB-D camera, with hardware-like ROS interfaces and no FakeSystem in the Gazebo path.
 
+> **Scope update (2026-08-27):** The user explicitly narrowed delivery to
+> virtual hardware only. Tasks 9 and 10 remain future application-level
+> acceptance ideas and are not part of this implementation. The supported
+> launcher and smoke test must not start detector, MoveIt, planner, or execute
+> a button-press workflow.
+
 **Architecture:** `piper_elevator_gazebo` is a thin integration package around official robot descriptions and official ROS/Gazebo plugins. It owns only the project-specific robot composition, a small physical elevator-button fixture, bridge configuration, and hardware-only launch script. The test world does not simulate a complete elevator. `piper_elevator_app` keeps MoveIt, detector, and planner code, and gains a description-only robot model plus an external-hardware launch mode so those components can connect to Gazebo without starting a second controller manager.
 
 **Tech Stack:** ROS 2 Humble, Gazebo Fortress, `ros_gz_sim`, `ros_gz_bridge`, `gz_ros2_control`, xacro/URDF, SDFormat, `ros2_control`, Python 3, `rclpy`, NumPy, pytest, Docker Compose.
