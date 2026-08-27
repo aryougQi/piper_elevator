@@ -1,0 +1,129 @@
+<?xml version="1.0"?>
+<sdf version="1.8">
+  <model name="elevator_button">
+    <static>false</static>
+    <self_collide>false</self_collide>
+
+    <link name="wall_panel">
+      <inertial>
+        <mass>2.0</mass>
+        <inertia>
+          <ixx>0.00707</ixx>
+          <iyy>0.00545</iyy>
+          <izz>0.00172</izz>
+        </inertia>
+      </inertial>
+      <visual name="panel_visual">
+        <geometry>
+          <box><size>0.012 0.10 0.18</size></box>
+        </geometry>
+        <material>
+          <ambient>0.32 0.34 0.36 1</ambient>
+          <diffuse>0.42 0.45 0.48 1</diffuse>
+          <specular>0.20 0.20 0.20 1</specular>
+          <pbr>
+            <metal>
+              <metalness>0.65</metalness>
+              <roughness>0.32</roughness>
+            </metal>
+          </pbr>
+        </material>
+      </visual>
+      <!-- Leave a collision channel behind the moving button face. -->
+      <collision name="panel_left_collision">
+        <pose>0 0.035 0 0 0 0</pose>
+        <geometry><box><size>0.012 0.030 0.18</size></box></geometry>
+      </collision>
+      <collision name="panel_right_collision">
+        <pose>0 -0.035 0 0 0 0</pose>
+        <geometry><box><size>0.012 0.030 0.18</size></box></geometry>
+      </collision>
+    </link>
+
+    <joint name="panel_world_joint" type="fixed">
+      <parent>world</parent>
+      <child>wall_panel</child>
+    </joint>
+
+    <link name="button_face">
+      <pose relative_to="wall_panel">0.010 0 0 0 0 0</pose>
+      <inertial>
+        <mass>0.03</mass>
+        <inertia>
+          <ixx>0.0000060</ixx>
+          <iyy>0.00000316</iyy>
+          <izz>0.00000316</izz>
+        </inertia>
+      </inertial>
+      <visual name="button_visual">
+        <pose>0 0 0 0 1.57079632679 0</pose>
+        <geometry>
+          <cylinder><radius>0.020</radius><length>0.008</length></cylinder>
+        </geometry>
+        <material>
+          <ambient>0.78 0.78 0.74 1</ambient>
+          <diffuse>0.92 0.92 0.88 1</diffuse>
+          <specular>0.25 0.25 0.25 1</specular>
+          <pbr>
+            <metal>
+              <metalness>0.25</metalness>
+              <roughness>0.30</roughness>
+            </metal>
+          </pbr>
+        </material>
+      </visual>
+      <visual name="up_symbol_visual">
+        <pose>0.0041 0 0 0 0 0</pose>
+        <geometry>
+          <mesh><uri>meshes/up_symbol.dae</uri></mesh>
+        </geometry>
+      </visual>
+      <collision name="button_face_collision">
+        <pose>0 0 0 0 1.57079632679 0</pose>
+        <geometry>
+          <cylinder><radius>0.020</radius><length>0.008</length></cylinder>
+        </geometry>
+        <surface>
+          <friction>
+            <ode><mu>0.8</mu><mu2>0.8</mu2></ode>
+          </friction>
+        </surface>
+      </collision>
+      <sensor name="button_contact" type="contact">
+        <always_on>true</always_on>
+        <update_rate>200</update_rate>
+        <contact><collision>button_face_collision</collision></contact>
+      </sensor>
+    </link>
+
+    <joint name="button_press_joint" type="prismatic">
+      <parent>wall_panel</parent>
+      <child>button_face</child>
+      <axis>
+        <xyz>1 0 0</xyz>
+        <limit><lower>-0.004</lower><upper>0.0</upper></limit>
+        <dynamics>
+          <damping>0.50</damping>
+          <spring_reference>0.0</spring_reference>
+          <spring_stiffness>50.0</spring_stiffness>
+        </dynamics>
+      </axis>
+    </joint>
+
+    <plugin
+      filename="ignition-gazebo-touchplugin-system"
+      name="ignition::gazebo::systems::TouchPlugin">
+      <target>piper_pika</target>
+      <namespace>elevator_button</namespace>
+      <time>0.02</time>
+      <enabled>true</enabled>
+    </plugin>
+    <plugin
+      filename="ignition-gazebo-joint-state-publisher-system"
+      name="ignition::gazebo::systems::JointStatePublisher">
+      <joint_name>button_press_joint</joint_name>
+      <topic>/elevator_button/joint_state</topic>
+      <update_rate>100</update_rate>
+    </plugin>
+  </model>
+</sdf>

@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<COLLADA xmlns="http://www.collada.org/2005/11/COLLADASchema" version="1.4.1">
+  <asset>
+    <unit name="meter" meter="1"/>
+    <up_axis>Z_UP</up_axis>
+  </asset>
+  <library_effects>
+    <effect id="arrow-effect">
+      <profile_COMMON>
+        <technique sid="common">
+          <lambert>
+            <diffuse><color>0.025 0.025 0.025 1</color></diffuse>
+          </lambert>
+        </technique>
+      </profile_COMMON>
+    </effect>
+  </library_effects>
+  <library_materials>
+    <material id="arrow-material" name="arrow-material">
+      <instance_effect url="#arrow-effect"/>
+    </material>
+  </library_materials>
+  <library_geometries>
+    <geometry id="up-arrow" name="up-arrow">
+      <mesh>
+        <source id="up-arrow-positions">
+          <float_array id="up-arrow-positions-array" count="21">
+            0 -0.004 -0.010  0 0.004 -0.010  0 0.004 0
+            0 0.010 0  0 0 0.013  0 -0.010 0  0 -0.004 0
+          </float_array>
+          <technique_common>
+            <accessor source="#up-arrow-positions-array" count="7" stride="3">
+              <param name="X" type="float"/>
+              <param name="Y" type="float"/>
+              <param name="Z" type="float"/>
+            </accessor>
+          </technique_common>
+        </source>
+        <vertices id="up-arrow-vertices">
+          <input semantic="POSITION" source="#up-arrow-positions"/>
+        </vertices>
+        <triangles count="5" material="arrow-material">
+          <input semantic="VERTEX" source="#up-arrow-vertices" offset="0"/>
+          <p>0 1 2  0 2 6  6 2 4  2 3 4  4 5 6</p>
+        </triangles>
+      </mesh>
+    </geometry>
+  </library_geometries>
+  <library_visual_scenes>
+    <visual_scene id="Scene" name="Scene">
+      <node id="up-arrow-node" name="up-arrow-node">
+        <instance_geometry url="#up-arrow">
+          <bind_material>
+            <technique_common>
+              <instance_material symbol="arrow-material" target="#arrow-material"/>
+            </technique_common>
+          </bind_material>
+        </instance_geometry>
+      </node>
+    </visual_scene>
+  </library_visual_scenes>
+  <scene><instance_visual_scene url="#Scene"/></scene>
+</COLLADA>
