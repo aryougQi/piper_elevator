@@ -14,6 +14,7 @@
   <exec_depend>agx_arm_ctrl</exec_depend>
   <exec_depend>agx_arm_moveit</exec_depend>
   <exec_depend>controller_manager</exec_depend>
+  <exec_depend>control_msgs</exec_depend>
   <exec_depend>cv_bridge</exec_depend>
   <exec_depend>ament_index_python</exec_depend>
   <exec_depend>geometry_msgs</exec_depend>
@@ -34,6 +35,7 @@
   <exec_depend>std_msgs</exec_depend>
   <exec_depend>std_srvs</exec_depend>
   <exec_depend>tf2_ros</exec_depend>
+  <exec_depend>trajectory_msgs</exec_depend>
   <exec_depend>vision_msgs</exec_depend>
   <exec_depend>xacro</exec_depend>
 

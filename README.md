@@ -7,7 +7,7 @@
 3. 编译 Piper、Pika、MoveIt 2 和 RealSense ROS 2 功能包。
 
 当前包含业务包 `piper_elevator_app`，以及基于 Gazebo Fortress 的
-`piper_elevator_gazebo` 虚拟硬件包。后者复用官方 Piper、Pika、D405 描述和
+`piper_elevator_gazebo` 虚拟硬件包。后者复用官方 Piper、Pika 描述和
 官方 ROS/Gazebo 插件，只自定义组合、话题映射和可按压按钮场景。
 
 ## 目录
@@ -222,7 +222,8 @@ ros2 pkg list | grep -E 'pika|data_tools|sensor_tools|realsense2'
 ./scripts/gazebo_hardware.sh gui:=false
 ```
 
-这个入口只启动虚拟硬件：Piper、Pika、eye-in-hand D405、物理按钮、
+这个入口只启动虚拟硬件：Piper、Pika、位于 Pika 内置镜头位置的 RGB-D
+仿真相机、物理按钮、
 `ros2_control` 和话题桥。它不会启动 MoveIt、RViz、YOLO、Planner、模拟
 `/button_pose` 或自动动作。场景只包含一个有 4 mm 行程、弹簧回位和接触事件
 的按钮，不模拟完整电梯、轿厢或门。

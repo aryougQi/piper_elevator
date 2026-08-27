@@ -30,7 +30,27 @@ def test_description_only_robot_has_no_ros2_control():
     robot = expand('piper_pika_description.urdf.xacro')
 
     assert robot.find('ros2_control') is None
+    assert robot.find(
+        "link[@name='pika_fingertip_center_link']"
+    ) is not None
     assert robot.find("link[@name='tcp_link']") is not None
+
+    fingertip_joint = robot.find(
+        "joint[@name='pika_fingertip_center_joint']"
+    )
+    assert fingertip_joint.find('parent').get('link') == (
+        'pika_gripper_base_link'
+    )
+    assert fingertip_joint.find('child').get('link') == (
+        'pika_fingertip_center_link'
+    )
+    assert fingertip_joint.find('origin').get('xyz') == '0.006 0 0.189'
+
+    tcp_joint = robot.find("joint[@name='tcp_joint']")
+    assert tcp_joint.find('parent').get('link') == (
+        'pika_fingertip_center_link'
+    )
+    assert tcp_joint.find('origin').get('xyz') == '0 0 0'
 
 
 def test_legacy_wrapper_keeps_fake_system_contract():
@@ -49,3 +69,19 @@ def test_legacy_wrapper_keeps_fake_system_contract():
         'joint6',
         'center_joint',
     ]
+
+
+def test_pika_finger_mounts_preserve_official_geometry_and_mirroring():
+    robot = expand('piper_pika_description.urdf.xacro')
+    left = robot.find("joint[@name='pika_left_finger_joint']")
+    right = robot.find("joint[@name='pika_right_finger_joint']")
+
+    assert left.find('origin').get('xyz') == '0.0 0.041 0.08'
+    assert right.find('origin').get('xyz') == '0.0 -0.041 0.08'
+    assert left.find('mimic').get('joint') == 'center_joint'
+    assert left.find('mimic').get('multiplier') == '0.5'
+    assert right.find('mimic').get('joint') == 'center_joint'
+    assert right.find('mimic').get('multiplier') == '-0.5'
+    assert right.find('axis').get('xyz') == '0 0 1'
+    assert right.find('limit').get('lower') == '-0.049'
+    assert right.find('limit').get('upper') == '0.0'

@@ -4,6 +4,7 @@ import time
 
 import numpy as np
 import rclpy
+from control_msgs.action import FollowJointTrajectory
 from geometry_msgs.msg import PoseStamped
 from moveit_msgs.action import ExecuteTrajectory
 from moveit_msgs.action import MoveGroup
@@ -28,6 +29,7 @@ from tf2_ros import ConnectivityException
 from tf2_ros import ExtrapolationException
 from tf2_ros import LookupException
 from tf2_ros import TransformListener
+from trajectory_msgs.msg import JointTrajectoryPoint
 
 from piper_elevator_app.motion_core import position_in_workspace
 from piper_elevator_app.motion_core import transform_button_to_approach
@@ -104,6 +106,12 @@ class ButtonApproachPlanner(Node):
             self._string_parameter('execute_action'),
             callback_group=self._callback_group,
         )
+        self._gripper_client = ActionClient(
+            self,
+            FollowJointTrajectory,
+            self._string_parameter('gripper_action'),
+            callback_group=self._callback_group,
+        )
         self.create_service(
             Trigger,
             '~/plan',
@@ -150,13 +158,23 @@ class ButtonApproachPlanner(Node):
         )
         self.declare_parameter('status_topic', '/button_approach/status')
         self.declare_parameter('base_frame', 'base_link')
-        self.declare_parameter('end_effector_link', 'tcp_link')
+        self.declare_parameter(
+            'end_effector_link',
+            'pika_fingertip_center_link',
+        )
         self.declare_parameter('planning_group', 'arm')
         self.declare_parameter('move_group_action', '/move_action')
         self.declare_parameter('execute_action', '/execute_trajectory')
+        self.declare_parameter(
+            'gripper_action',
+            '/pika_gripper_controller/follow_joint_trajectory',
+        )
+        self.declare_parameter('close_gripper_before_plan', True)
+        self.declare_parameter('closed_gripper_position_m', 0.0)
+        self.declare_parameter('gripper_motion_seconds', 1.0)
         self.declare_parameter('approach_distance_m', 0.08)
         self.declare_parameter('position_tolerance_m', 0.008)
-        self.declare_parameter('orientation_tolerance_rad', 0.15)
+        self.declare_parameter('orientation_tolerance_rad', 0.02)
         self.declare_parameter('planning_time_seconds', 5.0)
         self.declare_parameter('planning_attempts', 5)
         self.declare_parameter('velocity_scaling', 0.10)
@@ -231,7 +249,7 @@ class ButtonApproachPlanner(Node):
         translation = transform.transform.translation
         rotation = transform.transform.rotation
         try:
-            button_base, approach, orientation, _ = (
+            button_base, approach, _, _ = (
                 transform_button_to_approach(
                     button_camera,
                     [translation.x, translation.y, translation.z],
@@ -244,6 +262,40 @@ class ButtonApproachPlanner(Node):
         except ValueError as error:
             self._publish_status(f'REJECTED: {error}')
             return
+
+        # A coarse approach only translates the closed fingertip centre.  The
+        # camera image axes must not define tool roll: doing so can make joint6
+        # spin even though the tool's forward axis already faces the panel.
+        try:
+            tool_transform = self._tf_buffer.lookup_transform(
+                self._base_frame,
+                self._end_effector_link,
+                Time(),
+                timeout=Duration(
+                    seconds=float(
+                        self.get_parameter('tf_timeout_seconds').value
+                    )
+                ),
+            )
+        except (
+            LookupException,
+            ConnectivityException,
+            ExtrapolationException,
+        ) as error:
+            self.get_logger().warning(
+                f'Cannot read current {self._end_effector_link} pose: '
+                f'{error}',
+                throttle_duration_sec=2.0,
+            )
+            self._publish_status('WAITING_FOR_FINGERTIP_TF')
+            return
+        tool_rotation = tool_transform.transform.rotation
+        orientation = np.array([
+            tool_rotation.x,
+            tool_rotation.y,
+            tool_rotation.z,
+            tool_rotation.w,
+        ])
 
         if not position_in_workspace(
             approach,
@@ -317,6 +369,21 @@ class ButtonApproachPlanner(Node):
 
         self._publish_status('PLANNING')
         try:
+            if (
+                bool(self.get_parameter('simulation_mode').value)
+                and bool(
+                    self.get_parameter('close_gripper_before_plan').value
+                )
+            ):
+                self._publish_status('CLOSING_GRIPPER')
+                closed, close_message = self._close_gripper()
+                if not closed:
+                    response.success = False
+                    response.message = close_message
+                    self._publish_status(
+                        f'PLAN_FAILED: {close_message}'
+                    )
+                    return response
             result, message = self._plan_pose(target)
             if result is None:
                 response.success = False
@@ -519,6 +586,13 @@ class ButtonApproachPlanner(Node):
         position.constraint_region.primitive_poses = [target.pose]
         position.weight = 1.0
 
+        orientation = self._orientation_constraint(target)
+
+        constraints.position_constraints = [position]
+        constraints.orientation_constraints = [orientation]
+        return constraints
+
+    def _orientation_constraint(self, target):
         orientation = OrientationConstraint()
         orientation.header = target.header
         orientation.link_name = self._end_effector_link
@@ -531,10 +605,53 @@ class ButtonApproachPlanner(Node):
         orientation.absolute_z_axis_tolerance = tolerance
         orientation.parameterization = OrientationConstraint.ROTATION_VECTOR
         orientation.weight = 1.0
+        return orientation
 
-        constraints.position_constraints = [position]
-        constraints.orientation_constraints = [orientation]
-        return constraints
+    def _close_gripper(self):
+        timeout = float(self.get_parameter('action_timeout_seconds').value)
+        if not self._gripper_client.wait_for_server(timeout_sec=timeout):
+            return False, 'Pika gripper action server is unavailable'
+
+        goal = FollowJointTrajectory.Goal()
+        goal.trajectory.joint_names = [
+            'center_joint',
+            'pika_left_finger_joint',
+            'pika_right_finger_joint',
+        ]
+        point = JointTrajectoryPoint()
+        opening = float(
+            self.get_parameter('closed_gripper_position_m').value
+        )
+        point.positions = [opening, 0.5 * opening, -0.5 * opening]
+        point.time_from_start = Duration(
+            seconds=float(
+                self.get_parameter('gripper_motion_seconds').value
+            )
+        ).to_msg()
+        goal.trajectory.points = [point]
+
+        send_future = self._gripper_client.send_goal_async(goal)
+        goal_handle = self._wait_for_future(send_future, timeout)
+        if goal_handle is None:
+            return False, 'Timed out while sending Pika close command'
+        if not goal_handle.accepted:
+            return False, 'Pika controller rejected close command'
+        wrapped = self._wait_for_future(
+            goal_handle.get_result_async(),
+            timeout,
+        )
+        if wrapped is None:
+            return False, 'Pika close command timed out'
+        if (
+            wrapped.result.error_code
+            != FollowJointTrajectory.Result.SUCCESSFUL
+        ):
+            return (
+                False,
+                'Pika close command failed with error '
+                f'{wrapped.result.error_code}',
+            )
+        return True, 'Pika gripper closed'
 
     def _execute_trajectory(self, trajectory):
         timeout = float(self.get_parameter('action_timeout_seconds').value)

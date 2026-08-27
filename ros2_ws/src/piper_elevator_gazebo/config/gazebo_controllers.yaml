@@ -18,6 +18,9 @@ arm_controller:
 pika_gripper_controller:
   ros__parameters:
     allow_nonzero_velocity_at_trajectory_end: false
-    joints: [center_joint]
+    joints:
+      - center_joint
+      - pika_left_finger_joint
+      - pika_right_finger_joint
     command_interfaces: [position]
     state_interfaces: [position, velocity]

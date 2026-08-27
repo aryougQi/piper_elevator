@@ -4,7 +4,8 @@
     Official AgileX Pika geometry adapted as a reusable xacro macro.
     center_joint is the total jaw opening in metres, matching pika_ros.
   -->
-  <xacro:macro name="pika_gripper" params="parent mount_xyz:='0 0 0' mount_rpy:='0 0 0'">
+  <xacro:macro name="pika_gripper"
+               params="parent mount_xyz:='0 0 0' mount_rpy:='0 0 0' finger_mimic:='true'">
     <link name="pika_gripper_base_link">
       <inertial>
         <origin xyz="0.037477 -8.1437E-07 0.0084053" rpy="0 0 0"/>
@@ -80,7 +81,9 @@
       <child link="pika_gripper_left_link"/>
       <axis xyz="0 0 -1"/>
       <limit lower="0.0" upper="0.049" effort="100" velocity="1"/>
-      <mimic joint="center_joint" multiplier="0.5" offset="0.0"/>
+      <xacro:if value="${finger_mimic}">
+        <mimic joint="center_joint" multiplier="0.5" offset="0.0"/>
+      </xacro:if>
     </joint>
 
     <link name="pika_gripper_right_link">
@@ -110,7 +113,9 @@
       <child link="pika_gripper_right_link"/>
       <axis xyz="0 0 1"/>
       <limit lower="-0.049" upper="0.0" effort="100" velocity="1"/>
-      <mimic joint="center_joint" multiplier="-0.5" offset="0.0"/>
+      <xacro:if value="${finger_mimic}">
+        <mimic joint="center_joint" multiplier="-0.5" offset="0.0"/>
+      </xacro:if>
     </joint>
   </xacro:macro>
 </robot>

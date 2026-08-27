@@ -4,15 +4,27 @@
   <xacro:include filename="$(find pika_gripper_description)/urdf/pika_gripper.urdf.xacro"/>
 
   <xacro:macro name="piper_pika_end_effector"
-               params="tcp_offset_xyz tcp_offset_rpy">
+               params="tcp_offset_xyz tcp_offset_rpy finger_mimic:='true'">
     <!-- AgileX's official Pika model mounts directly to Piper link6. -->
-    <xacro:pika_gripper parent="link6"/>
+    <xacro:pika_gripper parent="link6" finger_mimic="${finger_mimic}"/>
 
-    <!-- Keep the planning target at the calibrated Pika tool centre point. -->
-    <link name="tcp_link"/>
-    <joint name="tcp_joint" type="fixed">
+    <!--
+      The closed-jaw midpoint at the very front of the two fingers.  Give this
+      physical point an explicit name so approach planning cannot accidentally
+      target the gripper mount or camera frame.
+    -->
+    <link name="pika_fingertip_center_link"/>
+    <joint name="pika_fingertip_center_joint" type="fixed">
       <origin xyz="${tcp_offset_xyz}" rpy="${tcp_offset_rpy}"/>
       <parent link="pika_gripper_base_link"/>
+      <child link="pika_fingertip_center_link"/>
+    </joint>
+
+    <!-- Backwards-compatible alias used by existing MoveIt and calibration. -->
+    <link name="tcp_link"/>
+    <joint name="tcp_joint" type="fixed">
+      <origin xyz="0 0 0" rpy="0 0 0"/>
+      <parent link="pika_fingertip_center_link"/>
       <child link="tcp_link"/>
     </joint>
   </xacro:macro>

@@ -8,21 +8,37 @@
     default="$(find piper_elevator_gazebo)/config/gazebo_controllers.yaml"/>
   <xacro:arg name="tcp_offset_xyz" default="0.006 0 0.189"/>
   <xacro:arg name="tcp_offset_rpy" default="0 0 0"/>
-  <xacro:arg name="camera_xyz" default="0 0 -0.10"/>
-  <xacro:arg name="camera_rpy" default="0 0 0"/>
-
   <xacro:include filename="$(find piper_elevator_app)/config/piper_pika_description.xacro"/>
-  <xacro:include filename="$(find realsense2_description)/urdf/_d405.urdf.xacro"/>
 
   <xacro:piper_pika_end_effector
     tcp_offset_xyz="$(arg tcp_offset_xyz)"
-    tcp_offset_rpy="$(arg tcp_offset_rpy)"/>
-  <xacro:sensor_d405
-    parent="tcp_link"
-    name="camera"
-    use_nominal_extrinsics="true">
-    <origin xyz="$(arg camera_xyz)" rpy="$(arg camera_rpy)"/>
-  </xacro:sensor_d405>
+    tcp_offset_rpy="$(arg tcp_offset_rpy)"
+    finger_mimic="false"/>
+
+  <!--
+    The Pika base mesh already contains the fisheye lens above the PIKA logo.
+    Put the simulated RGB-D sensor just outside that lens instead of mounting
+    a separate D405 on the gripper. Gazebo cameras look along link +X, while
+    the physical Pika lens looks along pika_gripper_base_link +Z.
+  -->
+  <link name="camera_link"/>
+  <joint name="pika_camera_joint" type="fixed">
+    <origin xyz="-0.074017 0 0.069" rpy="0 -1.57079632679 0"/>
+    <parent link="pika_gripper_base_link"/>
+    <child link="camera_link"/>
+  </joint>
+  <link name="camera_color_frame"/>
+  <joint name="camera_color_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+    <parent link="camera_link"/>
+    <child link="camera_color_frame"/>
+  </joint>
+  <link name="camera_color_optical_frame"/>
+  <joint name="camera_color_optical_joint" type="fixed">
+    <origin xyz="0 0 0" rpy="-1.57079632679 0 -1.57079632679"/>
+    <parent link="camera_color_frame"/>
+    <child link="camera_color_optical_frame"/>
+  </joint>
 
   <xacro:property
     name="initial_positions"
@@ -49,6 +65,22 @@
     <xacro:gazebo_control_joint name="joint5"/>
     <xacro:gazebo_control_joint name="joint6"/>
     <xacro:gazebo_control_joint name="center_joint"/>
+    <!-- Gazebo Fortress only follows the first URDF mimic joint for a shared
+         source. Command both physical fingers explicitly and symmetrically. -->
+    <joint name="pika_left_finger_joint">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">${0.5 * initial_positions['center_joint']}</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+    </joint>
+    <joint name="pika_right_finger_joint">
+      <command_interface name="position"/>
+      <state_interface name="position">
+        <param name="initial_value">${-0.5 * initial_positions['center_joint']}</param>
+      </state_interface>
+      <state_interface name="velocity"/>
+    </joint>
   </ros2_control>
 
   <gazebo>
@@ -61,10 +93,10 @@
   </gazebo>
 
   <gazebo reference="camera_link">
-    <sensor name="piper_d405" type="rgbd_camera">
+    <sensor name="pika_fisheye" type="rgbd_camera">
       <always_on>true</always_on>
       <update_rate>30</update_rate>
-      <topic>/piper_d405</topic>
+      <topic>/pika_fisheye</topic>
       <camera>
         <horizontal_fov>1.518436</horizontal_fov>
         <image>

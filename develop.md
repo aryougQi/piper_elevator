@@ -7,20 +7,24 @@ cd /home/q/project/piper_elevator/piper_elevator
 ./scripts/gazebo_hardware.sh
 ```
 
+启动脚本会把当前桌面会话的 `XAUTHORITY` 只读映射到容器。重启或重新登录后
+GDM 会生成新的授权文件，脚本会自动使用新文件，不需要执行 `xhost +`。如果
+当前没有图形会话，请使用下面的无界面模式。
+
 无界面运行：
 
 ```bash
 ./scripts/gazebo_hardware.sh gui:=false
 ```
 
-该命令只启动 Piper、Pika、D405 和实体按钮仿真，不启动 MoveIt、视觉节点或
+该命令只启动 Piper、Pika、Pika 内置镜头和实体按钮仿真，不启动 MoveIt、视觉节点或
 Planner。`./scripts/sim.sh` 等价于该命令。
 
 ## 发布
 
 | 话题 | 类型 | 说明 |
 | --- | --- | --- |
-| `/camera/color/image_raw` | `sensor_msgs/Image` | D405 彩色图 |
+| `/camera/color/image_raw` | `sensor_msgs/Image` | Pika 内置镜头彩色图 |
 | `/camera/aligned_depth_to_color/image_raw` | `sensor_msgs/Image` | `32FC1` 米制深度图 |
 | `/camera/color/camera_info` | `sensor_msgs/CameraInfo` | 相机内参 |
 | `/piper_pika/joint_states` | `sensor_msgs/JointState` | Piper + Pika 反馈 |
@@ -32,7 +36,7 @@ Planner。`./scripts/sim.sh` 等价于该命令。
 | 接口 | 类型 | 说明 |
 | --- | --- | --- |
 | `/arm_controller/follow_joint_trajectory` | `control_msgs/action/FollowJointTrajectory` | 六轴轨迹 |
-| `/pika_gripper_controller/follow_joint_trajectory` | `control_msgs/action/FollowJointTrajectory` | Pika 开度轨迹 |
+| `/pika_gripper_controller/follow_joint_trajectory` | `control_msgs/action/FollowJointTrajectory` | Pika 中心开度及左右指对称轨迹 |
 
 运行检查：
 
@@ -122,6 +126,11 @@ source /workspace/ros2_ws/install/setup.bash
 ```bash
 ros2 service call /button_approach_planner/plan std_srvs/srv/Trigger "{}"
 ```
+
+第一次粗略规划会先把 `center_joint` 闭合到 `0.0 m`，再以
+`pika_fingertip_center_link`（两指闭合中心的最前端）作为目标点移动到按钮前
+20 cm。规划目标锁定调用 `plan` 时的夹爪姿态，只做靠近所需的平移，不会再把
+相机画面的 X/Y 轴当作夹爪滚转方向。
 
 执行仿真轨迹：
 

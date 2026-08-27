@@ -1,58 +1,73 @@
 # 运行命令
 
-## 修改代码后构建
+## 编译
 
 ```bash
-cd /home/qi/Project/piper_elevator
-./scripts/shell.sh
-
-source /opt/ros/humble/setup.bash
-cd /workspace/ros2_ws
-colcon build --packages-select \
-  pika_gripper_description piper_elevator_app \
-  --symlink-install
-source install/setup.bash
-exit
-```
-
-## 只启动相机和按钮检测
-
-```bash
-cd /home/qi/Project/piper_elevator
-./scripts/button_camera.sh
+cd /home/q/project/piper_elevator/piper_elevator
+./scripts/build.sh
 ```
 
 ## 启动仿真
 
 ```bash
-cd /home/qi/Project/piper_elevator
-xhost +si:localuser:root
-./scripts/button_approach_sim.sh
+cd /home/q/project/piper_elevator/piper_elevator
+ROS_DOMAIN_ID=42 ./scripts/gazebo_hardware.sh
 ```
 
-## 启动真机安全模式
+## 启动视觉
 
 ```bash
-cd /home/qi/Project/piper_elevator
-xhost +si:localuser:root
-./scripts/button_approach_real.sh
+cd /home/q/project/piper_elevator/piper_elevator
+ROS_DOMAIN_ID=42 ./scripts/shell.sh
 ```
-
-当前真机命令默认不使能机械臂、不转发硬件命令、不发布相机外参，也不允许
-执行轨迹。完成手眼标定后再补入外参并解除对应安全开关。
-
-## 仿真和真机切换
-
-先在当前启动终端按 `Ctrl+C`，然后运行另一种模式：
-
 ```bash
-# 切到仿真
-cd /home/qi/Project/piper_elevator
-./scripts/button_approach_sim.sh
+source /workspace/ros2_ws/install/setup.bash
+
+ros2 launch piper_elevator_app button_detector.launch.py \
+  use_sim_time:=true
 ```
 
 ```bash
-# 切到真机安全模式
-cd /home/qi/Project/piper_elevator
-./scripts/button_approach_real.sh
+ros2 topic pub --once /button_selection \
+  std_msgs/msg/String "{data: 'up'}"
+```
+data可以改down，1,2,3等
+
+```bash
+ros2 run rqt_image_view rqt_image_view
+```
+
+## 启动moveit及坐标转换，plan execute
+
+
+```bash
+cd /home/q/project/piper_elevator/piper_elevator
+ROS_DOMAIN_ID=42 ./scripts/shell.sh
+```
+
+```bash
+source /workspace/ros2_ws/install/setup.bash
+
+ros2 launch piper_elevator_app piper_pika_moveit.launch.py \
+  external_hardware:=true \
+  use_sim_time:=true
+```
+```bash
+source /workspace/ros2_ws/install/setup.bash
+
+ros2 launch piper_elevator_app button_approach_planner.launch.py \
+  use_sim_time:=true \
+  simulation_mode:=true \
+  camera_calibration_valid:=true \
+  allow_execution:=true
+```
+
+```bash
+ros2 service call /button_approach_planner/plan \
+  std_srvs/srv/Trigger "{}"
+```
+
+```bash
+ros2 service call /button_approach_planner/execute \
+  std_srvs/srv/Trigger "{}"
 ```

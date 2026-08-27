@@ -20,7 +20,6 @@ def _register_description_resource_paths():
     description_packages = (
         'agx_arm_description',
         'pika_gripper_description',
-        'realsense2_description',
     )
     resource_roots = [
         os.path.dirname(get_package_share_directory(package_name))
@@ -42,8 +41,6 @@ def _launch_setup(context):
         'piper_pika_gazebo.urdf.xacro',
     )
     mappings = {
-        'camera_xyz': LaunchConfiguration('camera_xyz').perform(context),
-        'camera_rpy': LaunchConfiguration('camera_rpy').perform(context),
         'controllers_file': os.path.join(
             gazebo_share,
             'config',
@@ -161,8 +158,6 @@ def generate_launch_description():
                 'button_press.sdf',
             ),
         ),
-        DeclareLaunchArgument('camera_xyz', default_value='0 0 -0.10'),
-        DeclareLaunchArgument('camera_rpy', default_value='0 0 0'),
         DeclareLaunchArgument('verbose', default_value='2'),
         OpaqueFunction(function=_launch_setup),
     ])

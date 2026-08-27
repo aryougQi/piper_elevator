@@ -15,10 +15,11 @@ services:
     privileged: true
     environment:
       DISPLAY: ${DISPLAY:-:0}
+      # GDM regenerates the desktop authorization cookie after each login.
+      XAUTHORITY: /tmp/.docker.xauth
       QT_X11_NO_MITSHM: "1"
-      QT_OPENGL: software
-      QT_XCB_GL_INTEGRATION: none
-      LIBGL_ALWAYS_SOFTWARE: "1"
+      # Gazebo Fortress' QtQuick 3D view needs a GLX or EGL context.  Forcing
+      # Qt and Mesa into the old software-only path makes MinimalScene crash.
       XDG_RUNTIME_DIR: /tmp/runtime-root
       ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
       HTTP_PROXY: ${HTTP_PROXY:-}
@@ -27,6 +28,7 @@ services:
     volumes:
       - ./ros2_ws:/workspace/ros2_ws
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
+      - ${XAUTHORITY:-/dev/null}:/tmp/.docker.xauth:ro
       - /dev:/dev
     working_dir: /workspace/ros2_ws
     stdin_open: true
