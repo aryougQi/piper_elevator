@@ -32,7 +32,19 @@
     </joint>
 
     <!-- The driver's center_joint reports the total jaw opening (0..98 mm). -->
-    <link name="pika_gripper_actuator_link"/>
+    <link name="pika_gripper_actuator_link">
+      <!--
+        This is a lightweight control carrier rather than visible hardware.
+        A small, non-zero inertia keeps urdf2sdf from pruning center_joint.
+      -->
+      <inertial>
+        <origin xyz="0 0 0" rpy="0 0 0"/>
+        <mass value="0.001"/>
+        <inertia
+          ixx="1e-7" ixy="0" ixz="0"
+          iyy="1e-7" iyz="0" izz="1e-7"/>
+      </inertial>
+    </link>
     <joint name="center_joint" type="prismatic">
       <origin xyz="0 0 0" rpy="0 0 0"/>
       <parent link="pika_gripper_base_link"/>

@@ -2,7 +2,7 @@
 <robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="piper_pika">
   <xacro:arg
     name="initial_positions_file"
-    default="$(find piper_elevator_app)/config/piper_pika_initial_positions.yaml"/>
+    default="$(find piper_elevator_gazebo)/config/gazebo_initial_positions.yaml"/>
   <xacro:arg
     name="controllers_file"
     default="$(find piper_elevator_gazebo)/config/gazebo_controllers.yaml"/>

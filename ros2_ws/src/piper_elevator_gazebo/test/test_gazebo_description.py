@@ -54,6 +54,20 @@ def test_gazebo_control_joint_contract():
         'center_joint',
     ]
 
+    # urdf2sdf drops movable child links without inertia, which would also
+    # remove center_joint and make the gripper controller fail to activate.
+    actuator = robot.find("link[@name='pika_gripper_actuator_link']")
+    assert actuator.find('inertial') is not None
+
+    initial_positions = {
+        joint.get('name'): float(
+            joint.find("state_interface[@name='position']/param").text
+        )
+        for joint in control.findall('joint')
+    }
+    assert 0.0 < initial_positions['joint2'] < 3.1415926
+    assert -2.9670597 < initial_positions['joint3'] < 0.0
+
 
 def test_button_fixture_has_physical_travel_and_official_contact_systems():
     model_file = (

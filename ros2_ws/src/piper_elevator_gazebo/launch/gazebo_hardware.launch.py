@@ -12,11 +12,28 @@ from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
-from launch_ros.parameter_descriptions import ParameterValue
 import xacro
 
 
+def _register_description_resource_paths():
+    """Expose dependency share roots for package:// meshes in Fortress."""
+    description_packages = (
+        'agx_arm_description',
+        'pika_gripper_description',
+        'realsense2_description',
+    )
+    resource_roots = [
+        os.path.dirname(get_package_share_directory(package_name))
+        for package_name in description_packages
+    ]
+    for variable in ('GZ_SIM_RESOURCE_PATH', 'IGN_GAZEBO_RESOURCE_PATH'):
+        existing = os.environ.get(variable, '')
+        paths = resource_roots + ([existing] if existing else [])
+        os.environ[variable] = os.pathsep.join(paths)
+
+
 def _launch_setup(context):
+    _register_description_resource_paths()
     gazebo_share = get_package_share_directory('piper_elevator_gazebo')
     ros_gz_share = get_package_share_directory('ros_gz_sim')
     robot_file = os.path.join(

@@ -27,6 +27,18 @@ def test_hardware_launch_uses_only_infrastructure_nodes():
     ):
         assert required in combined
 
+    # Gazebo converts package:// mesh URIs to model:// URIs.  The parent
+    # share directories must therefore be present in both Fortress resource
+    # path variables so the official package meshes remain reusable.
+    for required_resource in (
+        'agx_arm_description',
+        'pika_gripper_description',
+        'realsense2_description',
+        'GZ_SIM_RESOURCE_PATH',
+        'IGN_GAZEBO_RESOURCE_PATH',
+    ):
+        assert required_resource in launch_source
+
     for forbidden in (
         'depth_adapter',
         'move_group',
