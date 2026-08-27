@@ -5,14 +5,21 @@ from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument, OpaqueFunction
 from launch.conditions import IfCondition
-from launch.substitutions import LaunchConfiguration
+from launch.substitutions import LaunchConfiguration, PythonExpression
 from launch_ros.actions import Node
+from launch_ros.parameter_descriptions import ParameterValue
 from moveit_configs_utils import MoveItConfigsBuilder
 from moveit_configs_utils.launch_utils import DeclareBooleanLaunchArg
+
+from piper_elevator_app.launch_mode import select_moveit_launch_mode
 
 
 def _make_moveit_config(context):
     app_share = get_package_share_directory('piper_elevator_app')
+    external_hardware = LaunchConfiguration('external_hardware').perform(
+        context
+    ).casefold() == 'true'
+    mode = select_moveit_launch_mode(external_hardware)
     tcp_offset = ast.literal_eval(
         LaunchConfiguration('pika_tcp_offset').perform(context)
     )
@@ -34,7 +41,7 @@ def _make_moveit_config(context):
             package_name='piper_elevator_app',
         )
         .robot_description(
-            file_path='config/piper_pika.urdf.xacro',
+            file_path=f'config/{mode.description_file}',
             mappings=mappings,
         )
         .robot_description_semantic(
@@ -57,6 +64,10 @@ def _launch_setup(context):
     app_share = get_package_share_directory('piper_elevator_app')
     agx_moveit_share = get_package_share_directory('agx_arm_moveit')
     moveit_config = _make_moveit_config(context)
+    external_hardware = LaunchConfiguration('external_hardware').perform(
+        context
+    ).casefold() == 'true'
+    mode = select_moveit_launch_mode(external_hardware)
     joint_states_topic = LaunchConfiguration('joint_states_topic')
     controller_output_topic = LaunchConfiguration(
         'controller_output_topic'
@@ -77,17 +88,33 @@ def _launch_setup(context):
             'publish_state_updates': True,
             'publish_transforms_updates': True,
             'monitor_dynamics': False,
+            'use_sim_time': ParameterValue(
+                LaunchConfiguration('use_sim_time'),
+                value_type=bool,
+            ),
         },
     ]
 
-    return [
-        Node(
-            package='robot_state_publisher',
-            executable='robot_state_publisher',
-            output='screen',
-            parameters=[moveit_config.robot_description],
-            remappings=[('joint_states', joint_states_topic)],
-        ),
+    nodes = []
+    if mode.start_robot_state_publisher:
+        nodes.append(
+            Node(
+                package='robot_state_publisher',
+                executable='robot_state_publisher',
+                output='screen',
+                remappings=[('joint_states', joint_states_topic)],
+                parameters=[
+                    moveit_config.robot_description,
+                    {
+                        'use_sim_time': ParameterValue(
+                            LaunchConfiguration('use_sim_time'),
+                            value_type=bool,
+                        ),
+                    },
+                ],
+            )
+        )
+    nodes.append(
         Node(
             package='moveit_ros_move_group',
             executable='move_group',
@@ -95,30 +122,38 @@ def _launch_setup(context):
             parameters=move_group_parameters,
             remappings=[('joint_states', joint_states_topic)],
             additional_env={'DISPLAY': os.environ.get('DISPLAY', '')},
-        ),
-        Node(
-            package='controller_manager',
-            executable='ros2_control_node',
-            output='screen',
-            parameters=[
-                moveit_config.robot_description,
-                os.path.join(
-                    app_share,
-                    'config',
-                    'piper_pika_ros2_controllers.yaml',
-                ),
-            ],
-            remappings=[('joint_states', controller_output_topic)],
-        ),
-        Node(
-            package='controller_manager',
-            executable='spawner',
-            arguments=controllers + [
-                '--controller-manager',
-                '/controller_manager',
-            ],
-            output='screen',
-        ),
+        )
+    )
+    if mode.start_ros2_control:
+        nodes.append(
+            Node(
+                package='controller_manager',
+                executable='ros2_control_node',
+                output='screen',
+                parameters=[
+                    moveit_config.robot_description,
+                    os.path.join(
+                        app_share,
+                        'config',
+                        'piper_pika_ros2_controllers.yaml',
+                    ),
+                ],
+                remappings=[('joint_states', controller_output_topic)],
+            )
+        )
+    if mode.start_controller_spawners:
+        nodes.append(
+            Node(
+                package='controller_manager',
+                executable='spawner',
+                arguments=controllers + [
+                    '--controller-manager',
+                    '/controller_manager',
+                ],
+                output='screen',
+            )
+        )
+    nodes.append(
         Node(
             package='rviz2',
             executable='rviz2',
@@ -133,16 +168,31 @@ def _launch_setup(context):
                 moveit_config.robot_description_kinematics,
                 moveit_config.planning_pipelines,
                 moveit_config.joint_limits,
+                {
+                    'use_sim_time': ParameterValue(
+                        LaunchConfiguration('use_sim_time'),
+                        value_type=bool,
+                    ),
+                },
             ],
             remappings=[('joint_states', joint_states_topic)],
             condition=IfCondition(LaunchConfiguration('use_rviz')),
-        ),
-    ]
+        )
+    )
+    return nodes
 
 
 def generate_launch_description():
     return LaunchDescription([
         DeclareBooleanLaunchArg('use_rviz', default_value=True),
+        DeclareBooleanLaunchArg(
+            'external_hardware',
+            default_value=False,
+            description=(
+                'Connect MoveIt to an already running controller manager.'
+            ),
+        ),
+        DeclareBooleanLaunchArg('use_sim_time', default_value=False),
         DeclareBooleanLaunchArg(
             'start_pika_controller',
             default_value=True,
@@ -150,7 +200,11 @@ def generate_launch_description():
         ),
         DeclareLaunchArgument(
             'joint_states_topic',
-            default_value='control/joint_states',
+            default_value=PythonExpression([
+                "'/piper_pika/joint_states' if '",
+                LaunchConfiguration('external_hardware'),
+                "'.lower() == 'true' else 'control/joint_states'",
+            ]),
             description='Joint feedback consumed by MoveIt and TF.',
         ),
         DeclareLaunchArgument(
