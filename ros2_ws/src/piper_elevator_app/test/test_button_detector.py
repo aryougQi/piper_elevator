@@ -234,6 +234,25 @@ def test_robust_depth_rejects_holes_and_outliers():
     assert depth_m == pytest.approx(0.8)
 
 
+def test_robust_depth_keeps_gazebo_float_metres_unscaled():
+    depth_image = np.full((300, 300), 0.8, dtype=np.float32)
+    depth_image[130:135, 130:135] = np.nan
+    depth_image[160:165, 160:165] = 5.0
+    detection = Detection(100, 100, 200, 200, 0.9, 3, 'button_1')
+
+    depth_m = robust_box_depth(
+        depth_image,
+        detection,
+        unit_scale=0.001,
+        inner_ratio=0.5,
+        min_depth_m=0.1,
+        max_depth_m=2.0,
+        min_samples=20,
+    )
+
+    assert depth_m == pytest.approx(0.8)
+
+
 def test_projects_pixel_to_camera_coordinates():
     camera_matrix = np.asarray(
         [

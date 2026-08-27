@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="piper_pika">
+  <!-- Official mesh fingertip midpoint, rounded to the nearest millimetre. -->
+  <xacro:arg name="tcp_offset_xyz" default="0.006 0 0.189"/>
+  <xacro:arg name="tcp_offset_rpy" default="0 0 0"/>
+
+  <xacro:include filename="$(find piper_elevator_app)/config/piper_pika_description.xacro"/>
+  <xacro:piper_pika_end_effector
+    tcp_offset_xyz="$(arg tcp_offset_xyz)"
+    tcp_offset_rpy="$(arg tcp_offset_rpy)"/>
+</robot>

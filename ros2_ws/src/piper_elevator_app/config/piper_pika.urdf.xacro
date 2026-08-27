@@ -5,19 +5,10 @@
   <xacro:arg name="tcp_offset_xyz" default="0.006 0 0.189"/>
   <xacro:arg name="tcp_offset_rpy" default="0 0 0"/>
 
-  <xacro:include filename="$(find agx_arm_description)/agx_arm_urdf/piper/urdf/piper_description.urdf"/>
-  <xacro:include filename="$(find pika_gripper_description)/urdf/pika_gripper.urdf.xacro"/>
-
-  <!-- AgileX's official Pika model mounts directly to Piper link6. -->
-  <xacro:pika_gripper parent="link6"/>
-
-  <!-- The planning target stays at the calibrated Pika tool centre point. -->
-  <link name="tcp_link"/>
-  <joint name="tcp_joint" type="fixed">
-    <origin xyz="$(arg tcp_offset_xyz)" rpy="$(arg tcp_offset_rpy)"/>
-    <parent link="pika_gripper_base_link"/>
-    <child link="tcp_link"/>
-  </joint>
+  <xacro:include filename="$(find piper_elevator_app)/config/piper_pika_description.xacro"/>
+  <xacro:piper_pika_end_effector
+    tcp_offset_xyz="$(arg tcp_offset_xyz)"
+    tcp_offset_rpy="$(arg tcp_offset_rpy)"/>
 
   <xacro:property
     name="initial_positions"
