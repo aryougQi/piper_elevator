@@ -1,0 +1,83 @@
+button_press_executor:
+  ros__parameters:
+    visual_completion_topic: /button_visual_servo/completed
+    status_topic: /button_press/status
+    completion_topic: /button_press/completed
+    effort_topic: /feedback/joint_states
+    # 仿真按当前检测器选择的类别读取同名按钮的独立触点和关节。
+    button_selected_topic: /button_selected
+    simulation_button_joint_topic: /elevator_button/joint_states
+    simulation_button_names: ['1', '2', '3', '4', up, down, open, close, alarm]
+    simulation_button_joint_names:
+      - button_1_press_joint
+      - button_2_press_joint
+      - button_3_press_joint
+      - button_4_press_joint
+      - button_up_press_joint
+      - button_down_press_joint
+      - button_open_press_joint
+      - button_close_press_joint
+      - button_alarm_press_joint
+    simulation_contacts_topics:
+      - /elevator_button/button_1/contacts
+      - /elevator_button/button_2/contacts
+      - /elevator_button/button_3/contacts
+      - /elevator_button/button_4/contacts
+      - /elevator_button/button_up/contacts
+      - /elevator_button/button_down/contacts
+      - /elevator_button/button_open/contacts
+      - /elevator_button/button_close/contacts
+      - /elevator_button/button_alarm/contacts
+
+    base_frame: base_link
+    camera_frame: camera_color_optical_frame
+    end_effector_link: pika_fingertip_center_link
+    servo_twist_topic: /servo_node/delta_twist_cmds
+    servo_start_service: /servo_node/start_servo
+    servo_pause_service: /servo_node/pause_servo
+    servo_unpause_service: /servo_node/unpause_servo
+    hardware_gate_service: /piper_pika_control_gate/servo_enable
+    hardware_gate_required: false
+    hardware_gate_heartbeat_seconds: 0.20
+
+    # 先以 8 mm/s 搜索接触，再以 3 mm/s 增加 2.5 mm 触发行程。
+    control_rate_hz: 50.0
+    approach_speed_mps: 0.008
+    press_speed_mps: 0.003
+    retract_speed_mps: 0.015
+    maximum_acceleration_mps2: 0.06
+    press_extension_m: 0.0025
+    hold_seconds: 0.30
+    maximum_approach_travel_m: 0.038
+    maximum_lateral_drift_m: 0.003
+    maximum_direction_change_rad: 0.06981
+    retract_tolerance_m: 0.0005
+    motion_timeout_seconds: 10.0
+    tf_timeout_seconds: 0.25
+    feedback_timeout_seconds: 0.25
+
+    arm_joint_names: [joint1, joint2, joint3, joint4, joint5, joint6]
+    # 真机标定前保持 false 和零值；节点会拒绝执行，不能猜阈值。
+    torque_thresholds_calibrated: false
+    joint_torque_delta_thresholds_nm: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    joint_torque_absolute_limits_nm: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    baseline_sample_count: 25
+    baseline_timeout_seconds: 2.0
+    contact_consecutive_samples: 4
+    contact_minimum_joint_count: 1
+    torque_smoothing_alpha: 0.30
+    emergency_threshold_multiplier: 2.5
+
+    # 仿真不依赖机械臂 effort：接触由当前所选按钮的 Gazebo ContactSensor
+    # 判定，成功按压由对应关节从静止位置向负方向压下至少 2 mm 判定。
+    simulation_mode: false
+    # 仅补偿 Gazebo 位置接口对滚动 Servo 轨迹的低速跟踪损失；真机不应用。
+    simulation_speed_multiplier: 5.0
+    simulation_motion_timeout_seconds: 25.0
+    # 回撤需走完整行程并在起点附近减速收敛，单独放宽；真机仍使用上面的 10 s。
+    simulation_retract_timeout_seconds: 45.0
+    simulation_pressed_depth_m: 0.0020
+    simulation_release_tolerance_m: 0.0003
+    simulation_release_timeout_seconds: 3.0
+    simulation_feedback_timeout_seconds: 0.50
+    allow_execution: false

@@ -32,6 +32,10 @@ FORBIDDEN_NODES = {
     '/button_approach_planner',
     '/mock_button_pose',
 }
+BUTTON_JOINTS = [
+    f'button_{button}_press_joint'
+    for button in ('1', '2', '3', '4', 'up', 'down', 'open', 'close', 'alarm')
+]
 
 
 def stamp_seconds(message):
@@ -156,15 +160,27 @@ class VirtualHardwareProbe(Node):
         ]
         if max(timestamps) - min(timestamps) > 0.08:
             raise RuntimeError(f'RGB-D timestamps exceed 80 ms: {timestamps}')
-        if 'button_press_joint' not in self.button_joints.name:
-            raise RuntimeError('button_press_joint is absent from fixture state')
-        button_index = self.button_joints.name.index('button_press_joint')
-        button_position = self.button_joints.position[button_index]
-        if abs(button_position) > 0.0005:
+        positions = dict(zip(
+            self.button_joints.name,
+            self.button_joints.position,
+        ))
+        missing = [joint for joint in BUTTON_JOINTS if joint not in positions]
+        if missing:
             raise RuntimeError(
-                f'Button does not rest at zero: {button_position:.6f} m'
+                'Button joints absent from fixture state: '
+                + ', '.join(missing)
             )
-        return float(np.median(valid)), button_position
+        displaced = {
+            joint: positions[joint]
+            for joint in BUTTON_JOINTS
+            if abs(positions[joint]) > 0.0005
+        }
+        if displaced:
+            raise RuntimeError(f'Buttons do not rest at zero: {displaced}')
+        maximum_button_position = max(
+            abs(positions[joint]) for joint in BUTTON_JOINTS
+        )
+        return float(np.median(valid)), maximum_button_position
 
     def wait_for_active_controllers(self, timeout):
         """Verify controller state through ROS service without ros2cli daemon."""

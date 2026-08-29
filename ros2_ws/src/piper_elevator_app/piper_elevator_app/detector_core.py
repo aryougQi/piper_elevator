@@ -65,6 +65,51 @@ def filter_detections_by_class(
     ]
 
 
+def relabel_three_by_three_panel(
+    detections: Sequence[Detection],
+    labels: Sequence[str],
+    class_names: Sequence[str],
+) -> List[Detection]:
+    """Recover simulation button semantics from the known panel layout.
+
+    The detector still supplies all physical button boxes.  At close range,
+    however, a large bell icon can be classified as an arrow even though its
+    localization remains accurate.  When exactly one complete 3x3 panel is
+    visible, assign labels by column and vertical order.  Incomplete views are
+    returned untouched so normal tracking and close-range handoff behavior is
+    preserved.
+    """
+    result = list(detections)
+    if len(result) != 9 or len(labels) != 9:
+        return result
+    normalized_names = [str(name).strip().casefold() for name in class_names]
+    normalized_labels = [str(label).strip().casefold() for label in labels]
+    if any(not label for label in normalized_labels):
+        return result
+    try:
+        class_ids = [normalized_names.index(label) for label in normalized_labels]
+    except ValueError:
+        return result
+
+    by_x = sorted(result, key=lambda detection: detection.center[0])
+    relabeled = []
+    for column in range(3):
+        column_detections = sorted(
+            by_x[column * 3:(column + 1) * 3],
+            key=lambda detection: detection.center[1],
+        )
+        for row, detection in enumerate(column_detections):
+            layout_index = row * 3 + column
+            relabeled.append(
+                replace(
+                    detection,
+                    class_id=class_ids[layout_index],
+                    class_name=str(labels[layout_index]),
+                )
+            )
+    return relabeled
+
+
 def intersection_over_union(first: Detection, second: Detection) -> float:
     """Calculate intersection-over-union for two detections."""
     left = max(first.x1, second.x1)
@@ -592,6 +637,110 @@ def robust_box_depth(
     if inliers.size < max(1, min_samples):
         return None
     return float(np.median(inliers))
+
+
+def estimate_surface_normal(
+    depth_image: np.ndarray,
+    detection: Detection,
+    camera_matrix: np.ndarray,
+    unit_scale: float,
+    inner_ratio: float,
+    min_depth_m: float,
+    max_depth_m: float,
+    min_samples: int,
+    max_samples: int = 400,
+    max_residual_m: float = 0.004,
+    max_tilt_degrees: float = 60.0,
+    distortion_coefficients: Optional[np.ndarray] = None,
+    distortion_model: str = '',
+) -> Optional[np.ndarray]:
+    """Fit the button face and return its camera-to-surface unit normal.
+
+    The sign is chosen toward increasing range, which is the direction a
+    tool mounted behind the camera travels when approaching the panel.
+    """
+    center_x, center_y = detection.center
+    ratio = float(np.clip(inner_ratio, 0.05, 1.0))
+    half_width = max(1.0, detection.width * ratio / 2.0)
+    half_height = max(1.0, detection.height * ratio / 2.0)
+    image_height, image_width = depth_image.shape[:2]
+    x0 = max(0, int(round(center_x - half_width)))
+    x1 = min(image_width, int(round(center_x + half_width + 1)))
+    y0 = max(0, int(round(center_y - half_height)))
+    y1 = min(image_height, int(round(center_y + half_height + 1)))
+    if x1 <= x0 or y1 <= y0:
+        return None
+
+    region_area = (x1 - x0) * (y1 - y0)
+    stride = max(
+        1,
+        int(np.ceil(np.sqrt(region_area / max(1, int(max_samples))))),
+    )
+    rows = np.arange(y0, y1, stride, dtype=np.int32)
+    columns = np.arange(x0, x1, stride, dtype=np.int32)
+    grid_x, grid_y = np.meshgrid(columns, rows)
+    depths = np.asarray(
+        depth_image[grid_y, grid_x],
+        dtype=np.float64,
+    ).reshape(-1)
+    if np.issubdtype(depth_image.dtype, np.integer):
+        depths *= float(unit_scale)
+    pixels_x = grid_x.reshape(-1)
+    pixels_y = grid_y.reshape(-1)
+    valid = (
+        np.isfinite(depths)
+        & (depths >= min_depth_m)
+        & (depths <= max_depth_m)
+    )
+    if np.count_nonzero(valid) < max(3, int(min_samples)):
+        return None
+
+    depths = depths[valid]
+    pixels_x = pixels_x[valid]
+    pixels_y = pixels_y[valid]
+    median = float(np.median(depths))
+    deviations = np.abs(depths - median)
+    mad = float(np.median(deviations))
+    depth_tolerance = max(3.0 * 1.4826 * mad, 0.006)
+    depth_inliers = deviations <= depth_tolerance
+    if np.count_nonzero(depth_inliers) < max(3, int(min_samples)):
+        return None
+
+    points = np.asarray([
+        project_pixel(
+            camera_matrix,
+            float(u),
+            float(v),
+            float(depth),
+            distortion_coefficients,
+            distortion_model,
+        )
+        for u, v, depth in zip(
+            pixels_x[depth_inliers],
+            pixels_y[depth_inliers],
+            depths[depth_inliers],
+        )
+    ])
+    centroid = np.mean(points, axis=0)
+    _, _, right = np.linalg.svd(points - centroid, full_matrices=False)
+    normal = right[-1]
+    residuals = np.abs((points - centroid) @ normal)
+    plane_inliers = residuals <= max(1.0e-4, float(max_residual_m))
+    if np.count_nonzero(plane_inliers) < max(3, int(min_samples)):
+        return None
+
+    points = points[plane_inliers]
+    centroid = np.mean(points, axis=0)
+    _, _, right = np.linalg.svd(points - centroid, full_matrices=False)
+    normal = right[-1]
+    if float(np.dot(normal, centroid)) < 0.0:
+        normal = -normal
+    normal /= np.linalg.norm(normal)
+    maximum_tilt = np.deg2rad(float(max_tilt_degrees))
+    tilt = np.arccos(float(np.clip(normal[2], -1.0, 1.0)))
+    if tilt > maximum_tilt:
+        return None
+    return normal
 
 
 def project_pixel(

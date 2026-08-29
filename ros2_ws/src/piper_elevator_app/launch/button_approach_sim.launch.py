@@ -17,6 +17,16 @@ def generate_launch_description():
         'config',
         'button_approach.yaml',
     )
+    servo_parameters = os.path.join(
+        app_share,
+        'config',
+        'button_visual_servo.yaml',
+    )
+    press_parameters = os.path.join(
+        app_share,
+        'config',
+        'button_press.yaml',
+    )
 
     return LaunchDescription([
         DeclareLaunchArgument('use_rviz', default_value='true'),
@@ -81,6 +91,10 @@ def generate_launch_description():
                     LaunchConfiguration('button_base_z'),
                     value_type=float,
                 ),
+                # 仿真按钮面板法向沿 base_link +X。
+                'normal_x': 1.0,
+                'normal_y': 0.0,
+                'normal_z': 0.0,
                 'publish_rate_hz': 5.0,
             }],
         ),
@@ -94,10 +108,39 @@ def generate_launch_description():
                 {
                     'simulation_mode': True,
                     'allow_execution': True,
+                    # The fake Pika controller exposes only center_joint; its
+                    # mimic finger joints are not command interfaces.
+                    'close_gripper_before_plan': False,
                     'auto_plan_execute': ParameterValue(
                         LaunchConfiguration('auto_execute'),
                         value_type=bool,
                     ),
+                },
+            ],
+        ),
+        Node(
+            package='piper_elevator_app',
+            executable='button_visual_servo',
+            name='button_visual_servo',
+            output='screen',
+            parameters=[
+                servo_parameters,
+                {
+                    'simulation_mode': True,
+                    'allow_execution': True,
+                },
+            ],
+        ),
+        Node(
+            package='piper_elevator_app',
+            executable='button_press_executor',
+            name='button_press_executor',
+            output='screen',
+            parameters=[
+                press_parameters,
+                {
+                    'simulation_mode': True,
+                    'allow_execution': True,
                 },
             ],
         ),

@@ -129,6 +129,10 @@ def generate_launch_description():
                 ),
                 'gate_service_name': '/control_enable',
                 'status_timeout_seconds': 1.0,
+                'servo_authorization_service': (
+                    '/piper_pika_control_gate/servo_enable'
+                ),
+                'servo_heartbeat_timeout_seconds': 0.75,
             }],
             condition=IfCondition(
                 LaunchConfiguration('hardware_commands_enabled')

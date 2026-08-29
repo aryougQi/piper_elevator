@@ -5,9 +5,11 @@ import numpy as np
 import pytest
 
 from piper_elevator_app.detector_core import Detection
+from piper_elevator_app.detector_core import estimate_surface_normal
 from piper_elevator_app.detector_core import filter_detections_by_class
 from piper_elevator_app.detector_core import project_pixel
 from piper_elevator_app.detector_core import robust_box_depth
+from piper_elevator_app.detector_core import relabel_three_by_three_panel
 from piper_elevator_app.detector_core import TemporalButtonTracker
 from piper_elevator_app.detector_core import YoloOnnxDetector
 
@@ -215,6 +217,46 @@ def test_filters_coordinates_to_operator_selected_button_class():
     ]
 
 
+def test_simulation_panel_layout_recovers_all_nine_button_labels():
+    labels = ['1', '2', '3', '4', 'up', 'down', 'open', 'close', 'alarm']
+    class_names = labels + ['wrong']
+    detections = []
+    for column_x in (100.0, 250.0, 400.0):
+        for row_y in (80.0, 220.0, 350.0):
+            detections.append(
+                Detection(
+                    column_x - 20.0,
+                    row_y - 20.0,
+                    column_x + 20.0,
+                    row_y + 20.0,
+                    0.5,
+                    9,
+                    'wrong',
+                )
+            )
+
+    relabeled = relabel_three_by_three_panel(
+        list(reversed(detections)),
+        labels,
+        class_names,
+    )
+
+    by_name = {detection.class_name: detection for detection in relabeled}
+    assert set(by_name) == set(labels)
+    assert by_name['alarm'].center == pytest.approx((400.0, 350.0))
+    assert by_name['1'].center == pytest.approx((100.0, 80.0))
+
+
+def test_simulation_layout_does_not_relabel_an_incomplete_close_view():
+    detections = [make_detection(class_id=index) for index in range(8)]
+
+    assert relabel_three_by_three_panel(
+        detections,
+        ['1', '2', '3', '4', 'up', 'down', 'open', 'close', 'alarm'],
+        ['1', '2', '3', '4', 'up', 'down', 'open', 'close', 'alarm'],
+    ) == detections
+
+
 def test_robust_depth_rejects_holes_and_outliers():
     depth_image = np.full((300, 300), 800, dtype=np.uint16)
     depth_image[130:135, 130:135] = 0
@@ -300,3 +342,38 @@ def test_projects_distorted_realsense_pixel_to_camera_coordinates():
     )
 
     assert position == pytest.approx(expected, abs=1e-6)
+
+
+def test_estimates_button_surface_normal_from_depth_plane():
+    camera_matrix = np.asarray([
+        [400.0, 0.0, 160.0],
+        [0.0, 400.0, 120.0],
+        [0.0, 0.0, 1.0],
+    ])
+    desired_normal = np.asarray([0.12, -0.05, 1.0])
+    desired_normal /= np.linalg.norm(desired_normal)
+    rows, columns = np.indices((240, 320))
+    rays_x = (columns - 160.0) / 400.0
+    rays_y = (rows - 120.0) / 400.0
+    depth = 0.8 / (
+        desired_normal[0] * rays_x
+        + desired_normal[1] * rays_y
+        + desired_normal[2]
+    )
+    depth[100:103, 150:153] = np.nan
+    depth[130:133, 170:173] = 1.6
+    detection = Detection(100, 60, 220, 180, 0.9, 3, 'button_1')
+
+    normal = estimate_surface_normal(
+        depth.astype(np.float32),
+        detection,
+        camera_matrix,
+        unit_scale=0.001,
+        inner_ratio=0.8,
+        min_depth_m=0.1,
+        max_depth_m=2.0,
+        min_samples=30,
+        max_residual_m=0.003,
+    )
+
+    assert normal == pytest.approx(desired_normal, abs=2.0e-3)

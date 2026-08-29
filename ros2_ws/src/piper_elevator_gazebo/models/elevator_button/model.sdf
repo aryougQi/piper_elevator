@@ -8,36 +8,73 @@
       <inertial>
         <mass>2.0</mass>
         <inertia>
-          <ixx>0.00707</ixx>
-          <iyy>0.00545</iyy>
-          <izz>0.00172</izz>
+          <ixx>0.0250</ixx>
+          <iyy>0.0171</iyy>
+          <izz>0.0122</izz>
         </inertia>
       </inertial>
       <visual name="panel_visual">
-        <geometry>
-          <box><size>0.012 0.10 0.18</size></box>
-        </geometry>
+        <geometry><box><size>0.012 0.27 0.32</size></box></geometry>
         <material>
           <ambient>0.32 0.34 0.36 1</ambient>
           <diffuse>0.42 0.45 0.48 1</diffuse>
           <specular>0.20 0.20 0.20 1</specular>
-          <pbr>
-            <metal>
-              <metalness>0.65</metalness>
-              <roughness>0.32</roughness>
-            </metal>
-          </pbr>
+          <pbr><metal><metalness>0.65</metalness><roughness>0.32</roughness></metal></pbr>
         </material>
       </visual>
-      <!-- Leave a collision channel behind the moving button face. -->
-      <collision name="panel_left_collision">
-        <pose>0 0.035 0 0 0 0</pose>
-        <geometry><box><size>0.012 0.030 0.18</size></box></geometry>
+
+      <!-- Four collision ribs leave a full press channel behind every column. -->
+      <collision name="panel_outer_left_collision">
+        <pose>0 -0.1175 0 0 0 0</pose>
+        <geometry><box><size>0.012 0.035 0.32</size></box></geometry>
       </collision>
-      <collision name="panel_right_collision">
-        <pose>0 -0.035 0 0 0 0</pose>
-        <geometry><box><size>0.012 0.030 0.18</size></box></geometry>
+      <collision name="panel_inner_left_collision">
+        <pose>0 -0.0375 0 0 0 0</pose>
+        <geometry><box><size>0.012 0.025 0.32</size></box></geometry>
       </collision>
+      <collision name="panel_inner_right_collision">
+        <pose>0 0.0375 0 0 0 0</pose>
+        <geometry><box><size>0.012 0.025 0.32</size></box></geometry>
+      </collision>
+      <collision name="panel_outer_right_collision">
+        <pose>0 0.1175 0 0 0 0</pose>
+        <geometry><box><size>0.012 0.035 0.32</size></box></geometry>
+      </collision>
+
+      <visual name="floor_display">
+        <pose>0.0068 0 0.125 0 0 0</pose>
+        <geometry><box><size>0.002 0.210 0.045</size></box></geometry>
+        <material>
+          <ambient>0.008 0.012 0.014 1</ambient>
+          <diffuse>0.015 0.020 0.022 1</diffuse>
+          <specular>0.15 0.15 0.15 1</specular>
+        </material>
+      </visual>
+      <visual name="display_3_top">
+        <pose>0.0080 0 0.141 0 0 0</pose>
+        <geometry><box><size>0.0005 0.028 0.003</size></box></geometry>
+        <material><ambient>1 0.02 0.01 1</ambient><diffuse>1 0.03 0.01 1</diffuse><emissive>0.8 0.01 0 1</emissive></material>
+      </visual>
+      <visual name="display_3_middle">
+        <pose>0.0080 0 0.125 0 0 0</pose>
+        <geometry><box><size>0.0005 0.028 0.003</size></box></geometry>
+        <material><ambient>1 0.02 0.01 1</ambient><diffuse>1 0.03 0.01 1</diffuse><emissive>0.8 0.01 0 1</emissive></material>
+      </visual>
+      <visual name="display_3_bottom">
+        <pose>0.0080 0 0.109 0 0 0</pose>
+        <geometry><box><size>0.0005 0.028 0.003</size></box></geometry>
+        <material><ambient>1 0.02 0.01 1</ambient><diffuse>1 0.03 0.01 1</diffuse><emissive>0.8 0.01 0 1</emissive></material>
+      </visual>
+      <visual name="display_3_upper_right">
+        <pose>0.0080 0.0125 0.133 0 0 0</pose>
+        <geometry><box><size>0.0005 0.003 0.013</size></box></geometry>
+        <material><ambient>1 0.02 0.01 1</ambient><diffuse>1 0.03 0.01 1</diffuse><emissive>0.8 0.01 0 1</emissive></material>
+      </visual>
+      <visual name="display_3_lower_right">
+        <pose>0.0080 0.0125 0.117 0 0 0</pose>
+        <geometry><box><size>0.0005 0.003 0.013</size></box></geometry>
+        <material><ambient>1 0.02 0.01 1</ambient><diffuse>1 0.03 0.01 1</diffuse><emissive>0.8 0.01 0 1</emissive></material>
+      </visual>
     </link>
 
     <joint name="panel_world_joint" type="fixed">
@@ -45,83 +82,164 @@
       <child>wall_panel</child>
     </joint>
 
-    <link name="button_face">
-      <pose relative_to="wall_panel">0.010 0 0 0 0 0</pose>
-      <inertial>
-        <mass>0.03</mass>
-        <inertia>
-          <ixx>0.0000060</ixx>
-          <iyy>0.00000316</iyy>
-          <izz>0.00000316</izz>
-        </inertia>
-      </inertial>
-      <visual name="button_visual">
-        <pose>0 0 0 0 1.57079632679 0</pose>
-        <geometry>
-          <cylinder><radius>0.020</radius><length>0.008</length></cylinder>
-        </geometry>
+    <!-- Every control is a real 4 mm spring-loaded link. -->
+    <link name="button_1_face">
+      <pose relative_to="wall_panel">0.010 -0.075 0.065 0 0 0</pose>
+      <inertial><mass>0.03</mass><inertia><ixx>0.0000106</ixx><iyy>0.0000054</iyy><izz>0.0000054</izz></inertia></inertial>
+      <visual name="button_1_face">
+        <geometry><box><size>0.008 0.046 0.046</size></box></geometry>
         <material>
-          <ambient>0.78 0.78 0.74 1</ambient>
-          <diffuse>0.92 0.92 0.88 1</diffuse>
-          <specular>0.25 0.25 0.25 1</specular>
-          <pbr>
-            <metal>
-              <metalness>0.25</metalness>
-              <roughness>0.30</roughness>
-            </metal>
-          </pbr>
+          <ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse>
+          <pbr><metal><albedo_map>model://elevator_button/textures/button_1.png</albedo_map><metalness>0.08</metalness><roughness>0.32</roughness></metal></pbr>
         </material>
       </visual>
-      <visual name="up_symbol_visual">
-        <pose>0.0041 0 0 0 0 0</pose>
-        <geometry>
-          <mesh><uri>meshes/up_symbol.dae</uri></mesh>
-        </geometry>
-      </visual>
-      <collision name="button_face_collision">
-        <pose>0 0 0 0 1.57079632679 0</pose>
-        <geometry>
-          <cylinder><radius>0.020</radius><length>0.008</length></cylinder>
-        </geometry>
-        <surface>
-          <friction>
-            <ode><mu>0.8</mu><mu2>0.8</mu2></ode>
-          </friction>
-        </surface>
+      <collision name="button_1_face_collision">
+        <geometry><box><size>0.008 0.046 0.046</size></box></geometry>
+        <surface><friction><ode><mu>0.8</mu><mu2>0.8</mu2></ode></friction></surface>
       </collision>
-      <sensor name="button_contact" type="contact">
-        <always_on>true</always_on>
-        <update_rate>200</update_rate>
-        <contact><collision>button_face_collision</collision></contact>
-      </sensor>
+      <sensor name="button_1_contact" type="contact"><always_on>true</always_on><update_rate>200</update_rate><contact><collision>button_1_face_collision</collision></contact></sensor>
     </link>
-
-    <joint name="button_press_joint" type="prismatic">
-      <parent>wall_panel</parent>
-      <child>button_face</child>
-      <axis>
-        <xyz>1 0 0</xyz>
-        <limit><lower>-0.004</lower><upper>0.0</upper></limit>
-        <dynamics>
-          <damping>0.50</damping>
-          <spring_reference>0.0</spring_reference>
-          <spring_stiffness>50.0</spring_stiffness>
-        </dynamics>
-      </axis>
+    <joint name="button_1_press_joint" type="prismatic">
+      <parent>wall_panel</parent><child>button_1_face</child>
+      <axis><xyz>1 0 0</xyz><limit><lower>-0.004</lower><upper>0.0</upper></limit><dynamics><damping>0.50</damping><spring_reference>0.0</spring_reference><spring_stiffness>50.0</spring_stiffness></dynamics></axis>
     </joint>
 
-    <plugin
-      filename="ignition-gazebo-touchplugin-system"
-      name="ignition::gazebo::systems::TouchPlugin">
+    <link name="button_2_face">
+      <pose relative_to="wall_panel">0.010 0 0.065 0 0 0</pose>
+      <inertial><mass>0.03</mass><inertia><ixx>0.0000106</ixx><iyy>0.0000054</iyy><izz>0.0000054</izz></inertia></inertial>
+      <visual name="button_2_face">
+        <geometry><box><size>0.008 0.046 0.046</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>model://elevator_button/textures/button_2.png</albedo_map><metalness>0.08</metalness><roughness>0.32</roughness></metal></pbr></material>
+      </visual>
+      <collision name="button_2_face_collision"><geometry><box><size>0.008 0.046 0.046</size></box></geometry><surface><friction><ode><mu>0.8</mu><mu2>0.8</mu2></ode></friction></surface></collision>
+      <sensor name="button_2_contact" type="contact"><always_on>true</always_on><update_rate>200</update_rate><contact><collision>button_2_face_collision</collision></contact></sensor>
+    </link>
+    <joint name="button_2_press_joint" type="prismatic">
+      <parent>wall_panel</parent><child>button_2_face</child>
+      <axis><xyz>1 0 0</xyz><limit><lower>-0.004</lower><upper>0.0</upper></limit><dynamics><damping>0.50</damping><spring_reference>0.0</spring_reference><spring_stiffness>50.0</spring_stiffness></dynamics></axis>
+    </joint>
+
+    <link name="button_3_face">
+      <pose relative_to="wall_panel">0.010 0.075 0.065 0 0 0</pose>
+      <inertial><mass>0.03</mass><inertia><ixx>0.0000106</ixx><iyy>0.0000054</iyy><izz>0.0000054</izz></inertia></inertial>
+      <visual name="button_3_face">
+        <geometry><box><size>0.008 0.046 0.046</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>model://elevator_button/textures/button_3.png</albedo_map><metalness>0.08</metalness><roughness>0.32</roughness></metal></pbr></material>
+      </visual>
+      <collision name="button_3_face_collision"><geometry><box><size>0.008 0.046 0.046</size></box></geometry><surface><friction><ode><mu>0.8</mu><mu2>0.8</mu2></ode></friction></surface></collision>
+      <sensor name="button_3_contact" type="contact"><always_on>true</always_on><update_rate>200</update_rate><contact><collision>button_3_face_collision</collision></contact></sensor>
+    </link>
+    <joint name="button_3_press_joint" type="prismatic">
+      <parent>wall_panel</parent><child>button_3_face</child>
+      <axis><xyz>1 0 0</xyz><limit><lower>-0.004</lower><upper>0.0</upper></limit><dynamics><damping>0.50</damping><spring_reference>0.0</spring_reference><spring_stiffness>50.0</spring_stiffness></dynamics></axis>
+    </joint>
+
+    <link name="button_4_face">
+      <pose relative_to="wall_panel">0.010 -0.075 0 0 0 0</pose>
+      <inertial><mass>0.03</mass><inertia><ixx>0.0000106</ixx><iyy>0.0000054</iyy><izz>0.0000054</izz></inertia></inertial>
+      <visual name="button_4_face">
+        <geometry><box><size>0.008 0.046 0.046</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>model://elevator_button/textures/button_4.png</albedo_map><metalness>0.08</metalness><roughness>0.32</roughness></metal></pbr></material>
+      </visual>
+      <collision name="button_4_face_collision"><geometry><box><size>0.008 0.046 0.046</size></box></geometry><surface><friction><ode><mu>0.8</mu><mu2>0.8</mu2></ode></friction></surface></collision>
+      <sensor name="button_4_contact" type="contact"><always_on>true</always_on><update_rate>200</update_rate><contact><collision>button_4_face_collision</collision></contact></sensor>
+    </link>
+    <joint name="button_4_press_joint" type="prismatic">
+      <parent>wall_panel</parent><child>button_4_face</child>
+      <axis><xyz>1 0 0</xyz><limit><lower>-0.004</lower><upper>0.0</upper></limit><dynamics><damping>0.50</damping><spring_reference>0.0</spring_reference><spring_stiffness>50.0</spring_stiffness></dynamics></axis>
+    </joint>
+
+    <link name="button_up_face">
+      <pose relative_to="wall_panel">0.010 0 0 0 0 0</pose>
+      <inertial><mass>0.03</mass><inertia><ixx>0.0000106</ixx><iyy>0.0000054</iyy><izz>0.0000054</izz></inertia></inertial>
+      <visual name="button_up_face">
+        <geometry><box><size>0.008 0.046 0.046</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>model://elevator_button/textures/button_up.png</albedo_map><metalness>0.08</metalness><roughness>0.32</roughness></metal></pbr></material>
+      </visual>
+      <collision name="button_up_face_collision"><geometry><box><size>0.008 0.046 0.046</size></box></geometry><surface><friction><ode><mu>0.8</mu><mu2>0.8</mu2></ode></friction></surface></collision>
+      <sensor name="button_up_contact" type="contact"><always_on>true</always_on><update_rate>200</update_rate><contact><collision>button_up_face_collision</collision></contact></sensor>
+    </link>
+    <joint name="button_up_press_joint" type="prismatic">
+      <parent>wall_panel</parent><child>button_up_face</child>
+      <axis><xyz>1 0 0</xyz><limit><lower>-0.004</lower><upper>0.0</upper></limit><dynamics><damping>0.50</damping><spring_reference>0.0</spring_reference><spring_stiffness>50.0</spring_stiffness></dynamics></axis>
+    </joint>
+
+    <link name="button_down_face">
+      <pose relative_to="wall_panel">0.010 0.075 0 0 0 0</pose>
+      <inertial><mass>0.03</mass><inertia><ixx>0.0000106</ixx><iyy>0.0000054</iyy><izz>0.0000054</izz></inertia></inertial>
+      <visual name="button_down_face">
+        <geometry><box><size>0.008 0.046 0.046</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>model://elevator_button/textures/button_down.png</albedo_map><metalness>0.08</metalness><roughness>0.32</roughness></metal></pbr></material>
+      </visual>
+      <collision name="button_down_face_collision"><geometry><box><size>0.008 0.046 0.046</size></box></geometry><surface><friction><ode><mu>0.8</mu><mu2>0.8</mu2></ode></friction></surface></collision>
+      <sensor name="button_down_contact" type="contact"><always_on>true</always_on><update_rate>200</update_rate><contact><collision>button_down_face_collision</collision></contact></sensor>
+    </link>
+    <joint name="button_down_press_joint" type="prismatic">
+      <parent>wall_panel</parent><child>button_down_face</child>
+      <axis><xyz>1 0 0</xyz><limit><lower>-0.004</lower><upper>0.0</upper></limit><dynamics><damping>0.50</damping><spring_reference>0.0</spring_reference><spring_stiffness>50.0</spring_stiffness></dynamics></axis>
+    </joint>
+
+    <link name="button_open_face">
+      <pose relative_to="wall_panel">0.010 -0.075 -0.065 0 0 0</pose>
+      <inertial><mass>0.03</mass><inertia><ixx>0.0000106</ixx><iyy>0.0000054</iyy><izz>0.0000054</izz></inertia></inertial>
+      <visual name="button_open_face">
+        <geometry><box><size>0.008 0.046 0.046</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>model://elevator_button/textures/button_open.png</albedo_map><metalness>0.08</metalness><roughness>0.32</roughness></metal></pbr></material>
+      </visual>
+      <collision name="button_open_face_collision"><geometry><box><size>0.008 0.046 0.046</size></box></geometry><surface><friction><ode><mu>0.8</mu><mu2>0.8</mu2></ode></friction></surface></collision>
+      <sensor name="button_open_contact" type="contact"><always_on>true</always_on><update_rate>200</update_rate><contact><collision>button_open_face_collision</collision></contact></sensor>
+    </link>
+    <joint name="button_open_press_joint" type="prismatic">
+      <parent>wall_panel</parent><child>button_open_face</child>
+      <axis><xyz>1 0 0</xyz><limit><lower>-0.004</lower><upper>0.0</upper></limit><dynamics><damping>0.50</damping><spring_reference>0.0</spring_reference><spring_stiffness>50.0</spring_stiffness></dynamics></axis>
+    </joint>
+
+    <link name="button_close_face">
+      <pose relative_to="wall_panel">0.010 0 -0.065 0 0 0</pose>
+      <inertial><mass>0.03</mass><inertia><ixx>0.0000106</ixx><iyy>0.0000054</iyy><izz>0.0000054</izz></inertia></inertial>
+      <visual name="button_close_face">
+        <geometry><box><size>0.008 0.046 0.046</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>model://elevator_button/textures/button_close.png</albedo_map><metalness>0.08</metalness><roughness>0.32</roughness></metal></pbr></material>
+      </visual>
+      <collision name="button_close_face_collision"><geometry><box><size>0.008 0.046 0.046</size></box></geometry><surface><friction><ode><mu>0.8</mu><mu2>0.8</mu2></ode></friction></surface></collision>
+      <sensor name="button_close_contact" type="contact"><always_on>true</always_on><update_rate>200</update_rate><contact><collision>button_close_face_collision</collision></contact></sensor>
+    </link>
+    <joint name="button_close_press_joint" type="prismatic">
+      <parent>wall_panel</parent><child>button_close_face</child>
+      <axis><xyz>1 0 0</xyz><limit><lower>-0.004</lower><upper>0.0</upper></limit><dynamics><damping>0.50</damping><spring_reference>0.0</spring_reference><spring_stiffness>50.0</spring_stiffness></dynamics></axis>
+    </joint>
+
+    <link name="button_alarm_face">
+      <pose relative_to="wall_panel">0.010 0.075 -0.065 0 0 0</pose>
+      <inertial><mass>0.03</mass><inertia><ixx>0.0000106</ixx><iyy>0.0000054</iyy><izz>0.0000054</izz></inertia></inertial>
+      <visual name="button_alarm_face">
+        <geometry><box><size>0.008 0.046 0.046</size></box></geometry>
+        <material><ambient>1 1 1 1</ambient><diffuse>1 1 1 1</diffuse><pbr><metal><albedo_map>model://elevator_button/textures/button_alarm.png</albedo_map><metalness>0.08</metalness><roughness>0.32</roughness></metal></pbr></material>
+      </visual>
+      <collision name="button_alarm_face_collision"><geometry><box><size>0.008 0.046 0.046</size></box></geometry><surface><friction><ode><mu>0.8</mu><mu2>0.8</mu2></ode></friction></surface></collision>
+      <sensor name="button_alarm_contact" type="contact"><always_on>true</always_on><update_rate>200</update_rate><contact><collision>button_alarm_face_collision</collision></contact></sensor>
+    </link>
+    <joint name="button_alarm_press_joint" type="prismatic">
+      <parent>wall_panel</parent><child>button_alarm_face</child>
+      <axis><xyz>1 0 0</xyz><limit><lower>-0.004</lower><upper>0.0</upper></limit><dynamics><damping>0.50</damping><spring_reference>0.0</spring_reference><spring_stiffness>50.0</spring_stiffness></dynamics></axis>
+    </joint>
+
+    <plugin filename="ignition-gazebo-touchplugin-system" name="gz::sim::systems::TouchPlugin">
       <target>piper_pika</target>
       <namespace>elevator_button</namespace>
       <time>0.02</time>
       <enabled>true</enabled>
     </plugin>
-    <plugin
-      filename="ignition-gazebo-joint-state-publisher-system"
-      name="ignition::gazebo::systems::JointStatePublisher">
-      <joint_name>button_press_joint</joint_name>
+    <plugin filename="ignition-gazebo-joint-state-publisher-system" name="ignition::gazebo::systems::JointStatePublisher">
+      <joint_name>button_1_press_joint</joint_name>
+      <joint_name>button_2_press_joint</joint_name>
+      <joint_name>button_3_press_joint</joint_name>
+      <joint_name>button_4_press_joint</joint_name>
+      <joint_name>button_up_press_joint</joint_name>
+      <joint_name>button_down_press_joint</joint_name>
+      <joint_name>button_open_press_joint</joint_name>
+      <joint_name>button_close_press_joint</joint_name>
+      <joint_name>button_alarm_press_joint</joint_name>
       <topic>/elevator_button/joint_state</topic>
       <update_rate>100</update_rate>
     </plugin>

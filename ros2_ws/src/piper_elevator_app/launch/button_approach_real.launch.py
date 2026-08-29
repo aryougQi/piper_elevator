@@ -65,6 +65,39 @@ def generate_launch_description():
                 'camera_calibration_valid'
             ),
             'allow_execution': LaunchConfiguration('allow_execution'),
+            'hardware_gate_required': 'true',
+        }.items(),
+    )
+
+    visual_servo = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                app_share,
+                'launch',
+                'button_visual_servo.launch.py',
+            )
+        ),
+        launch_arguments={
+            'simulation_mode': 'false',
+            'camera_calibration_valid': LaunchConfiguration(
+                'camera_calibration_valid'
+            ),
+            'allow_execution': LaunchConfiguration('allow_execution'),
+        }.items(),
+    )
+
+    button_press = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(
+                app_share,
+                'launch',
+                'button_press.launch.py',
+            )
+        ),
+        launch_arguments={
+            'simulation_mode': 'false',
+            'allow_execution': LaunchConfiguration('allow_execution'),
+            'hardware_gate_required': 'true',
         }.items(),
     )
 
@@ -99,4 +132,6 @@ def generate_launch_description():
         real_arm,
         camera,
         planner,
+        visual_servo,
+        button_press,
     ])

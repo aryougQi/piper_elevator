@@ -46,6 +46,18 @@ setup(
                 'piper_elevator_app.button_approach_planner:main'
             ),
             (
+                'button_visual_servo = '
+                'piper_elevator_app.button_visual_servo:main'
+            ),
+            (
+                'button_press_executor = '
+                'piper_elevator_app.button_press_executor:main'
+            ),
+            (
+                'elevator_task_manager = '
+                'piper_elevator_app.elevator_task_manager:main'
+            ),
+            (
                 'mock_button_pose = '
                 'piper_elevator_app.mock_button_pose:main'
             ),

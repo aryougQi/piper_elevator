@@ -8,12 +8,34 @@ controller_manager:
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
+# Humble/Fortress reads this as a ROS parameter on the system plugin node;
+# placing the same field inside the SDF plugin tag is silently ignored.
+gz_ros2_control:
+  ros__parameters:
+    # The 0.1 default leaves the loaded shoulder/elbow far behind MoveIt.
+    # Values at or below 1.0 avoid the discrete position loop oscillating.
+    position_proportional_gain: 0.8
+
 arm_controller:
   ros__parameters:
     allow_nonzero_velocity_at_trajectory_end: false
+    allow_partial_joints_goal: false
+    open_loop_control: false
     joints: [joint1, joint2, joint3, joint4, joint5, joint6]
     command_interfaces: [position]
     state_interfaces: [position, velocity]
+    # Never report success merely because trajectory time elapsed.  The old
+    # configuration accepted ~1 rad shoulder/elbow tracking errors, which
+    # made execution visibly disagree with the RViz plan.
+    constraints:
+      goal_time: 1.0
+      stopped_velocity_tolerance: 0.03
+      joint1: {trajectory: 0.12, goal: 0.025}
+      joint2: {trajectory: 0.12, goal: 0.025}
+      joint3: {trajectory: 0.12, goal: 0.025}
+      joint4: {trajectory: 0.12, goal: 0.025}
+      joint5: {trajectory: 0.12, goal: 0.025}
+      joint6: {trajectory: 0.12, goal: 0.025}
 
 pika_gripper_controller:
   ros__parameters:

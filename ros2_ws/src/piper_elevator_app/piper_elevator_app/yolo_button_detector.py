@@ -10,6 +10,15 @@ from cv_bridge import CvBridge, CvBridgeError
 from geometry_msgs.msg import PointStamped, PoseStamped
 import message_filters
 import numpy as np
+from piper_elevator_app.detector_core import Detection
+from piper_elevator_app.detector_core import estimate_surface_normal
+from piper_elevator_app.detector_core import filter_detections_by_class
+from piper_elevator_app.detector_core import project_pixel
+from piper_elevator_app.detector_core import relabel_three_by_three_panel
+from piper_elevator_app.detector_core import robust_box_depth
+from piper_elevator_app.detector_core import TemporalButtonTracker
+from piper_elevator_app.detector_core import YoloOnnxDetector
+from piper_elevator_app.motion_core import orientation_from_approach_direction
 import rclpy
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy
@@ -23,13 +32,6 @@ from vision_msgs.msg import (
     Detection2DArray,
     ObjectHypothesisWithPose,
 )
-
-from piper_elevator_app.detector_core import Detection
-from piper_elevator_app.detector_core import filter_detections_by_class
-from piper_elevator_app.detector_core import project_pixel
-from piper_elevator_app.detector_core import robust_box_depth
-from piper_elevator_app.detector_core import TemporalButtonTracker
-from piper_elevator_app.detector_core import YoloOnnxDetector
 
 
 class ButtonDetector(Node):
@@ -45,6 +47,7 @@ class ButtonDetector(Node):
         self._distortion_model = ''
         self._camera_frame = ''
         self._filtered_position: Optional[np.ndarray] = None
+        self._filtered_surface_normal: Optional[np.ndarray] = None
         self._use_depth = bool(self.get_parameter('use_depth').value)
         self._input_qos = self._sensor_qos(
             int(self.get_parameter('input_queue_size').value),
@@ -137,6 +140,10 @@ class ButtonDetector(Node):
         self.declare_parameter('button_pixel_topic', '/button_pixel')
         self.declare_parameter('button_pose_topic', '/button_pose')
         self.declare_parameter(
+            'button_surface_pose_topic',
+            '/button_surface_pose',
+        )
+        self.declare_parameter(
             'button_detections_topic',
             '/button_detections',
         )
@@ -155,6 +162,11 @@ class ButtonDetector(Node):
         self.declare_parameter('button_selection_topic', '/button_selection')
         self.declare_parameter('button_selected_topic', '/button_selected')
         self.declare_parameter('selected_button_class', '')
+        self.declare_parameter('simulation_layout_relabel', False)
+        self.declare_parameter(
+            'simulation_panel_layout_labels',
+            ['1', '2', '3', '4', 'up', 'down', 'open', 'close', 'alarm'],
+        )
 
         self.declare_parameter(
             'model_path',
@@ -196,6 +208,12 @@ class ButtonDetector(Node):
         self.declare_parameter('minimum_depth_samples', 20)
         self.declare_parameter('min_depth_m', 0.10)
         self.declare_parameter('max_depth_m', 2.00)
+        self.declare_parameter('surface_inner_ratio', 0.70)
+        self.declare_parameter('surface_minimum_samples', 30)
+        self.declare_parameter('surface_maximum_samples', 400)
+        self.declare_parameter('surface_max_residual_m', 0.004)
+        self.declare_parameter('surface_max_tilt_degrees', 60.0)
+        self.declare_parameter('surface_normal_smoothing_alpha', 0.25)
 
         self.declare_parameter('required_stable_frames', 5)
         self.declare_parameter('max_missed_frames', 2)
@@ -207,6 +225,11 @@ class ButtonDetector(Node):
         self._pose_publisher = self.create_publisher(
             PoseStamped,
             self._string_parameter('button_pose_topic'),
+            1,
+        )
+        self._surface_pose_publisher = self.create_publisher(
+            PoseStamped,
+            self._string_parameter('button_surface_pose_topic'),
             1,
         )
         self._pixel_publisher = self.create_publisher(
@@ -306,6 +329,7 @@ class ButtonDetector(Node):
         self._selected_button_class = requested
         self._tracker.reset()
         self._filtered_position = None
+        self._filtered_surface_normal = None
         self._publish_selection_state()
         self._publish_state(None, False)
         self.get_logger().info(
@@ -482,6 +506,7 @@ class ButtonDetector(Node):
 
         depth_m = None
         position = None
+        surface_normal = None
         valid = stable
         if self._use_depth:
             valid = False
@@ -523,14 +548,66 @@ class ButtonDetector(Node):
                     )
                     position = self._smooth_position(measured)
                     valid = True
+                    measured_normal = estimate_surface_normal(
+                        depth_image,
+                        selected,
+                        self._camera_matrix,
+                        unit_scale=float(
+                            self.get_parameter('depth_unit_scale').value
+                        ),
+                        inner_ratio=float(
+                            self.get_parameter('surface_inner_ratio').value
+                        ),
+                        min_depth_m=float(
+                            self.get_parameter('min_depth_m').value
+                        ),
+                        max_depth_m=float(
+                            self.get_parameter('max_depth_m').value
+                        ),
+                        min_samples=int(
+                            self.get_parameter(
+                                'surface_minimum_samples'
+                            ).value
+                        ),
+                        max_samples=int(
+                            self.get_parameter(
+                                'surface_maximum_samples'
+                            ).value
+                        ),
+                        max_residual_m=float(
+                            self.get_parameter(
+                                'surface_max_residual_m'
+                            ).value
+                        ),
+                        max_tilt_degrees=float(
+                            self.get_parameter(
+                                'surface_max_tilt_degrees'
+                            ).value
+                        ),
+                        distortion_coefficients=(
+                            self._distortion_coefficients
+                        ),
+                        distortion_model=self._distortion_model,
+                    )
+                    if measured_normal is not None:
+                        surface_normal = self._smooth_surface_normal(
+                            measured_normal
+                        )
 
         if selected is None and self._tracker.current is None:
             self._filtered_position = None
+            self._filtered_surface_normal = None
         self._publish_state(selected, valid)
         if valid and selected is not None:
             self._publish_pixel(color_message, selected)
             if position is not None:
                 self._publish_pose(color_message, position)
+                if surface_normal is not None:
+                    self._publish_surface_pose(
+                        color_message,
+                        position,
+                        surface_normal,
+                    )
         self._publish_debug(
             color_message,
             color_image,
@@ -546,10 +623,19 @@ class ButtonDetector(Node):
         crop = image[y0:y1, x0:x1]
         if crop.size == 0:
             return []
-        return [
+        detections = [
             detection.translated(x0, y0)
             for detection in self._model.infer(crop)
         ]
+        if bool(self.get_parameter('simulation_layout_relabel').value):
+            detections = relabel_three_by_three_panel(
+                detections,
+                self._string_list_parameter(
+                    'simulation_panel_layout_labels'
+                ),
+                self._model.class_names,
+            )
+        return detections
 
     def _roi_bounds(
         self,
@@ -582,6 +668,28 @@ class ButtonDetector(Node):
                 + (1.0 - alpha) * self._filtered_position
             )
         return self._filtered_position
+
+    def _smooth_surface_normal(self, measured: np.ndarray) -> np.ndarray:
+        normal = np.asarray(measured, dtype=np.float64)
+        normal /= np.linalg.norm(normal)
+        alpha = float(np.clip(
+            self.get_parameter('surface_normal_smoothing_alpha').value,
+            0.0,
+            1.0,
+        ))
+        if self._filtered_surface_normal is None:
+            self._filtered_surface_normal = normal
+        else:
+            if np.dot(normal, self._filtered_surface_normal) < 0.0:
+                normal = -normal
+            self._filtered_surface_normal = (
+                alpha * normal
+                + (1.0 - alpha) * self._filtered_surface_normal
+            )
+            self._filtered_surface_normal /= np.linalg.norm(
+                self._filtered_surface_normal
+            )
+        return self._filtered_surface_normal
 
     def _publish_detections(
         self,
@@ -645,6 +753,30 @@ class ButtonDetector(Node):
         pose.pose.position.z = float(position[2])
         pose.pose.orientation.w = 1.0
         self._pose_publisher.publish(pose)
+
+    def _publish_surface_pose(
+        self,
+        source_message: Image,
+        position: np.ndarray,
+        surface_normal: np.ndarray,
+    ) -> None:
+        pose = PoseStamped()
+        pose.header.stamp = source_message.header.stamp
+        pose.header.frame_id = (
+            self._camera_frame or source_message.header.frame_id
+        )
+        pose.pose.position.x = float(position[0])
+        pose.pose.position.y = float(position[1])
+        pose.pose.position.z = float(position[2])
+        orientation = orientation_from_approach_direction(
+            surface_normal,
+            [0.0, 0.0, 0.0, 1.0],
+        )
+        pose.pose.orientation.x = float(orientation[0])
+        pose.pose.orientation.y = float(orientation[1])
+        pose.pose.orientation.z = float(orientation[2])
+        pose.pose.orientation.w = float(orientation[3])
+        self._surface_pose_publisher.publish(pose)
 
     def _publish_debug(
         self,

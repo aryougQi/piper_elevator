@@ -1,0 +1,51 @@
+use_gazebo: true
+
+# The visual node publishes real velocities in base_link at 50 Hz.
+command_in_type: speed_units
+scale:
+  linear: 0.05
+  rotational: 0.30
+  joint: 0.20
+
+publish_period: 0.02
+low_latency_mode: false
+command_out_type: trajectory_msgs/JointTrajectory
+publish_joint_positions: true
+# The arm joint_trajectory_controller rejects Servo's rolling one-point
+# trajectories when their final point contains a non-zero velocity.  Position
+# commands at 50 Hz retain the smooth Servo interpolation and are accepted by
+# both the fake and real trajectory controllers.
+publish_joint_velocities: false
+publish_joint_accelerations: false
+smoothing_filter_plugin_name: online_signal_smoothing::ButterworthFilterPlugin
+
+# move_group owns the primary planning scene monitor.
+is_primary_planning_scene_monitor: false
+move_group_name: arm
+planning_frame: base_link
+ee_frame_name: pika_fingertip_center_link
+robot_link_command_frame: base_link
+
+incoming_command_timeout: 0.10
+num_outgoing_halt_msgs_to_publish: 6
+# The fingertip's long gripper offset makes normal button-facing poses have a
+# Jacobian condition number around 40.  Avoid throttling normal button-facing
+# poses, while retaining a hard stop before truly degenerate configurations.
+lower_singularity_threshold: 55.0
+hard_stop_singularity_threshold: 100.0
+joint_limit_margin: 0.10
+leaving_singularity_threshold_multiplier: 2.0
+
+cartesian_command_in_topic: ~/delta_twist_cmds
+joint_command_in_topic: ~/delta_joint_cmds
+joint_topic: /piper_pika/joint_states
+status_topic: ~/status
+command_out_topic: /arm_controller/joint_trajectory
+
+check_collisions: true
+collision_check_rate: 20.0
+# Pika's legal finger geometry contains sub-centimetre clearances, so a 10 mm
+# proximity band throttles every command.  Exact collision stopping remains
+# enabled; this only narrows the pre-collision slowdown band.
+self_collision_proximity_threshold: 0.001
+scene_collision_proximity_threshold: 0.02

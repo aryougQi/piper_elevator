@@ -12,6 +12,7 @@ from moveit_configs_utils import MoveItConfigsBuilder
 from moveit_configs_utils.launch_utils import DeclareBooleanLaunchArg
 
 from piper_elevator_app.launch_mode import select_moveit_launch_mode
+import yaml
 
 
 def _make_moveit_config(context):
@@ -124,6 +125,44 @@ def _launch_setup(context):
             additional_env={'DISPLAY': os.environ.get('DISPLAY', '')},
         )
     )
+    if LaunchConfiguration('start_moveit_servo').perform(
+        context
+    ).casefold() == 'true':
+        with open(
+            os.path.join(
+                app_share,
+                'config',
+                'piper_pika_servo.yaml',
+            ),
+            encoding='utf-8',
+        ) as servo_file:
+            servo_config = yaml.safe_load(servo_file)
+        servo_config['use_gazebo'] = (
+            LaunchConfiguration('use_sim_time').perform(context).casefold()
+            == 'true'
+        )
+        servo_config['joint_topic'] = joint_states_topic.perform(context)
+        nodes.append(
+            Node(
+                package='moveit_servo',
+                executable='servo_node_main',
+                name='servo_node',
+                output='screen',
+                parameters=[
+                    {'moveit_servo': servo_config},
+                    moveit_config.robot_description,
+                    moveit_config.robot_description_semantic,
+                    moveit_config.robot_description_kinematics,
+                    moveit_config.joint_limits,
+                    {
+                        'use_sim_time': ParameterValue(
+                            LaunchConfiguration('use_sim_time'),
+                            value_type=bool,
+                        ),
+                    },
+                ],
+            )
+        )
     if mode.start_ros2_control:
         nodes.append(
             Node(
@@ -193,6 +232,11 @@ def generate_launch_description():
             ),
         ),
         DeclareBooleanLaunchArg('use_sim_time', default_value=False),
+        DeclareBooleanLaunchArg(
+            'start_moveit_servo',
+            default_value=True,
+            description='Start the smooth Cartesian velocity controller.',
+        ),
         DeclareBooleanLaunchArg(
             'start_pika_controller',
             default_value=True,

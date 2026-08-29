@@ -10,11 +10,12 @@ alarm/control keys, and floor labels. The node reads these names from ONNX
 metadata and retains every model class because the model is specialized for
 elevator buttons.
 
-The default confidence threshold is `0.60`. On the current camera test frame,
-the up button scored about `0.97`, while the correctly localized down button
-scored about `0.20`; therefore the default intentionally omits that weaker down
-detection. The value remains a ROS 2 parameter so it can be adjusted without
-changing code.
+The default confidence threshold is `0.40`. On the complete simulated cabin
+panel at the home pose, the center up button scores about `0.55`, while the
+adjacent down control misclassified as up scores about `0.26`. The selected
+class filter then keeps only the operator-requested control, and the remaining
+margin tolerates frame-to-frame score variation. The value remains a ROS 2
+parameter so it can be adjusted without changing code.
 
 The PyTorch checkpoint was statically inspected and loaded only inside an
 offline, read-only, unprivileged temporary container. Runtime uses ONNX Runtime

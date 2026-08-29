@@ -39,6 +39,8 @@ docker compose run --rm piper_ros2 bash -lc '
     ros2 pkg executables sensor_tools | grep -F "sensor_tools usb_camera.py" >/dev/null
     ros2 pkg executables piper_elevator_app | grep -F "piper_elevator_app button_detector" >/dev/null
     ros2 pkg executables piper_elevator_app | grep -F "piper_elevator_app button_approach_planner" >/dev/null
+    ros2 pkg executables piper_elevator_app | grep -F "piper_elevator_app button_visual_servo" >/dev/null
+    ros2 pkg executables piper_elevator_app | grep -F "piper_elevator_app button_press_executor" >/dev/null
     ros2 pkg executables piper_elevator_app | grep -F "piper_elevator_app mock_button_pose" >/dev/null
     ros2 pkg executables piper_elevator_app | grep -F "piper_elevator_app piper_pika_control_gate" >/dev/null
     ros2 pkg executables piper_elevator_app | grep -F "piper_elevator_app piper_pika_joint_state_mux" >/dev/null
@@ -48,6 +50,8 @@ docker compose run --rm piper_ros2 bash -lc '
     ros2 launch piper_elevator_app button_detector.launch.py --show-args >/dev/null
     ros2 launch piper_elevator_app button_approach_sim.launch.py --show-args >/dev/null
     ros2 launch piper_elevator_app button_approach_real.launch.py --show-args >/dev/null
+    ros2 launch piper_elevator_app button_visual_servo.launch.py --show-args >/dev/null
+    ros2 launch piper_elevator_app button_press.launch.py --show-args >/dev/null
     ros2 launch piper_elevator_app piper_pika_moveit.launch.py --show-args >/dev/null
     ros2 launch piper_elevator_gazebo gazebo_hardware.launch.py --show-args >/dev/null
     ros2 launch sensor_tools open_single_gripper.launch.py --show-args >/dev/null

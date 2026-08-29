@@ -1,0 +1,45 @@
+elevator_task_manager:
+  ros__parameters:
+    command_topic: /elevator_task/command
+    status_topic: /elevator_task/status
+    result_topic: /elevator_task/result
+    completion_topic: /elevator_task/completed
+    active_button_topic: /elevator_task/active_button
+
+    button_selection_topic: /button_selection
+    button_selected_topic: /button_selected
+    button_valid_topic: /button_detection_valid
+    button_surface_topic: /button_surface_pose
+    visual_completion_topic: /button_visual_servo/completed
+    visual_status_topic: /button_visual_servo/status
+    press_completion_topic: /button_press/completed
+    press_status_topic: /button_press/status
+
+    plan_service: /button_approach_planner/plan
+    execute_service: /button_approach_planner/execute
+    home_service: /button_approach_planner/return_home
+    clear_plan_service: /button_approach_planner/clear_plan
+    visual_start_service: /button_visual_servo/start
+    visual_stop_service: /button_visual_servo/stop
+    press_start_service: /button_press_executor/start
+    press_stop_service: /button_press_executor/stop
+
+    return_home_before_task: true
+    return_home_after_failure: true
+    clear_selection_after_task: true
+    # 防止旧 launch 子进程残留后，同名服务请求随机落到错误实例。
+    required_unique_nodes:
+      - /button_detector
+      - /button_approach_planner
+      - /button_visual_servo
+      - /button_press_executor
+    service_wait_timeout_seconds: 60.0
+    target_wait_timeout_seconds: 30.0
+    planning_timeout_seconds: 45.0
+    execution_timeout_seconds: 60.0
+    # 粗定位结束后必须收到静止画面的新 RGB-D 位姿，避免用运动中的旧帧启动伺服。
+    post_motion_target_wait_timeout_seconds: 10.0
+    visual_timeout_seconds: 120.0
+    press_timeout_seconds: 120.0
+    home_timeout_seconds: 60.0
+    selection_publish_period_seconds: 0.5

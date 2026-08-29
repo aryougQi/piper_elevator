@@ -1,6 +1,8 @@
-import numpy as np
-import rclpy
 from geometry_msgs.msg import PoseStamped
+import numpy as np
+from piper_elevator_app.motion_core import orientation_from_approach_direction
+from piper_elevator_app.motion_core import quaternion_to_matrix
+import rclpy
 from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.time import Time
@@ -10,8 +12,6 @@ from tf2_ros import ExtrapolationException
 from tf2_ros import LookupException
 from tf2_ros import TransformListener
 
-from piper_elevator_app.motion_core import quaternion_to_matrix
-
 
 class MockButtonPose(Node):
     """Publish a fixed camera-frame button for MoveIt simulation."""
@@ -19,11 +19,15 @@ class MockButtonPose(Node):
     def __init__(self):
         super().__init__('mock_button_pose')
         self.declare_parameter('topic', '/button_pose')
+        self.declare_parameter('surface_topic', '/button_surface_pose')
         self.declare_parameter('frame_id', 'camera_color_optical_frame')
         self.declare_parameter('fixed_frame_id', '')
         self.declare_parameter('x', 0.0)
         self.declare_parameter('y', 0.0)
         self.declare_parameter('z', 0.45)
+        self.declare_parameter('normal_x', 0.0)
+        self.declare_parameter('normal_y', 0.0)
+        self.declare_parameter('normal_z', 1.0)
         self.declare_parameter('publish_rate_hz', 5.0)
         self._output_frame = str(self.get_parameter('frame_id').value)
         self._fixed_frame = str(
@@ -37,6 +41,11 @@ class MockButtonPose(Node):
         self._publisher = self.create_publisher(
             PoseStamped,
             str(self.get_parameter('topic').value),
+            10,
+        )
+        self._surface_publisher = self.create_publisher(
+            PoseStamped,
+            str(self.get_parameter('surface_topic').value),
             10,
         )
         rate = max(0.2, float(self.get_parameter('publish_rate_hz').value))
@@ -55,6 +64,15 @@ class MockButtonPose(Node):
             float(self.get_parameter('y').value),
             float(self.get_parameter('z').value),
         ])
+        normal = np.array([
+            float(self.get_parameter('normal_x').value),
+            float(self.get_parameter('normal_y').value),
+            float(self.get_parameter('normal_z').value),
+        ])
+        if np.linalg.norm(normal) < 1.0e-9:
+            self.get_logger().error('Simulated surface normal is zero')
+            return
+        normal /= np.linalg.norm(normal)
         if self._fixed_frame:
             try:
                 transform = self._tf_buffer.lookup_transform(
@@ -87,6 +105,7 @@ class MockButtonPose(Node):
                 translation.y,
                 translation.z,
             ]) + matrix @ position
+            normal = matrix @ normal
 
         message = PoseStamped()
         message.header.stamp = self.get_clock().now().to_msg()
@@ -96,6 +115,19 @@ class MockButtonPose(Node):
         message.pose.position.z = float(position[2])
         message.pose.orientation.w = 1.0
         self._publisher.publish(message)
+
+        surface = PoseStamped()
+        surface.header = message.header
+        surface.pose.position = message.pose.position
+        orientation = orientation_from_approach_direction(
+            normal,
+            [0.0, 0.0, 0.0, 1.0],
+        )
+        surface.pose.orientation.x = float(orientation[0])
+        surface.pose.orientation.y = float(orientation[1])
+        surface.pose.orientation.z = float(orientation[2])
+        surface.pose.orientation.w = float(orientation[3])
+        self._surface_publisher.publish(surface)
 
 
 def main(args=None):

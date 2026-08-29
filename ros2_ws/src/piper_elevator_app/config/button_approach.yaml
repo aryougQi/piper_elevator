@@ -1,6 +1,7 @@
 button_approach_planner:
   ros__parameters:
     button_pose_topic: /button_pose
+    button_surface_pose_topic: /button_surface_pose
     button_base_topic: /button_pose_base
     approach_pose_topic: /button_approach_pose
     status_topic: /button_approach/status
@@ -20,9 +21,26 @@ button_approach_planner:
 
     # TCP 停在按钮表面前15cm；当前阶段不执行按压和视觉伺服。
     approach_distance_m: 0.15
+    # 补偿眼在手上相机的平面内安装偏置，同时限制位移，避免边缘按钮的
+    # 粗定位目标落入低位难解区；剩余像素误差由视觉伺服连续消除。
+    maximum_camera_centering_shift_m: 0.045
     position_tolerance_m: 0.008
-    # 锁住粗规划开始时的夹爪姿态，避免 joint6 绕接近轴转动。
-    orientation_tolerance_rad: 0.02
+    # 位置是粗定位的精确目标；指向使用深度平面拟合的按钮表面法向，
+    # 避免保留原始的上/下倾斜。滚转沿用当前可达姿态，防止腕部被推到限位。
+    pointing_tolerance_rad: 0.14
+    roll_tolerance_rad: 0.26
+    # 仅限制冗余腕部滚转关节远离机械限位，给后续视觉伺服保留调整余量。
+    wrist_safe_joints: [joint4, joint5, joint6]
+    # joint5=0 会让 joint4/6 轴重合。粗定位固定使用负腕弯分支，确保视觉
+    # Servo 开始前已经离开腕部奇异区。
+    wrist_safe_centers_rad: [0.0, -0.60, 0.0]
+    wrist_safe_tolerances_rad: [1.20, 0.15, 1.50]
+    wrist_singularity_joint: joint5
+    minimum_abs_wrist_bend_rad: 0.40
+    # 与 piper_pika.srdf 中 arm/home 命名姿态一致。
+    home_joint_names: [joint1, joint2, joint3, joint4, joint5, joint6]
+    home_joint_positions_rad: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    home_joint_tolerance_rad: 0.015
     planning_time_seconds: 5.0
     planning_attempts: 5
     velocity_scaling: 0.10
@@ -31,9 +49,13 @@ button_approach_planner:
     tf_timeout_seconds: 0.25
     action_timeout_seconds: 30.0
     target_max_age_seconds: 1.0
+    surface_normal_max_age_seconds: 0.5
     # 给操作者留出检查 RViz 规划结果并确认执行的时间。
     plan_max_age_seconds: 120.0
     max_target_drift_m: 0.03
+    # 控制器返回成功后再次用真实 TCP TF 验证，防止仿真/真机跟踪失败却假成功。
+    maximum_execution_position_error_m: 0.015
+    maximum_execution_orientation_error_rad: 0.35
 
     # Piper 基坐标系中的保守工作空间限制（米）。
     workspace_min: [-0.65, -0.65, 0.02]

@@ -8,6 +8,8 @@ button_detector:
 
     button_pixel_topic: /button_pixel
     button_pose_topic: /button_pose
+    # 仅在 RGB-D 局部平面拟合成功时发布；姿态 +Z 是接近按钮的方向。
+    button_surface_pose_topic: /button_surface_pose
     button_detections_topic: /button_detections
     button_valid_topic: /button_detection_valid
     button_confidence_topic: /button_detection_confidence
@@ -17,6 +19,9 @@ button_detector:
     button_selection_topic: /button_selection
     button_selected_topic: /button_selected
     selected_button_class: ''
+    # 仅供 Gazebo launch 覆盖。真机默认关闭，不假设现实面板固定为 3x3。
+    simulation_layout_relabel: false
+    simulation_panel_layout_labels: ['1', '2', '3', '4', up, down, open, close, alarm]
 
     # 相对路径会从 piper_elevator_app 的安装目录解析。
     model_path: models/elevator_buttons_yolov10s.onnx
@@ -26,7 +31,9 @@ button_detector:
     inference_device: cuda
     # 订阅相机前先预热 CUDA，消除首帧内核初始化卡顿。
     warmup_iterations: 2
-    confidence_threshold: 0.60
+    # 完整三列面板在 home 视角下，中心 up 实测约 0.55；0.40 给帧间
+    # 波动留出余量，同时仍高于相邻 down 被误判成 up 的约 0.26。
+    confidence_threshold: 0.40
     nms_iou_threshold: 0.45
 
     # 类别直接读取新 YOLOv10 ONNX 的元数据。该模型专门检测电梯按钮，
@@ -67,6 +74,14 @@ button_detector:
     minimum_depth_samples: 20
     min_depth_m: 0.10
     max_depth_m: 2.00
+
+    # 在按钮框内部拟合局部平面，为视觉伺服提供可靠表面法向。
+    surface_inner_ratio: 0.70
+    surface_minimum_samples: 30
+    surface_maximum_samples: 400
+    surface_max_residual_m: 0.004
+    surface_max_tilt_degrees: 60.0
+    surface_normal_smoothing_alpha: 0.25
 
     # 连续确认、短时漏检保持关联，以及指数平滑。
     required_stable_frames: 5

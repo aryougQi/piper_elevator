@@ -7,3 +7,4 @@ ros2_ws/src/agx_arm_ros/
 ros2_ws/src/pika_ros/
 __pycache__/
 *.py[cod]
+test_logs/
