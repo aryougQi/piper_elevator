@@ -69,6 +69,10 @@ setup(
                 'piper_pika_control_gate = '
                 'piper_elevator_app.control_gate:main'
             ),
+            (
+                'simulation_servo_adapter = '
+                'piper_elevator_app.simulation_servo_adapter:main'
+            ),
         ],
     },
 )

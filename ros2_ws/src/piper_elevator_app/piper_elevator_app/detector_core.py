@@ -3,6 +3,7 @@
 import ast
 
 from dataclasses import dataclass, replace
+from itertools import combinations
 from math import hypot
 from pathlib import Path
 from typing import List, Optional, Sequence, Tuple
@@ -50,6 +51,82 @@ class Detection:
         )
 
 
+def extract_padded_square_crop(
+    image: np.ndarray,
+    center: Sequence[float],
+    size: int,
+    padding_value: int = 114,
+) -> Tuple[np.ndarray, int, int]:
+    """Crop a fixed square around a pixel, padding beyond image edges.
+
+    The returned origin is expressed in source-image coordinates and may be
+    negative.  Keeping that virtual origin makes detections from the padded
+    crop straightforward to map back to the full image.
+    """
+    if image.ndim not in (2, 3):
+        raise ValueError('Expected a 2-D or 3-D image')
+    crop_size = int(size)
+    if crop_size <= 0:
+        raise ValueError('Crop size must be positive')
+    expected = np.asarray(center, dtype=np.float64)
+    if expected.shape != (2,) or not np.all(np.isfinite(expected)):
+        raise ValueError('Crop center must contain two finite coordinates')
+
+    origin_x = int(round(float(expected[0]) - crop_size / 2.0))
+    origin_y = int(round(float(expected[1]) - crop_size / 2.0))
+    crop_shape = (crop_size, crop_size) + image.shape[2:]
+    crop = np.full(crop_shape, padding_value, dtype=image.dtype)
+
+    source_height, source_width = image.shape[:2]
+    source_x0 = max(0, origin_x)
+    source_y0 = max(0, origin_y)
+    source_x1 = min(source_width, origin_x + crop_size)
+    source_y1 = min(source_height, origin_y + crop_size)
+    if source_x1 <= source_x0 or source_y1 <= source_y0:
+        return crop, origin_x, origin_y
+
+    destination_x0 = source_x0 - origin_x
+    destination_y0 = source_y0 - origin_y
+    destination_x1 = destination_x0 + source_x1 - source_x0
+    destination_y1 = destination_y0 + source_y1 - source_y0
+    crop[
+        destination_y0:destination_y1,
+        destination_x0:destination_x1,
+    ] = image[source_y0:source_y1, source_x0:source_x1]
+    return crop, origin_x, origin_y
+
+
+def remap_crop_detections(
+    detections: Sequence[Detection],
+    origin_x: int,
+    origin_y: int,
+    image_width: int,
+    image_height: int,
+) -> List[Detection]:
+    """Translate crop detections to the source image and clip padded boxes."""
+    width = int(image_width)
+    height = int(image_height)
+    if width <= 0 or height <= 0:
+        return []
+    result = []
+    for detection in detections:
+        translated = detection.translated(origin_x, origin_y)
+        x1 = float(np.clip(translated.x1, 0.0, width - 1.0))
+        y1 = float(np.clip(translated.y1, 0.0, height - 1.0))
+        x2 = float(np.clip(translated.x2, 0.0, width - 1.0))
+        y2 = float(np.clip(translated.y2, 0.0, height - 1.0))
+        if x2 <= x1 or y2 <= y1:
+            continue
+        result.append(replace(
+            translated,
+            x1=x1,
+            y1=y1,
+            x2=x2,
+            y2=y2,
+        ))
+    return result
+
+
 def filter_detections_by_class(
     detections: Sequence[Detection],
     selected_class: str,
@@ -69,45 +146,291 @@ def relabel_three_by_three_panel(
     detections: Sequence[Detection],
     labels: Sequence[str],
     class_names: Sequence[str],
+    maximum_panel_box_size: float = float('inf'),
+    drop_auxiliary_detections: bool = False,
+    suppress_incomplete_layout: bool = False,
 ) -> List[Detection]:
-    """Recover simulation button semantics from the known panel layout.
+    """Recover simulation button semantics from the known panel layout."""
+    relabeled, _ = relabel_three_by_three_panel_with_status(
+        detections,
+        labels,
+        class_names,
+        maximum_panel_box_size=maximum_panel_box_size,
+        drop_auxiliary_detections=drop_auxiliary_detections,
+        suppress_incomplete_layout=suppress_incomplete_layout,
+    )
+    return relabeled
 
-    The detector still supplies all physical button boxes.  At close range,
-    however, a large bell icon can be classified as an arrow even though its
-    localization remains accurate.  When exactly one complete 3x3 panel is
-    visible, assign labels by column and vertical order.  Incomplete views are
-    returned untouched so normal tracking and close-range handoff behavior is
-    preserved.
+
+def relabel_three_by_three_panel_with_status(
+    detections: Sequence[Detection],
+    labels: Sequence[str],
+    class_names: Sequence[str],
+    maximum_panel_box_size: float = float('inf'),
+    drop_auxiliary_detections: bool = False,
+    suppress_incomplete_layout: bool = False,
+) -> Tuple[List[Detection], bool]:
+    """Relabel a complete simulated panel and report layout confirmation.
+
+    The boolean is true only when nine detections passed the geometric 3x3
+    layout check and were assigned the configured physical button identities.
+    Callers can therefore distinguish a strong panel-level identity observation
+    from raw close-range classifier output.
     """
     result = list(detections)
-    if len(result) != 9 or len(labels) != 9:
-        return result
+    fallback = [] if suppress_incomplete_layout else result
+    if len(result) < 9 or len(labels) != 9:
+        return fallback, False
     normalized_names = [str(name).strip().casefold() for name in class_names]
     normalized_labels = [str(label).strip().casefold() for label in labels]
     if any(not label for label in normalized_labels):
-        return result
+        return fallback, False
     try:
         class_ids = [normalized_names.index(label) for label in normalized_labels]
     except ValueError:
-        return result
+        return fallback, False
 
-    by_x = sorted(result, key=lambda detection: detection.center[0])
-    relabeled = []
-    for column in range(3):
-        column_detections = sorted(
+    # The simulated panel also contains a floor indicator.  A frame may have
+    # eight physical buttons plus that indicator, so choosing the nine largest
+    # boxes alone can create a false "complete" panel.  Select the nine-box
+    # subset that actually forms three aligned rows and columns.
+    candidates = sorted(
+        result,
+        key=lambda detection: detection.width * detection.height,
+        reverse=True,
+    )[:12]
+    candidates = [
+        detection for detection in candidates
+        if max(detection.width, detection.height)
+        <= float(maximum_panel_box_size)
+    ]
+    scored_panels = [
+        (score, panel)
+        for panel in combinations(candidates, 9)
+        if (score := _three_by_three_grid_score(panel)) is not None
+    ]
+    if not scored_panels:
+        return fallback, False
+    _, panel = min(scored_panels, key=lambda item: item[0])
+    panel_ids = {id(detection) for detection in panel}
+    extras = [
+        detection for detection in result
+        if id(detection) not in panel_ids
+    ]
+    by_x = sorted(panel, key=lambda detection: detection.center[0])
+    ordered_columns = [
+        sorted(
             by_x[column * 3:(column + 1) * 3],
             key=lambda detection: detection.center[1],
         )
+        for column in range(3)
+    ]
+    grid_x = [
+        float(np.median([item.center[0] for item in column]))
+        for column in ordered_columns
+    ]
+    grid_y = [
+        float(np.median([
+            ordered_columns[column][row].center[1]
+            for column in range(3)
+        ]))
+        for row in range(3)
+    ]
+    relabeled = []
+    for column in range(3):
+        column_detections = ordered_columns[column]
         for row, detection in enumerate(column_detections):
             layout_index = row * 3 + column
+            center_x, center_y = detection.center
+            shift_x = grid_x[column] - center_x
+            shift_y = grid_y[row] - center_y
             relabeled.append(
                 replace(
                     detection,
+                    x1=detection.x1 + shift_x,
+                    y1=detection.y1 + shift_y,
+                    x2=detection.x2 + shift_x,
+                    y2=detection.y2 + shift_y,
                     class_id=class_ids[layout_index],
                     class_name=str(labels[layout_index]),
                 )
             )
-    return relabeled
+    output = relabeled + ([] if drop_auxiliary_detections else extras)
+    return output, True
+
+
+def _three_by_three_grid_score(
+    detections: Sequence[Detection],
+) -> Optional[float]:
+    """Return a scale-free regularity score for one 3x3 button grid."""
+    if len(detections) != 9:
+        return None
+    by_x = sorted(detections, key=lambda detection: detection.center[0])
+    columns = [by_x[index:index + 3] for index in (0, 3, 6)]
+    column_x = [
+        float(np.mean([item.center[0] for item in column]))
+        for column in columns
+    ]
+    column_gaps = np.diff(column_x)
+    if np.any(column_gaps <= 1.0):
+        return None
+    x_scale = float(np.min(column_gaps))
+    x_spread = max(
+        max(abs(item.center[0] - center) for item in column)
+        for column, center in zip(columns, column_x)
+    ) / x_scale
+
+    ordered_columns = [
+        sorted(column, key=lambda detection: detection.center[1])
+        for column in columns
+    ]
+    rows = [
+        [ordered_columns[column][row] for column in range(3)]
+        for row in range(3)
+    ]
+    row_y = [
+        float(np.mean([item.center[1] for item in row]))
+        for row in rows
+    ]
+    row_gaps = np.diff(row_y)
+    if np.any(row_gaps <= 1.0):
+        return None
+    y_scale = float(np.min(row_gaps))
+    y_spread = max(
+        max(abs(item.center[1] - center) for item in row)
+        for row, center in zip(rows, row_y)
+    ) / y_scale
+
+    # Perspective introduces a small skew, but a floor indicator replacing a
+    # missing button produces a much larger row/column residual.
+    if x_spread > 0.35 or y_spread > 0.35:
+        return None
+    x_spacing_error = abs(column_gaps[0] - column_gaps[1]) / max(
+        float(np.max(column_gaps)),
+        1.0,
+    )
+    y_spacing_error = abs(row_gaps[0] - row_gaps[1]) / max(
+        float(np.max(row_gaps)),
+        1.0,
+    )
+    if x_spacing_error > 0.50 or y_spacing_error > 0.50:
+        return None
+    return x_spread + y_spread + x_spacing_error + y_spacing_error
+
+
+def preserve_tracked_label(
+    detections: Sequence[Detection],
+    selected_class: str,
+    tracked: Optional[Detection],
+    minimum_iou: float,
+    maximum_center_distance: float = 0.0,
+) -> List[Detection]:
+    """Preserve a locked physical button through short class-name flips.
+
+    Initial acquisition still requires the operator-selected class.  Once a
+    physical box is locked, frame-to-frame overlap or a tightly bounded center
+    displacement can retain that identity if the classifier changes its name
+    at close range.  The bound is deliberately local: a same-name detection
+    elsewhere in the image must not steal the active track.
+    """
+    result = list(detections)
+    normalized = str(selected_class).strip().casefold()
+    if not normalized or tracked is None or not result:
+        return result
+    overlaps = [
+        intersection_over_union(tracked, detection)
+        for detection in result
+    ]
+    tracked_x, tracked_y = tracked.center
+    distances = [
+        hypot(
+            detection.center[0] - tracked_x,
+            detection.center[1] - tracked_y,
+        )
+        for detection in result
+    ]
+    threshold = float(np.clip(minimum_iou, 0.0, 1.0))
+    center_limit = max(0.0, float(maximum_center_distance))
+    eligible = [
+        index
+        for index, (overlap, distance) in enumerate(
+            zip(overlaps, distances)
+        )
+        if overlap >= threshold
+        or (center_limit > 0.0 and distance <= center_limit)
+    ]
+    if not eligible:
+        return result
+    best_index = max(
+        eligible,
+        key=lambda index: (
+            overlaps[index],
+            -distances[index],
+            result[index].confidence,
+        ),
+    )
+    if result[best_index].class_name.strip().casefold() == normalized:
+        return result
+    result[best_index] = replace(
+        result[best_index],
+        class_id=tracked.class_id,
+        class_name=str(selected_class),
+    )
+    return result
+
+
+def preserve_projected_target_label(
+    detections: Sequence[Detection],
+    selected_class: str,
+    expected_pixel: Sequence[float],
+    maximum_distance: float,
+    ambiguity_margin: float,
+) -> Tuple[List[Detection], bool]:
+    """Relabel the unique detection nearest a locked 3-D target projection.
+
+    The projection is stronger identity evidence than a raw class prediction
+    after eye-in-hand camera motion.  Reacquisition is accepted only inside a
+    bounded pixel radius and when the closest candidate is clearly separated
+    from the second closest one, so a midpoint between neighboring buttons
+    cannot silently choose either target.
+    """
+    result = list(detections)
+    normalized = str(selected_class).strip()
+    expected = np.asarray(expected_pixel, dtype=np.float64)
+    radius = max(0.0, float(maximum_distance))
+    margin = max(0.0, float(ambiguity_margin))
+    if (
+        not normalized
+        or not result
+        or expected.shape != (2,)
+        or not np.all(np.isfinite(expected))
+        or radius <= 0.0
+    ):
+        return result, False
+
+    ranked = sorted(
+        (
+            hypot(
+                detection.center[0] - float(expected[0]),
+                detection.center[1] - float(expected[1]),
+            ),
+            index,
+        )
+        for index, detection in enumerate(result)
+    )
+    closest_distance, closest_index = ranked[0]
+    if closest_distance > radius:
+        return result, False
+    if len(ranked) > 1 and ranked[1][0] - closest_distance < margin:
+        return result, False
+
+    detection = result[closest_index]
+    if detection.class_name.strip().casefold() != normalized.casefold():
+        result[closest_index] = replace(
+            detection,
+            class_name=normalized,
+        )
+    return result, True
 
 
 def intersection_over_union(first: Detection, second: Detection) -> float:
@@ -517,20 +840,43 @@ class TemporalButtonTracker:
         detections: Sequence[Detection],
         image_width: int,
         image_height: int,
+        allow_global_reacquisition: bool = False,
     ) -> Tuple[Optional[Detection], bool]:
-        """Update the active track and return it with its validity state."""
+        """Update the active track and return it with its validity state.
+
+        Normal association remains local.  A caller may allow a distant
+        reacquisition only when it has stronger identity evidence than the raw
+        class name, such as a geometrically verified complete panel layout.
+        The new box is installed without smoothing against the stale pre-motion
+        box and must pass the normal stable-frame requirement again.
+        """
         matched = self._select_match(
             detections,
             image_width,
             image_height,
         )
+        globally_reacquired = False
+        if (
+            matched is None
+            and self.current is not None
+            and allow_global_reacquisition
+            and detections
+        ):
+            same_class = [
+                detection for detection in detections
+                if detection.class_name == self.current.class_name
+            ]
+            if len(same_class) == 1:
+                matched = same_class[0]
+                globally_reacquired = True
+
         if matched is None:
             self.missed_frames += 1
             if self.missed_frames > self.max_missed_frames:
                 self.reset()
             return None, False
 
-        if self.current is None:
+        if self.current is None or globally_reacquired:
             self.current = matched
             self.stable_frames = 1
         else:
@@ -571,8 +917,13 @@ class TemporalButtonTracker:
             ):
                 matches.append((overlap, candidate.confidence, candidate))
         if not matches:
-            self.reset()
-            return max(detections, key=lambda item: item.confidence)
+            # A same-class object elsewhere in the image is not evidence that
+            # the physical target moved there.  Report a miss and keep the
+            # current identity until the configured miss budget expires.  In
+            # particular this prevents the simulated floor indicator, which
+            # YOLO can also call ``up``, from stealing the button track when
+            # the fingertip briefly occludes the real button.
+            return None
         return max(matches, key=lambda item: (item[0], item[1]))[2]
 
     def _smooth(
@@ -797,3 +1148,58 @@ def project_pixel(
         ],
         dtype=np.float64,
     )
+
+
+def project_camera_point(
+    camera_matrix: np.ndarray,
+    point_camera: Sequence[float],
+    distortion_coefficients: Optional[np.ndarray] = None,
+    distortion_model: str = '',
+) -> np.ndarray:
+    """Project a camera-frame 3-D point into the color image."""
+    matrix = np.asarray(camera_matrix, dtype=np.float64)
+    point = np.asarray(point_camera, dtype=np.float64)
+    if matrix.shape != (3, 3):
+        raise ValueError('Camera matrix must be 3x3')
+    if (
+        point.shape != (3,)
+        or not np.all(np.isfinite(point))
+        or point[2] <= 0.0
+    ):
+        raise ValueError('Camera point must be finite and in front of camera')
+    coefficients = np.asarray(
+        distortion_coefficients
+        if distortion_coefficients is not None
+        else [],
+        dtype=np.float64,
+    ).reshape(-1)
+    model = str(distortion_model).strip().casefold()
+    if coefficients.size == 0 or not np.any(np.abs(coefficients) > 1e-12):
+        return np.asarray([
+            matrix[0, 0] * point[0] / point[2] + matrix[0, 2],
+            matrix[1, 1] * point[1] / point[2] + matrix[1, 2],
+        ])
+    object_point = point.reshape(1, 1, 3)
+    if model in {'plumb_bob', 'rational_polynomial'}:
+        projected, _ = cv2.projectPoints(
+            object_point,
+            np.zeros(3),
+            np.zeros(3),
+            matrix,
+            coefficients,
+        )
+    elif model in {'equidistant', 'fisheye'}:
+        if coefficients.size < 4:
+            raise ValueError('Fisheye projection requires four coefficients')
+        projected, _ = cv2.fisheye.projectPoints(
+            object_point,
+            np.zeros(3),
+            np.zeros(3),
+            matrix,
+            coefficients[:4],
+        )
+    else:
+        raise ValueError(
+            f'Unsupported camera distortion model: {distortion_model}'
+        )
+    return projected.reshape(2)

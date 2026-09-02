@@ -123,7 +123,7 @@ def test_gazebo_control_joint_contract():
     )
     assert controllers['gz_ros2_control']['ros__parameters'][
         'position_proportional_gain'
-    ] == 0.8
+    ] == 0.1
     assert controllers['pika_gripper_controller']['ros__parameters'][
         'joints'
     ] == [
@@ -198,8 +198,18 @@ def test_world_contains_only_the_button_fixture_boundary():
     world_xml = world_file.read_text(encoding='utf-8')
     world = ET.fromstring(world_xml).find('world')
 
-    assert world.find(
-        "include[uri='model://elevator_button']"
-    ) is not None
+    fixture = world.find("include[uri='model://elevator_button']")
+    assert fixture is not None
+    fixture_pose = [float(value) for value in fixture.findtext('pose').split()]
+    assert fixture_pose[:3] == [0.55, 0.03, 0.30]
     assert 'door_' not in world_xml
     assert 'Elevator' not in world_xml
+
+
+def test_package_assets_never_install_python_cache_files():
+    setup_source = (PACKAGE_ROOT / 'setup.py').read_text(
+        encoding='utf-8'
+    )
+
+    assert "'__pycache__' not in path.parts" in setup_source
+    assert "path.suffix not in {'.pyc', '.pyo'}" in setup_source

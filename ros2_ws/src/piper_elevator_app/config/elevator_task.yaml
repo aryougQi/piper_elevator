@@ -10,6 +10,7 @@ elevator_task_manager:
     button_selected_topic: /button_selected
     button_valid_topic: /button_detection_valid
     button_surface_topic: /button_surface_pose
+    approach_status_topic: /button_approach/status
     visual_completion_topic: /button_visual_servo/completed
     visual_status_topic: /button_visual_servo/status
     press_completion_topic: /button_press/completed
@@ -37,8 +38,9 @@ elevator_task_manager:
     target_wait_timeout_seconds: 30.0
     planning_timeout_seconds: 45.0
     execution_timeout_seconds: 60.0
-    # 粗定位结束后必须收到静止画面的新 RGB-D 位姿，避免用运动中的旧帧启动伺服。
-    post_motion_target_wait_timeout_seconds: 10.0
+    # 粗定位结束后必须连续收到新的 RGB-D 表面位姿，避免用运动中的旧帧启动伺服。
+    post_motion_target_wait_timeout_seconds: 5.0
+    required_post_motion_surface_observations: 3
     visual_timeout_seconds: 120.0
     press_timeout_seconds: 120.0
     home_timeout_seconds: 60.0

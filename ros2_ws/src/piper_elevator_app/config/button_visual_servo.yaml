@@ -2,17 +2,16 @@ button_visual_servo:
   ros__parameters:
     # Pose 的位置是按钮中心，姿态 +Z 是从相机朝向按钮表面的接近方向。
     surface_pose_topic: /button_surface_pose
+    button_selection_topic: /button_selection
     target_pose_topic: /button_visual_servo/target_pose
     status_topic: /button_visual_servo/status
     completion_topic: /button_visual_servo/completed
+    press_servo_claim_topic: /button_press/servo_claimed
 
     base_frame: base_link
     # 姿态闭环必须直接检查真实相机光轴，不能用夹爪 +Z 代替。
     camera_frame: camera_color_optical_frame
     end_effector_link: pika_fingertip_center_link
-    planning_group: arm
-    move_group_action: /move_action
-    execute_action: /execute_trajectory
     servo_twist_topic: /servo_node/delta_twist_cmds
     servo_status_topic: /servo_node/status
     servo_start_service: /servo_node/start_servo
@@ -22,55 +21,81 @@ button_visual_servo:
     hardware_gate_required: false
     hardware_gate_heartbeat_seconds: 0.20
 
-    # 最终约束：指尖中心沿表面法向停在按钮前 30 mm。
+    # 在 30 mm 处把连续 Servo 交给带接触检测的按压器。2.5 mm 轴向
+    # 容差的最近验收位置仍为 27.5 mm，高于 25 mm 安全下限；不再为了
+    # 最后 2.5 mm 在相机近景盲区耗尽视觉丢失续行时间。
     standoff_distance_m: 0.030
     minimum_standoff_m: 0.025
     distance_tolerance_m: 0.0025
     lateral_tolerance_m: 0.0030
     perpendicular_tolerance_rad: 0.05236
-    # 先用 MoveIt Servo 连续跟踪到 75 mm，按钮仍在相机视野内。
-    visual_handoff_distance_m: 0.075
-    visual_distance_tolerance_m: 0.005
-    visual_lateral_tolerance_m: 0.004
-    visual_perpendicular_tolerance_rad: 0.06981
+    # 三阶段连续视觉 Servo：在粗定位点保持位置不动并先对正相机；
+    # 对正后保持姿态并重新获取 RGB-D，确认同一按钮后才连续修正横向
+    # 位置并靠近 30 mm 按压预备点。
+    required_alignment_observations: 2
+    # 转腕期间允许使用粗定位前锁定的静态按钮法向，只发布角速度且绝不
+    # 平移；连续稳定后进入显式 REACQUIRING 阶段。
+    required_locked_alignment_cycles: 5
+    required_post_orientation_observations: 3
+    # 调平后先静止等待，再在 14 cm 安全距离沿面板切平面做 12 mm 内的
+    # 扩展螺旋。搜索禁止轴向靠近；首次恢复检测后立即停止并连续确认。
+    reacquisition_search_enabled: true
+    reacquisition_initial_hold_seconds: 0.50
+    reacquisition_search_radius_m: 0.012
+    reacquisition_search_radial_speed_mps: 0.003
+    reacquisition_search_angular_speed_radps: 1.50
+    reacquisition_search_speed_mps: 0.012
+    reacquisition_maximum_axial_drift_m: 0.002
     required_stable_observations: 2
 
-    # 如果先发生丢检，只有已经进入 90 mm 内才允许交接给最终直线段。
-    vision_loss_handoff_max_distance_m: 0.090
-    maximum_final_cartesian_distance_m: 0.065
     maximum_start_error_m: 0.20
-    maximum_target_jump_m: 0.025
+    # 小于按钮间距，也小于按钮半径；防止逐帧漂移到相邻按钮或当前按钮边缘。
+    maximum_target_jump_m: 0.015
     servo_timeout_seconds: 90.0
     target_max_age_seconds: 0.75
-    observation_timeout_seconds: 2.0
+    observation_timeout_seconds: 8.25
+    # 检测器正常约 8--11 FPS；0.20 s 内仍视作正常帧间隔，避免降低性能。
+    # 超过该间隔才判为丢检，并沿最后可靠的静态按钮位姿继续使用同一 Servo。
+    expected_observation_gap_seconds: 0.20
+    # 最后一段只有在距 27.5 mm 目标不超过 100 mm 时才允许使用锁定位姿，
+    # 速度限制为正常上限的 50%，且同时限制 8 s 和 80 mm 实际行程。
+    # 仿真闭环实测约需 5.5 s 才能从近景丢失点收敛进 2.5 mm 阈值；给到
+    # 8 s 时间余量，但仍由下面 80 mm 盲走行程硬限制运动空间。
+    vision_loss_continuation_seconds: 8.0
+    vision_loss_speed_scale: 0.50
+    vision_loss_continuation_max_distance_m: 0.10
+    vision_loss_max_travel_m: 0.080
+    required_locked_target_stable_cycles: 5
 
     # 50 Hz 连续速度控制，并同时做低通和加速度限幅。
     servo_control_rate_hz: 50.0
-    linear_proportional_gain: 1.4
-    angular_proportional_gain: 2.0
-    # 相机光轴仍优先垂直按钮表面；仅将绕光轴滚转软限制在水平 +/-10 deg。
-    # optical frame 的 -Y 视为画面向上，base_link +Z 作为重力竖直参考。
+    linear_proportional_gain: 1.8
+    # 视觉阶段闭环校正真实相机光轴，使其 +Z 垂直按钮表面。粗定位
+    # 已避开腕部奇异点，且下方速度与轴向安全门会限制回正动作。
+    orientation_control_enabled: true
+    angular_proportional_gain: 2.4
+    # 最终靠近阶段的姿态安全门：若锁定姿态意外偏离，误差
+    # >=3 deg 时停止向面板靠近，2--3 deg 之间平滑恢复轴向速度。
+    axial_approach_full_speed_angle_rad: 0.03491
+    axial_approach_stop_angle_rad: 0.05236
+    # 粗定位完成后立即在原地校正画面滚转，随后锁定姿态并连续靠近，
+    # 避免摄像头歪斜时先向面板运动，也避免贴近面板后再转腕。
     level_roll_enabled: true
     level_reference_axis: [0.0, 0.0, 1.0]
-    maximum_level_roll_rad: 0.17453
-    # 限制单独的回正速度，避免为了画面水平快速甩腕。
-    maximum_level_roll_speed_radps: 0.15
+    # 控制目标与阶段验收阈值必须分开：目标为 0 deg，进入靠近阶段允许
+    # 3 deg 残差。若两者都设为 1 deg，渐近控制可能永远无法越过阈值。
+    target_level_roll_rad: 0.0
+    level_roll_tolerance_rad: 0.05235
+    # 姿态矫正发生在 14 cm 安全距离；提高回正速度，直线靠近速度不变。
+    maximum_level_roll_speed_radps: 0.30
     maximum_linear_speed_mps: 0.080
-    maximum_angular_speed_radps: 0.45
+    maximum_angular_speed_radps: 0.35
     maximum_linear_acceleration_mps2: 0.30
-    maximum_angular_acceleration_radps2: 1.40
+    maximum_angular_acceleration_radps2: 1.20
     command_smoothing_alpha: 0.50
     servo_deceleration_seconds: 0.25
-
-    # 最后约 45 mm 由 Pilz LIN 一次规划、一次执行，避免逐步启停。
-    position_tolerance_m: 0.002
-    orientation_tolerance_rad: 0.025
-    planning_time_seconds: 3.0
-    planning_attempts: 3
-    final_planning_pipeline: pilz_industrial_motion_planner
-    final_planner_id: LIN
-    velocity_scaling: 0.12
-    acceleration_scaling: 0.10
+    # 对准完成后保持同一 Servo 会话和零速度，等待按压节点显式接管。
+    press_claim_timeout_seconds: 3.0
     tf_timeout_seconds: 0.25
     action_timeout_seconds: 20.0
 
@@ -79,5 +104,7 @@ button_visual_servo:
 
     # launch 会按仿真/真机覆盖。真机默认必须标定且禁止执行。
     simulation_mode: false
+    # 仅补偿 Gazebo 位置接口对滚动 Servo 轨迹的低速跟踪损失；真机恒为 1.0。
+    simulation_linear_speed_multiplier: 5.0
     camera_calibration_valid: false
     allow_execution: false

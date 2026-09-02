@@ -52,6 +52,9 @@ def generate_launch_description():
             'confidence_threshold': LaunchConfiguration(
                 'simulation_confidence_threshold'
             ),
+            # Gazebo's floor indicator can look like an arrow to the real
+            # model. Recover semantics from the known simulated 3x3 layout;
+            # close-range tracking continues to use visual identity.
             'simulation_layout_relabel': 'true',
         },
         condition=simulation_condition,

@@ -1,0 +1,13 @@
+simulation_servo_adapter:
+  ros__parameters:
+    input_topic: /servo_node/raw_joint_trajectory
+    output_topic: /arm_controller/joint_trajectory
+    joint_state_topic: /piper_pika/joint_states
+    joint_names: [joint1, joint2, joint3, joint4, joint5, joint6]
+    lower_limits_rad: [-2.6179938, 0.0, -2.9670597, -1.7453292, -1.2217304, -2.0943951]
+    upper_limits_rad: [2.6179938, 3.1415926, 0.0, 1.7453292, 1.2217304, 2.0943951]
+    # This adapter only leads Servo's rolling 20 ms position targets.  Planned
+    # MoveIt trajectories continue to reach the controller directly.
+    position_gain: 2.0
+    maximum_lead_rad: 0.08
+    joint_state_timeout_seconds: 0.20

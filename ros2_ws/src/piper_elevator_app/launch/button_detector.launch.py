@@ -16,7 +16,7 @@ def generate_launch_description():
         # This launch is used by Gazebo. RealSense launch loads the 0.40
         # production threshold directly from button_detector.yaml.
         DeclareLaunchArgument('confidence_threshold', default_value='0.05'),
-        DeclareLaunchArgument('simulation_layout_relabel', default_value='true'),
+        DeclareLaunchArgument('simulation_layout_relabel', default_value='false'),
         Node(
             package='piper_elevator_app',
             executable='button_detector',

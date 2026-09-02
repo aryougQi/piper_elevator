@@ -40,6 +40,8 @@ class ElevatorTaskManager(Node):
         self._detection_valid = False
         self._detection_sequence = 0
         self._surface_sequence = 0
+        self._approach_status = ''
+        self._approach_status_sequence = 0
         self._visual_completed = False
         self._visual_completion_sequence = 0
         self._visual_status = ''
@@ -106,6 +108,13 @@ class ElevatorTaskManager(Node):
             self._string_parameter('button_surface_topic'),
             self._surface_callback,
             10,
+            callback_group=self._callback_group,
+        )
+        self.create_subscription(
+            String,
+            self._string_parameter('approach_status_topic'),
+            self._approach_status_callback,
+            latched_qos,
             callback_group=self._callback_group,
         )
         self.create_subscription(
@@ -190,6 +199,9 @@ class ElevatorTaskManager(Node):
         )
         self.declare_parameter('button_surface_topic', '/button_surface_pose')
         self.declare_parameter(
+            'approach_status_topic', '/button_approach/status'
+        )
+        self.declare_parameter(
             'visual_completion_topic', '/button_visual_servo/completed'
         )
         self.declare_parameter(
@@ -242,7 +254,11 @@ class ElevatorTaskManager(Node):
         self.declare_parameter('planning_timeout_seconds', 45.0)
         self.declare_parameter('execution_timeout_seconds', 60.0)
         self.declare_parameter(
-            'post_motion_target_wait_timeout_seconds', 10.0
+            'post_motion_target_wait_timeout_seconds', 5.0
+        )
+        self.declare_parameter(
+            'required_post_motion_surface_observations',
+            3,
         )
         self.declare_parameter('visual_timeout_seconds', 120.0)
         self.declare_parameter('press_timeout_seconds', 120.0)
@@ -442,6 +458,7 @@ class ElevatorTaskManager(Node):
         with self._condition:
             detection_baseline = self._detection_sequence
             surface_baseline = self._surface_sequence
+            approach_status_baseline = self._approach_status_sequence
         deadline = time.monotonic() + self._seconds(
             'target_wait_timeout_seconds'
         )
@@ -461,10 +478,11 @@ class ElevatorTaskManager(Node):
                     and self._detection_valid
                     and self._detection_sequence > detection_baseline
                     and self._surface_sequence > surface_baseline
+                    and self._approach_status_sequence
+                    > approach_status_baseline
+                    and self._approach_status == 'TARGET_READY'
                 )
                 if ready:
-                    # Let the planner consume the same surface-pose sample.
-                    self._condition.wait(timeout=0.10)
                     return
                 self._condition.wait(timeout=0.05)
         raise TaskFailure(
@@ -478,11 +496,23 @@ class ElevatorTaskManager(Node):
         stale when the execute service returns.  Starting visual servo in
         that small gap creates a race where its start service correctly
         rejects the old sample.  Require both a new detection status and a
-        new surface pose before invoking the visual controller.
+        new surface pose before invoking the visual controller. Keep the
+        selected physical identity across coarse motion: the complete-panel
+        acquisition gate establishes it before planning, while the visual
+        controller's fixed world-space anchor rejects a later neighbor jump.
         """
         with self._condition:
             detection_baseline = self._detection_sequence
             surface_baseline = self._surface_sequence
+            visual_status_baseline = self._visual_status_sequence
+        required_surfaces = max(
+            1,
+            int(
+                self.get_parameter(
+                    'required_post_motion_surface_observations'
+                ).value
+            ),
+        )
         deadline = time.monotonic() + self._seconds(
             'post_motion_target_wait_timeout_seconds'
         )
@@ -501,12 +531,15 @@ class ElevatorTaskManager(Node):
                     self._selected_button == button
                     and self._detection_valid
                     and self._detection_sequence > detection_baseline
-                    and self._surface_sequence > surface_baseline
+                    and self._surface_sequence
+                    >= surface_baseline + required_surfaces
+                    and self._visual_status_sequence
+                    > visual_status_baseline
+                    and self._visual_status == 'READY'
                 )
                 if ready:
-                    # Give the visual-servo subscription time to consume the
-                    # same pose before its start service checks freshness.
-                    self._condition.wait(timeout=0.10)
+                    # READY is published only after the visual-servo node has
+                    # transformed and accepted this selection's surface pose.
                     return
                 self._condition.wait(timeout=0.05)
         raise TaskFailure(
@@ -632,6 +665,12 @@ class ElevatorTaskManager(Node):
         del message
         with self._condition:
             self._surface_sequence += 1
+            self._condition.notify_all()
+
+    def _approach_status_callback(self, message):
+        with self._condition:
+            self._approach_status = str(message.data)
+            self._approach_status_sequence += 1
             self._condition.notify_all()
 
     def _visual_completion_callback(self, message):

@@ -1,5 +1,6 @@
 """Run the YOLO ONNX elevator-button ROS 2 node."""
 
+from math import hypot
 from pathlib import Path
 from time import monotonic
 from typing import List, Optional, Tuple
@@ -12,21 +13,36 @@ import message_filters
 import numpy as np
 from piper_elevator_app.detector_core import Detection
 from piper_elevator_app.detector_core import estimate_surface_normal
+from piper_elevator_app.detector_core import extract_padded_square_crop
 from piper_elevator_app.detector_core import filter_detections_by_class
+from piper_elevator_app.detector_core import project_camera_point
 from piper_elevator_app.detector_core import project_pixel
-from piper_elevator_app.detector_core import relabel_three_by_three_panel
+from piper_elevator_app.detector_core import preserve_projected_target_label
+from piper_elevator_app.detector_core import preserve_tracked_label
+from piper_elevator_app.detector_core import (
+    relabel_three_by_three_panel_with_status,
+)
 from piper_elevator_app.detector_core import robust_box_depth
+from piper_elevator_app.detector_core import remap_crop_detections
 from piper_elevator_app.detector_core import TemporalButtonTracker
 from piper_elevator_app.detector_core import YoloOnnxDetector
 from piper_elevator_app.motion_core import orientation_from_approach_direction
+from piper_elevator_app.motion_core import quaternion_to_matrix
 import rclpy
+from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.qos import QoSDurabilityPolicy
 from rclpy.qos import QoSHistoryPolicy
 from rclpy.qos import QoSProfile
 from rclpy.qos import QoSReliabilityPolicy
+from rclpy.time import Time
 from sensor_msgs.msg import CameraInfo, Image
 from std_msgs.msg import Bool, Float32, String
+from tf2_ros import Buffer
+from tf2_ros import ConnectivityException
+from tf2_ros import ExtrapolationException
+from tf2_ros import LookupException
+from tf2_ros import TransformListener
 from vision_msgs.msg import (
     Detection2D,
     Detection2DArray,
@@ -102,6 +118,18 @@ class ButtonDetector(Node):
         self._selected_button_class = self._string_parameter(
             'selected_button_class'
         ).strip()
+        self._layout_identity_authoritative = False
+        self._projected_expected_pixel: Optional[np.ndarray] = None
+        self._using_projected_local_detection = False
+        self._projected_local_mode_until = 0.0
+        self._locked_button_base: Optional[np.ndarray] = None
+        self._selection_changed_stamp_ns = 0
+        self._tf_buffer = Buffer()
+        self._tf_listener = TransformListener(
+            self._tf_buffer,
+            self,
+            spin_thread=False,
+        )
 
         self._create_publishers()
         self._create_subscriptions()
@@ -161,8 +189,25 @@ class ButtonDetector(Node):
         )
         self.declare_parameter('button_selection_topic', '/button_selection')
         self.declare_parameter('button_selected_topic', '/button_selected')
+        self.declare_parameter('button_base_topic', '/button_pose_base')
+        self.declare_parameter('base_frame', 'base_link')
+        self.declare_parameter(
+            'camera_frame',
+            'camera_color_optical_frame',
+        )
         self.declare_parameter('selected_button_class', '')
         self.declare_parameter('simulation_layout_relabel', False)
+        self.declare_parameter('preserve_selected_track_identity', True)
+        self.declare_parameter('projected_reacquisition_enabled', True)
+        self.declare_parameter('projected_reacquisition_radius_px', 60.0)
+        self.declare_parameter(
+            'projected_reacquisition_ambiguity_margin_px',
+            20.0,
+        )
+        self.declare_parameter('projected_reacquisition_tf_timeout', 0.03)
+        self.declare_parameter('projected_local_detection_enabled', True)
+        self.declare_parameter('projected_local_crop_size_px', 240)
+        self.declare_parameter('projected_local_hold_seconds', 1.0)
         self.declare_parameter(
             'simulation_panel_layout_labels',
             ['1', '2', '3', '4', 'up', 'down', 'open', 'close', 'alarm'],
@@ -216,7 +261,7 @@ class ButtonDetector(Node):
         self.declare_parameter('surface_normal_smoothing_alpha', 0.25)
 
         self.declare_parameter('required_stable_frames', 5)
-        self.declare_parameter('max_missed_frames', 2)
+        self.declare_parameter('max_missed_frames', 5)
         self.declare_parameter('tracking_minimum_iou', 0.15)
         self.declare_parameter('max_center_jump_ratio', 0.10)
         self.declare_parameter('position_smoothing_alpha', 0.35)
@@ -282,6 +327,18 @@ class ButtonDetector(Node):
             self._selection_callback,
             10,
         )
+        latched_qos = QoSProfile(
+            history=QoSHistoryPolicy.KEEP_LAST,
+            depth=1,
+            reliability=QoSReliabilityPolicy.RELIABLE,
+            durability=QoSDurabilityPolicy.TRANSIENT_LOCAL,
+        )
+        self._button_base_subscription = self.create_subscription(
+            PoseStamped,
+            self._string_parameter('button_base_topic'),
+            self._button_base_callback,
+            latched_qos,
+        )
         if self._use_depth:
             self._camera_info_subscription = self.create_subscription(
                 CameraInfo,
@@ -327,6 +384,11 @@ class ButtonDetector(Node):
             self._publish_selection_state()
             return
         self._selected_button_class = requested
+        self._selection_changed_stamp_ns = self.get_clock().now().nanoseconds
+        self._locked_button_base = None
+        self._projected_expected_pixel = None
+        self._using_projected_local_detection = False
+        self._projected_local_mode_until = 0.0
         self._tracker.reset()
         self._filtered_position = None
         self._filtered_surface_normal = None
@@ -334,6 +396,30 @@ class ButtonDetector(Node):
         self._publish_state(None, False)
         self.get_logger().info(
             f'Button selection changed: {self._selection_log_text()}'
+        )
+
+    def _button_base_callback(self, message: PoseStamped) -> None:
+        """Lock the first selected-button world position for reacquisition."""
+        if (
+            not self._selected_button_class
+            or self._locked_button_base is not None
+        ):
+            return
+        if message.header.frame_id != self._string_parameter('base_frame'):
+            return
+        stamp_ns = Time.from_msg(message.header.stamp).nanoseconds
+        if stamp_ns > 0 and stamp_ns < self._selection_changed_stamp_ns:
+            return
+        position = np.asarray([
+            message.pose.position.x,
+            message.pose.position.y,
+            message.pose.position.z,
+        ])
+        if not np.all(np.isfinite(position)):
+            return
+        self._locked_button_base = position
+        self.get_logger().info(
+            'Locked selected-button base position for projected reacquisition'
         )
 
     def _publish_selection_state(self) -> None:
@@ -492,16 +578,28 @@ class ButtonDetector(Node):
         color_image: np.ndarray,
         depth_image: Optional[np.ndarray],
     ) -> None:
-        detections = self._detect(color_image)
+        detections = self._detect(color_image, color_message.header.stamp)
         self._publish_detections(color_message, detections)
         selected_detections = filter_detections_by_class(
             detections,
             self._selected_button_class,
         )
+        if self._projected_expected_pixel is not None and selected_detections:
+            expected = self._projected_expected_pixel
+            selected_detections = [min(
+                selected_detections,
+                key=lambda detection: hypot(
+                    detection.center[0] - float(expected[0]),
+                    detection.center[1] - float(expected[1]),
+                ),
+            )]
         selected, stable = self._tracker.update(
             selected_detections,
             color_image.shape[1],
             color_image.shape[0],
+            allow_global_reacquisition=(
+                self._layout_identity_authoritative
+            ),
         )
 
         depth_m = None
@@ -617,8 +715,30 @@ class ButtonDetector(Node):
             valid,
         )
 
-    def _detect(self, image: np.ndarray) -> List[Detection]:
+    def _detect(self, image: np.ndarray, stamp=None) -> List[Detection]:
         height, width = image.shape[:2]
+        self._using_projected_local_detection = False
+        expected_pixel = self._project_locked_button(stamp)
+        now = monotonic()
+        local_attempted = False
+        if (
+            expected_pixel is not None
+            and self._projected_local_detection_enabled()
+            and now < self._projected_local_mode_until
+        ):
+            local_attempted = True
+            local_target = self._infer_projected_local_target(
+                image,
+                expected_pixel,
+            )
+            if local_target is not None:
+                self._projected_expected_pixel = expected_pixel
+                self._layout_identity_authoritative = True
+                self._using_projected_local_detection = True
+                self._extend_projected_local_mode(now)
+                return [local_target]
+            self._projected_local_mode_until = 0.0
+
         x0, y0, x1, y1 = self._roi_bounds(width, height)
         crop = image[y0:y1, x0:x1]
         if crop.size == 0:
@@ -627,15 +747,216 @@ class ButtonDetector(Node):
             detection.translated(x0, y0)
             for detection in self._model.infer(crop)
         ]
+        self._layout_identity_authoritative = False
+        self._projected_expected_pixel = None
         if bool(self.get_parameter('simulation_layout_relabel').value):
-            detections = relabel_three_by_three_panel(
-                detections,
-                self._string_list_parameter(
-                    'simulation_panel_layout_labels'
-                ),
-                self._model.class_names,
+            detections, self._layout_identity_authoritative = (
+                relabel_three_by_three_panel_with_status(
+                    detections,
+                    self._string_list_parameter(
+                        'simulation_panel_layout_labels'
+                    ),
+                    self._model.class_names,
+                    # Whenever the complete panel remains visible, its verified
+                    # geometry is strong enough to reacquire after a large
+                    # camera-motion jump. Incomplete close-ups instead use the
+                    # locked 3-D target projection below.
+                    maximum_panel_box_size=0.25 * min(width, height),
+                    drop_auxiliary_detections=True,
+                    suppress_incomplete_layout=(
+                        self._tracker.current is None
+                    ),
+                )
             )
+        if bool(
+            self.get_parameter('preserve_selected_track_identity').value
+        ):
+            detections = preserve_tracked_label(
+                detections,
+                self._selected_button_class,
+                self._tracker.current,
+                float(
+                    self.get_parameter('tracking_minimum_iou').value
+                ),
+                # Scaling by the active box allows normal camera motion while
+                # keeping association inside neighboring-button spacing.
+                # This path is shared by simulation and real hardware.
+                maximum_center_distance=(
+                    0.75 * max(
+                        self._tracker.current.width,
+                        self._tracker.current.height,
+                    )
+                    if self._tracker.current is not None
+                    else 0.0
+                ),
+            )
+        if expected_pixel is not None:
+            detections, projected_authoritative = (
+                preserve_projected_target_label(
+                    detections,
+                    self._selected_button_class,
+                    expected_pixel,
+                    float(
+                        self.get_parameter(
+                            'projected_reacquisition_radius_px'
+                        ).value
+                    ),
+                    float(
+                        self.get_parameter(
+                            'projected_reacquisition_ambiguity_margin_px'
+                        ).value
+                    ),
+                )
+            )
+            if projected_authoritative:
+                self._projected_expected_pixel = expected_pixel
+                self._layout_identity_authoritative = True
+                return detections
+
+            radius = float(
+                self.get_parameter(
+                    'projected_reacquisition_radius_px'
+                ).value
+            )
+            has_nearby_candidate = any(
+                hypot(
+                    detection.center[0] - float(expected_pixel[0]),
+                    detection.center[1] - float(expected_pixel[1]),
+                ) <= radius
+                for detection in detections
+            )
+            if (
+                self._projected_local_detection_enabled()
+                and not local_attempted
+                and not has_nearby_candidate
+            ):
+                local_target = self._infer_projected_local_target(
+                    image,
+                    expected_pixel,
+                )
+                if local_target is not None:
+                    detections.append(local_target)
+                    self._projected_expected_pixel = expected_pixel
+                    self._layout_identity_authoritative = True
+                    self._using_projected_local_detection = True
+                    self._extend_projected_local_mode(now)
         return detections
+
+    def _projected_local_detection_enabled(self) -> bool:
+        return bool(
+            self.get_parameter('projected_local_detection_enabled').value
+        )
+
+    def _extend_projected_local_mode(self, now: float) -> None:
+        hold_seconds = max(
+            0.0,
+            float(
+                self.get_parameter('projected_local_hold_seconds').value
+            ),
+        )
+        self._projected_local_mode_until = now + hold_seconds
+
+    def _infer_projected_local_target(
+        self,
+        image: np.ndarray,
+        expected_pixel: np.ndarray,
+    ) -> Optional[Detection]:
+        """Run one high-resolution crop pass around the locked projection."""
+        crop, origin_x, origin_y = extract_padded_square_crop(
+            image,
+            expected_pixel,
+            int(self.get_parameter('projected_local_crop_size_px').value),
+        )
+        local_detections = remap_crop_detections(
+            self._model.infer(crop),
+            origin_x,
+            origin_y,
+            image.shape[1],
+            image.shape[0],
+        )
+        corrected, authoritative = preserve_projected_target_label(
+            local_detections,
+            self._selected_button_class,
+            expected_pixel,
+            float(
+                self.get_parameter(
+                    'projected_reacquisition_radius_px'
+                ).value
+            ),
+            float(
+                self.get_parameter(
+                    'projected_reacquisition_ambiguity_margin_px'
+                ).value
+            ),
+        )
+        if not authoritative:
+            return None
+        return min(
+            corrected,
+            key=lambda detection: hypot(
+                detection.center[0] - float(expected_pixel[0]),
+                detection.center[1] - float(expected_pixel[1]),
+            ),
+        )
+
+    def _project_locked_button(self, stamp):
+        if (
+            not bool(
+                self.get_parameter('projected_reacquisition_enabled').value
+            )
+            or self._locked_button_base is None
+            or self._camera_matrix is None
+        ):
+            return None
+        query_time = Time()
+        if stamp is not None and (stamp.sec != 0 or stamp.nanosec != 0):
+            query_time = Time.from_msg(stamp)
+        camera_frame = self._camera_frame or self._string_parameter(
+            'camera_frame'
+        )
+        try:
+            transform = self._tf_buffer.lookup_transform(
+                camera_frame,
+                self._string_parameter('base_frame'),
+                query_time,
+                timeout=Duration(
+                    seconds=float(
+                        self.get_parameter(
+                            'projected_reacquisition_tf_timeout'
+                        ).value
+                    )
+                ),
+            )
+        except (
+            LookupException,
+            ConnectivityException,
+            ExtrapolationException,
+        ):
+            return None
+        translation = transform.transform.translation
+        rotation = transform.transform.rotation
+        camera_from_base = quaternion_to_matrix([
+            rotation.x,
+            rotation.y,
+            rotation.z,
+            rotation.w,
+        ])
+        point_camera = np.asarray([
+            translation.x,
+            translation.y,
+            translation.z,
+        ]) + camera_from_base @ self._locked_button_base
+        if point_camera[2] <= 0.0:
+            return None
+        try:
+            return project_camera_point(
+                self._camera_matrix,
+                point_camera,
+                self._distortion_coefficients,
+                self._distortion_model,
+            )
+        except ValueError:
+            return None
 
     def _roi_bounds(
         self,
@@ -821,6 +1142,23 @@ class ButtonDetector(Node):
             (255, 160, 0),
             2,
         )
+        if (
+            self._using_projected_local_detection
+            and self._projected_expected_pixel is not None
+        ):
+            crop_size = int(
+                self.get_parameter('projected_local_crop_size_px').value
+            )
+            center_x = int(round(self._projected_expected_pixel[0]))
+            center_y = int(round(self._projected_expected_pixel[1]))
+            half_size = crop_size // 2
+            cv2.rectangle(
+                debug_image,
+                (center_x - half_size, center_y - half_size),
+                (center_x + half_size, center_y + half_size),
+                (255, 255, 0),
+                2,
+            )
         for detection in detections:
             self._draw_detection(
                 debug_image,
@@ -847,6 +1185,8 @@ class ButtonDetector(Node):
             )
             if depth_m is not None:
                 status += f' {depth_m:.3f}m'
+        if self._using_projected_local_detection:
+            status += ' LOCAL'
         cv2.putText(
             debug_image,
             status,

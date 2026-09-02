@@ -128,6 +128,10 @@ def _launch_setup(context):
     if LaunchConfiguration('start_moveit_servo').perform(
         context
     ).casefold() == 'true':
+        simulation = (
+            LaunchConfiguration('use_sim_time').perform(context).casefold()
+            == 'true'
+        )
         with open(
             os.path.join(
                 app_share,
@@ -137,11 +141,12 @@ def _launch_setup(context):
             encoding='utf-8',
         ) as servo_file:
             servo_config = yaml.safe_load(servo_file)
-        servo_config['use_gazebo'] = (
-            LaunchConfiguration('use_sim_time').perform(context).casefold()
-            == 'true'
-        )
+        servo_config['use_gazebo'] = simulation
         servo_config['joint_topic'] = joint_states_topic.perform(context)
+        if simulation:
+            servo_config['command_out_topic'] = (
+                '/servo_node/raw_joint_trajectory'
+            )
         nodes.append(
             Node(
                 package='moveit_servo',
@@ -163,6 +168,28 @@ def _launch_setup(context):
                 ],
             )
         )
+        if simulation:
+            nodes.append(
+                Node(
+                    package='piper_elevator_app',
+                    executable='simulation_servo_adapter',
+                    name='simulation_servo_adapter',
+                    output='screen',
+                    parameters=[
+                        os.path.join(
+                            app_share,
+                            'config',
+                            'simulation_servo_adapter.yaml',
+                        ),
+                        {
+                            'joint_state_topic': (
+                                joint_states_topic.perform(context)
+                            ),
+                            'use_sim_time': True,
+                        },
+                    ],
+                )
+            )
     if mode.start_ros2_control:
         nodes.append(
             Node(

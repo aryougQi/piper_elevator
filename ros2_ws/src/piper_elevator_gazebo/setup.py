@@ -9,7 +9,11 @@ PACKAGE_NAME = 'piper_elevator_gazebo'
 def asset_data_files(root_name):
     grouped = {}
     for path in Path(root_name).rglob('*'):
-        if path.is_file():
+        if (
+            path.is_file()
+            and '__pycache__' not in path.parts
+            and path.suffix not in {'.pyc', '.pyo'}
+        ):
             destination = Path('share') / PACKAGE_NAME / path.parent
             grouped.setdefault(str(destination), []).append(str(path))
     return sorted(grouped.items())

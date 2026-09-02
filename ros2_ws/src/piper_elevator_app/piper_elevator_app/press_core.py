@@ -1,8 +1,55 @@
 """Pure contact-detection helpers for the button press controller."""
 
 from dataclasses import dataclass
+import time
 
 import numpy as np
+
+
+class PhaseTimer:
+    """Accumulate monotonic durations for sequential named phases."""
+
+    def __init__(self, clock=time.monotonic):
+        self._clock = clock
+        self._started_at = float(clock())
+        self._phase = ''
+        self._phase_started_at = self._started_at
+        self._durations = {}
+
+    def start(self, phase):
+        name = str(phase).strip()
+        if not name:
+            raise ValueError('phase name must not be empty')
+        now = float(self._clock())
+        self._finish_active(now)
+        self._phase = name
+        self._phase_started_at = now
+
+    def stop(self):
+        now = float(self._clock())
+        self._finish_active(now)
+
+    def snapshot(self):
+        now = float(self._clock())
+        durations = dict(self._durations)
+        if self._phase:
+            durations[self._phase] = durations.get(self._phase, 0.0) + (
+                now - self._phase_started_at
+            )
+        return {
+            'total_seconds': max(0.0, now - self._started_at),
+            'phases': durations,
+        }
+
+    def _finish_active(self, now):
+        if not self._phase:
+            return
+        elapsed = max(0.0, float(now) - self._phase_started_at)
+        self._durations[self._phase] = (
+            self._durations.get(self._phase, 0.0) + elapsed
+        )
+        self._phase = ''
+        self._phase_started_at = float(now)
 
 
 def simulated_button_depression(rest_position, current_position):

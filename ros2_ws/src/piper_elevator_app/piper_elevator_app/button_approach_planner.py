@@ -210,10 +210,14 @@ class ButtonApproachPlanner(Node):
         self.declare_parameter('close_gripper_before_plan', True)
         self.declare_parameter('closed_gripper_position_m', 0.0)
         self.declare_parameter('gripper_motion_seconds', 1.0)
-        self.declare_parameter('approach_distance_m', 0.08)
+        self.declare_parameter('approach_distance_m', 0.14)
         self.declare_parameter('maximum_camera_centering_shift_m', 0.045)
+        self.declare_parameter(
+            'maximum_uncompensated_camera_offset_m',
+            0.035,
+        )
         self.declare_parameter('position_tolerance_m', 0.008)
-        self.declare_parameter('pointing_tolerance_rad', 0.14)
+        self.declare_parameter('pointing_tolerance_rad', math.radians(8.0))
         self.declare_parameter('roll_tolerance_rad', 0.26)
         self.declare_parameter(
             'wrist_safe_joints',
@@ -240,10 +244,14 @@ class ButtonApproachPlanner(Node):
         self.declare_parameter('home_joint_tolerance_rad', 0.015)
         self.declare_parameter('planning_time_seconds', 5.0)
         self.declare_parameter('planning_attempts', 5)
+        self.declare_parameter('planning_request_attempts', 3)
+        self.declare_parameter('planning_retry_delay_seconds', 0.15)
         self.declare_parameter('velocity_scaling', 0.10)
         self.declare_parameter('acceleration_scaling', 0.10)
         self.declare_parameter('tf_timeout_seconds', 0.25)
         self.declare_parameter('action_timeout_seconds', 30.0)
+        self.declare_parameter('home_execution_retries', 2)
+        self.declare_parameter('home_retry_delay_seconds', 0.15)
         self.declare_parameter('target_max_age_seconds', 1.0)
         self.declare_parameter('surface_normal_max_age_seconds', 0.5)
         self.declare_parameter('plan_max_age_seconds', 120.0)
@@ -328,7 +336,7 @@ class ButtonApproachPlanner(Node):
         translation = transform.transform.translation
         rotation = transform.transform.rotation
         try:
-            button_base, _, camera_orientation, view_direction = (
+            button_base, _, camera_orientation, _ = (
                 transform_button_to_approach(
                     button_camera,
                     [translation.x, translation.y, translation.z],
@@ -359,15 +367,15 @@ class ButtonApproachPlanner(Node):
                 else self._latest_surface_normal.copy()
             )
         if surface_normal is None:
-            # Prefer the fitted face normal. During detector startup, aim at
-            # the measured button instead of preserving a tilted optical axis.
-            surface_normal = button_base - camera_origin
-            norm = float(np.linalg.norm(surface_normal))
-            if norm < 1.0e-9:
-                surface_normal = view_direction
-            else:
-                surface_normal /= norm
-        elif np.dot(surface_normal, button_base - camera_origin) < 0.0:
+            # /button_pose and /button_surface_pose are published from the
+            # same RGB-D frame, but independent ROS callbacks can deliver the
+            # position first.  A line of sight to an edge button is not a
+            # surface normal and can be tilted by nearly 20 degrees.  Do not
+            # publish TARGET_READY until the fitted face normal has arrived;
+            # the next position frame will recompute the complete target.
+            self._publish_status('WAITING_FOR_FRESH_SURFACE_NORMAL')
+            return
+        if np.dot(surface_normal, button_base - camera_origin) < 0.0:
             surface_normal = -surface_normal
 
         desired_camera_orientation = orientation_from_approach_direction(
@@ -411,6 +419,11 @@ class ButtonApproachPlanner(Node):
                         'maximum_camera_centering_shift_m'
                     ).value
                 ),
+                float(
+                    self.get_parameter(
+                        'maximum_uncompensated_camera_offset_m'
+                    ).value
+                ),
             )
         except ValueError as error:
             self._publish_status(f'REJECTED: {error}')
@@ -420,7 +433,7 @@ class ButtonApproachPlanner(Node):
         ) * surface_normal
         camera_centering_shift = approach - nominal_approach
         self.get_logger().debug(
-            'Camera-centering TCP shift: '
+            'Minimum visibility TCP shift: '
             f'{1000.0 * np.linalg.norm(camera_centering_shift):.1f} mm'
         )
 
@@ -459,6 +472,7 @@ class ButtonApproachPlanner(Node):
             self._latest_button = button_pose
             self._latest_approach = approach_pose
             self._latest_received_at = time.monotonic()
+        self._publish_status('TARGET_READY')
 
     def _surface_pose_callback(self, message):
         """Transform the fitted button-face normal into the base frame."""
@@ -559,7 +573,41 @@ class ButtonApproachPlanner(Node):
                         f'PLAN_FAILED: {close_message}'
                     )
                     return response
-            result, message = self._plan_pose(target)
+            request_attempts = max(
+                1,
+                int(
+                    self.get_parameter(
+                        'planning_request_attempts'
+                    ).value
+                ),
+            )
+            result = None
+            message = 'Planning did not run'
+            for attempt in range(1, request_attempts + 1):
+                self._publish_status(
+                    f'PLANNING attempt={attempt}/{request_attempts}'
+                )
+                result, message = self._plan_pose(target)
+                if result is not None:
+                    break
+                if (
+                    not self._retryable_planning_failure(message)
+                    or attempt >= request_attempts
+                ):
+                    break
+                self._publish_status(
+                    'PLANNING_RETRY_AFTER_SAMPLING_FAILURE '
+                    f'attempt={attempt}/{request_attempts} '
+                    f'error={message}'
+                )
+                time.sleep(max(
+                    0.0,
+                    float(
+                        self.get_parameter(
+                            'planning_retry_delay_seconds'
+                        ).value
+                    ),
+                ))
             if result is None:
                 response.success = False
                 response.message = message
@@ -684,16 +732,46 @@ class ButtonApproachPlanner(Node):
                 response.message = str(error)
                 self._publish_status(f'HOME_FAILED: {error}')
                 return response
-            result, message = self._plan_constraints(constraints)
-            if result is None:
-                response.success = False
-                response.message = message
-                self._publish_status(f'HOME_FAILED: {message}')
-                return response
-            self._publish_status('HOME_EXECUTING')
-            success, message = self._execute_trajectory(
-                result.planned_trajectory
+            attempts = max(
+                1,
+                int(
+                    self.get_parameter('home_execution_retries').value
+                ),
             )
+            success = False
+            message = 'Home execution did not run'
+            for attempt in range(1, attempts + 1):
+                result, message = self._plan_constraints(constraints)
+                if result is None:
+                    break
+                self._publish_status(
+                    f'HOME_EXECUTING attempt={attempt}/{attempts}'
+                )
+                success, message = self._execute_trajectory(
+                    result.planned_trajectory
+                )
+                if success:
+                    break
+                # -4 is MoveIt CONTROL_FAILED.  Immediately after Servo it
+                # commonly represents a stale planned start state.  Re-read
+                # the current state and replan; never replay the old path.
+                if (
+                    message != 'MoveIt execution error -4'
+                    or attempt >= attempts
+                ):
+                    break
+                self._publish_status(
+                    f'HOME_REPLANNING_AFTER_START_RACE '
+                    f'attempt={attempt}/{attempts}'
+                )
+                time.sleep(max(
+                    0.0,
+                    float(
+                        self.get_parameter(
+                            'home_retry_delay_seconds'
+                        ).value
+                    ),
+                ))
             response.success = success
             response.message = (
                 'MoveIt home pose reached' if success else message
@@ -836,6 +914,11 @@ class ButtonApproachPlanner(Node):
 
     def _plan_pose(self, target):
         return self._plan_constraints(self._pose_constraints(target))
+
+    @staticmethod
+    def _retryable_planning_failure(message):
+        """Retry only completed MoveIt requests that found no valid plan."""
+        return str(message).startswith('MoveIt planning error ')
 
     def _plan_constraints(self, constraints):
         timeout = float(self.get_parameter('action_timeout_seconds').value)

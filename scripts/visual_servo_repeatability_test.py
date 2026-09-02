@@ -23,8 +23,8 @@ from std_srvs.srv import Trigger
 ACTIVE_STATUS_PREFIXES = (
     'STARTING_MOVEIT_SERVO',
     'VISUAL_TRACKING',
-    'CARTESIAN_HANDOFF',
-    'CARTESIAN_EXECUTING',
+    'SERVO_HANDOFF_READY',
+    'SERVO_HANDOFF_CLAIMED',
     'STOPPING',
 )
 TERMINAL_STATUS_PREFIXES = ('COMPLETE:', 'FAILED:', 'STOPPED')
@@ -285,11 +285,12 @@ def main():
                     terminal = f'FAILED: {error}'
 
                 visual_passed = terminal.startswith('COMPLETE:')
-                if not visual_passed:
-                    try:
-                        node.call('servo_stop', 5.0)
-                    except Exception as stop_error:
-                        print(f'[warning] stop failed: {stop_error}')
+                try:
+                    # This visual-only test has no press node to claim the
+                    # live Servo session, so release it before MoveIt homes.
+                    node.call('servo_stop', 5.0)
+                except Exception as stop_error:
+                    print(f'[warning] stop failed: {stop_error}')
 
                 return_error = None
                 step_started = time.monotonic()

@@ -39,6 +39,12 @@ ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-0}" docker compose run --rm piper_ros2 bash -lc 
 
     python3 \
         /workspace/ros2_ws/src/piper_elevator_gazebo/test/virtual_hardware_probe.py
+    if ! grep -Fq "position_proportional_gain has been set to: 0.1" \
+        "${launch_log}"; then
+        cat "${launch_log}" >&2
+        echo "Gazebo position-interface runtime gain changed unexpectedly." >&2
+        exit 1
+    fi
     if grep -Fq "Unable to find file with URI" "${launch_log}"; then
         cat "${launch_log}" >&2
         echo "Gazebo could not resolve one or more official model resources." >&2

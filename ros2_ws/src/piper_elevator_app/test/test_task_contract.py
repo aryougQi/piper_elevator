@@ -19,6 +19,7 @@ def test_task_manager_wires_every_motion_stage_and_safe_home():
     ).read_text()
 
     assert config['button_selection_topic'] == '/button_selection'
+    assert config['approach_status_topic'] == '/button_approach/status'
     assert config['plan_service'].endswith('/plan')
     assert config['execute_service'].endswith('/execute')
     assert config['visual_start_service'].endswith('/start')
@@ -28,6 +29,8 @@ def test_task_manager_wires_every_motion_stage_and_safe_home():
     assert config['return_home_after_failure'] is True
     assert config['clear_selection_after_task'] is True
     assert config['post_motion_target_wait_timeout_seconds'] > 0.0
+    assert config['post_motion_target_wait_timeout_seconds'] <= 5.0
+    assert config['required_post_motion_surface_observations'] >= 3
     assert config['required_unique_nodes'] == [
         '/button_detector',
         '/button_approach_planner',
@@ -42,7 +45,19 @@ def test_task_manager_wires_every_motion_stage_and_safe_home():
     assert '_recover(at_home)' in source
     assert '_ensure_unique_nodes()' in source
     assert '_wait_for_post_motion_target(button)' in source
-    assert 'self._surface_sequence > surface_baseline' in source
+    assert 'surface_baseline + required_surfaces' in source
+    assert "self._approach_status == 'TARGET_READY'" in source
+    assert "self._visual_status == 'READY'" in source
+    post_motion_source = source.split(
+        'def _wait_for_post_motion_target', 1
+    )[1].split('def _start_and_wait_for_completion', 1)[0]
+    assert (
+        'visual_status_baseline = self._visual_status_sequence'
+        in post_motion_source
+    )
+    assert 'fixed world-space anchor rejects a later neighbor jump' in (
+        post_motion_source
+    )
 
 
 def test_task_outputs_are_latched_and_completion_is_sequence_guarded():

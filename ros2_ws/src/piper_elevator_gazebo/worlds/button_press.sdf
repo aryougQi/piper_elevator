@@ -63,7 +63,9 @@
     <include>
       <uri>model://elevator_button</uri>
       <name>elevator_button</name>
-      <pose>0.55 0 0.30 0 0 3.14159265359</pose>
+      <!-- A small lateral workcell offset avoids placing the center column
+           on a perfectly symmetric wrist/elbow singularity. -->
+      <pose>0.55 0.03 0.30 0 0 3.14159265359</pose>
     </include>
   </world>
 </sdf>

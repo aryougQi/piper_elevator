@@ -4,7 +4,25 @@ import numpy as np
 import pytest
 
 from piper_elevator_app.press_core import JointEffortContactDetector
+from piper_elevator_app.press_core import PhaseTimer
 from piper_elevator_app.press_core import simulated_button_depression
+
+
+def test_phase_timer_accumulates_repeated_named_phases():
+    samples = iter([10.0, 10.5, 11.5, 12.0, 13.0, 13.5])
+    timer = PhaseTimer(clock=lambda: next(samples))
+
+    timer.start('approach')
+    timer.start('press')
+    timer.start('approach')
+    timer.stop()
+    snapshot = timer.snapshot()
+
+    assert snapshot['phases'] == {
+        'approach': 2.0,
+        'press': 0.5,
+    }
+    assert snapshot['total_seconds'] == 3.5
 
 
 JOINTS = [f'joint{index}' for index in range(1, 7)]

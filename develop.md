@@ -35,7 +35,7 @@ ROS_DOMAIN_ID=42 ./scripts/elevator_task.sh
 ## 启动
 
 ```bash
-cd /home/q/project/piper_elevator/piper_elevator
+cd /home/qi/Project/piper_elevator
 ./scripts/gazebo_hardware.sh
 ```
 
@@ -88,7 +88,7 @@ Planner。`./scripts/sim.sh` 等价于该命令。
 ## 启动
 
 ```bash
-cd /home/q/project/piper_elevator/piper_elevator
+cd /home/qi/Project/piper_elevator
 ./scripts/button_camera.sh
 ```
 
@@ -132,7 +132,7 @@ ros2 topic pub --once /button_selection std_msgs/msg/String "{data: '3'}"
 使用仿真并关闭自动执行，方便手动调用 `plan` 和 `execute`：
 
 ```bash
-cd /home/q/project/piper_elevator/piper_elevator
+cd /home/qi/Project/piper_elevator
 ./scripts/button_approach_sim.sh auto_execute:=false
 ```
 
@@ -155,7 +155,7 @@ cd /home/q/project/piper_elevator/piper_elevator
 打开另一个终端并进入仿真 ROS 域：
 
 ```bash
-cd /home/q/project/piper_elevator/piper_elevator
+cd /home/qi/Project/piper_elevator
 ROS_DOMAIN_ID=42 ./scripts/shell.sh
 source /workspace/ros2_ws/install/setup.bash
 ```
@@ -168,7 +168,7 @@ ros2 service call /button_approach_planner/plan std_srvs/srv/Trigger "{}"
 
 第一次粗略规划会先把 `center_joint` 闭合到 `0.0 m`，再以
 `pika_fingertip_center_link`（两指闭合中心的最前端）作为目标点移动到按钮前
-15 cm。位置是该阶段的精确目标；相机指向使用
+14 cm。位置是该阶段的精确目标；相机指向使用
 `/button_surface_pose` 的深度平面法向，用约 `±8°` 的可视包络修正
 上/下倾斜。滚转以当前可达姿态为基准，避免强制画面正立时将腕部
 推到限位。垂直于按钮表面的精确姿态调整仍由后续视觉伺服完成。目标关节状态还要求
@@ -191,15 +191,19 @@ ros2 service call /button_approach_planner/clear_plan std_srvs/srv/Trigger "{}"
 ## 视觉伺服精定位
 
 粗靠近完成后，RGB-D 检测器会在按钮框内拟合局部深度平面，并将按钮中心和
-表面法向发布到 `/button_surface_pose`。节点先通过 MoveIt Servo 以 50 Hz
-连续速度控制对准到按钮前 75 mm；该阶段包含低通滤波、线速度/角速度限制和
-加速度限制，不再每 20 mm 重新规划、停止一次。闭环线速度上限为
-80 mm/s，最后 `LIN` 段使用 12% 速度缩放。
+表面法向发布到 `/button_surface_pose`。节点启动 MoveIt Servo 后先保持
+14 cm 粗定位位置不变，只调整相机光轴与画面滚转。粗定位前锁定的按钮世界
+坐标会投影到当前图像，在 60 px 局部窗口内重新获取同一个物理按钮；连续收到
+3 帧新的 RGB-D 表面位姿后才启动伺服。连续 2 帧姿态满足约束后，
+不会停车或重启 Servo，而是直接开始修正横向位置并靠近按钮前 27.5 mm。
+整个视觉阶段使用同一个 50 Hz 速度闭环，并包含低通滤波、线速度/角速度限制
+和加速度限制；闭环线速度上限为 80 mm/s。
 
-到达 75 mm，或者在 90 mm 以内因近距离遮挡丢失目标时，节点会锁定最后一个
-可靠的按钮位置和表面法向，平滑减速并暂停 MoveIt Servo。最后一段使用 Pilz
-`LIN` 规划器生成一条直线轨迹，一次执行到按钮前 30 mm。最终结果使用机器人
-TF 验证，不要求此时 YOLO 仍能看到完整按钮。
+接近过程中会锁定已经对正的表面法向和末端姿态，避免贴近面板后再次大幅转腕。
+若姿态偏差增大到 2--3°，轴向靠近速度会逐渐降为零，但横向和姿态校正仍继续；
+只有姿态恢复后才继续靠近。到达按压预备位后才平滑减速到零，并保持同一个
+Servo 会话等待按压节点接管。最终结果使用机器人 TF 验证，不要求此时 YOLO
+仍能看到完整按钮。
 
 仿真组合启动已经包含 `button_visual_servo`。开始精定位：
 
@@ -208,17 +212,16 @@ ros2 service call /button_visual_servo/start std_srvs/srv/Trigger "{}"
 ros2 topic echo /button_visual_servo/status
 ```
 
-视觉阶段连续 2 帧满足交接条件后进入 `CARTESIAN_HANDOFF`，最终 TF 满足以下
-条件后状态变为 `COMPLETE`：
+视觉阶段连续 2 帧满足最终条件后，状态变为 `COMPLETE`：
 
-- 指尖中心到按钮表面的法向距离为 `30 ± 2.5 mm`；
+- 指尖中心到按钮表面的法向距离为 `27.5 ± 2.5 mm`，且最近不小于 `25 mm`；
 - 横向偏差不超过 `3 mm`；
 - `camera_color_optical_frame` 的 +Z 光轴与表面法向夹角不超过 `3°`。
 
 姿态计算会根据 TF 自动补偿相机与夹爪之间的安装外参，不再把
 夹爪 +Z 误当作真实相机光轴。相机 optical frame 的 -Y 视为画面向上，并以
-`base_link +Z` 为竖直参考，将绕光轴滚转软限制在 `±10°`；回正角速度单独限制
-为 `0.15 rad/s`。表面法向垂直度始终优先于画面水平，水平参考退化或受可达性
+`base_link +Z` 为竖直参考，以 `0°` 滚转为控制目标，并允许在 `±3°` 内进入
+最终靠近；回正角速度单独限制为 `0.30 rad/s`。表面法向垂直度始终优先于画面水平，水平参考退化或受可达性
 限制时会保留可达姿态。`/button_visual_servo/status` 中的 `roll=...deg` 可用于
 检查实际滚转误差。
 
@@ -236,7 +239,8 @@ ros2 topic echo /button_press/status
 ```
 
 按压节点沿相机光轴以低速直线运动，以静止基线之后的六关节力矩增量判断
-接触，额外推进 2.5 mm 后原路撤回。真机必须先在
+接触，额外推进 2.5 mm 后原路撤回。撤回前段使用 25 mm/s，最后 3 mm 降到
+8 mm/s；仿真使用 0.8 mm 到位容差，真机保持 0.5 mm。真机必须先在
 `config/button_press.yaml` 填入经过实验得到的六关节增量阈值和绝对力矩上限，
 并设置 `torque_thresholds_calibrated: true`；未标定时节点会拒绝执行。
 

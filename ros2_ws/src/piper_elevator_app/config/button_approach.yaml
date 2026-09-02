@@ -19,14 +19,19 @@ button_approach_planner:
     closed_gripper_position_m: 0.0
     gripper_motion_seconds: 1.0
 
-    # TCP 停在按钮表面前15cm；当前阶段不执行按压和视觉伺服。
-    approach_distance_m: 0.15
-    # 补偿眼在手上相机的平面内安装偏置，同时限制位移，避免边缘按钮的
-    # 粗定位目标落入低位难解区；剩余像素误差由视觉伺服连续消除。
+    # TCP 停在按钮表面前 14 cm；到位后先原地对正相机，再由视觉
+    # Servo 连续修正位置并靠近按压预备点。
+    approach_distance_m: 0.14
+    # 眼在手上相机与指尖有约 80 mm 切向偏置。允许粗定位最多平移
+    # TCP 45 mm，将剩余像面偏置压到 35 mm 内，避免边缘按钮在视觉
+    # Servo 启动前掉出视野；剩余的 TCP 横向误差由 Servo 闭环消除。
+    maximum_uncompensated_camera_offset_m: 0.035
     maximum_camera_centering_shift_m: 0.045
     position_tolerance_m: 0.008
     # 位置是粗定位的精确目标；指向使用深度平面拟合的按钮表面法向，
     # 避免保留原始的上/下倾斜。滚转沿用当前可达姿态，防止腕部被推到限位。
+    # 粗定位只需保证按钮仍在视野内；精确的 3 deg 光轴和滚转对正由
+    # 粗定位完成后原地执行的 VISUAL_ORIENTING 阶段完成。
     pointing_tolerance_rad: 0.14
     roll_tolerance_rad: 0.26
     # 仅限制冗余腕部滚转关节远离机械限位，给后续视觉伺服保留调整余量。
@@ -43,11 +48,20 @@ button_approach_planner:
     home_joint_tolerance_rad: 0.015
     planning_time_seconds: 5.0
     planning_attempts: 5
+    # OMPL 的单次请求可能因随机采样不到狭窄目标区域而返回 99999。
+    # 保持全部安全约束，重新提交最多两次新请求；每次请求都会重新读取
+    # 当前关节状态并使用新的随机采样树。
+    planning_request_attempts: 3
+    planning_retry_delay_seconds: 0.15
     velocity_scaling: 0.10
     acceleration_scaling: 0.10
 
     tf_timeout_seconds: 0.25
     action_timeout_seconds: 30.0
+    # Servo 切换到轨迹控制时若当前关节已越过规划起点，MoveIt 会返回 -4。
+    # 仅对此错误重新读取当前状态并重规划一次，绝不重放旧轨迹。
+    home_execution_retries: 2
+    home_retry_delay_seconds: 0.15
     target_max_age_seconds: 1.0
     surface_normal_max_age_seconds: 0.5
     # 给操作者留出检查 RViz 规划结果并确认执行的时间。

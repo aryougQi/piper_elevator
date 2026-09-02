@@ -8,13 +8,13 @@ controller_manager:
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
-# Humble/Fortress reads this as a ROS parameter on the system plugin node;
-# placing the same field inside the SDF plugin tag is silently ignored.
+# Humble/Fortress declares this parameter on its embedded system node before
+# applying the controller parameter file, so the packaged plugin keeps its
+# 0.1 default.  Keep the real runtime value explicit and compensate only the
+# rolling Servo commands with the simulation_servo_adapter.
 gz_ros2_control:
   ros__parameters:
-    # The 0.1 default leaves the loaded shoulder/elbow far behind MoveIt.
-    # Values at or below 1.0 avoid the discrete position loop oscillating.
-    position_proportional_gain: 0.8
+    position_proportional_gain: 0.1
 
 arm_controller:
   ros__parameters:
