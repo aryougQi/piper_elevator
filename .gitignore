@@ -8,3 +8,8 @@ ros2_ws/src/pika_ros/
 __pycache__/
 *.py[cod]
 test_logs/
+build/
+install/
+log/
+ros2_ws/core
+ros2_ws/diagnostics/data/
