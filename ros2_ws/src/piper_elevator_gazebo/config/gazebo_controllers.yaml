@@ -8,13 +8,13 @@ controller_manager:
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
-# Humble/Fortress reads this as a ROS parameter on the system plugin node;
-# placing the same field inside the SDF plugin tag is silently ignored.
+# Humble/Fortress declares this parameter on its embedded system node before
+# applying the controller parameter file, so the packaged plugin keeps its
+# 0.1 default.  Keep the real runtime value explicit and compensate only the
+# rolling Servo commands with the simulation_servo_adapter.
 gz_ros2_control:
   ros__parameters:
-    # The 0.1 default leaves the loaded shoulder/elbow far behind MoveIt.
-    # Values at or below 1.0 avoid the discrete position loop oscillating.
-    position_proportional_gain: 0.8
+    position_proportional_gain: 0.1
 
 arm_controller:
   ros__parameters:
@@ -30,12 +30,20 @@ arm_controller:
     constraints:
       goal_time: 1.0
       stopped_velocity_tolerance: 0.03
-      joint1: {trajectory: 0.12, goal: 0.025}
-      joint2: {trajectory: 0.12, goal: 0.025}
-      joint3: {trajectory: 0.12, goal: 0.025}
-      joint4: {trajectory: 0.12, goal: 0.025}
-      joint5: {trajectory: 0.12, goal: 0.025}
-      joint6: {trajectory: 0.12, goal: 0.025}
+      # The application requires 0.010 rad actual tracking accuracy. Keep
+      # controller success tighter so it cannot release a short move early.
+      #
+      # Gazebo 的关节跟踪受插件固定 position_proportional_gain=0.1 限制，
+      # 大开度关节（1-3）在粗定位速度下的滞后接近 0.12 rad；实测出现过
+      # 0.1204 rad 的越界，一个 0.4 mrad 的抖动就会让整条任务以
+      # CONTROL_FAILED 中止。仿真把路径容差放宽到 0.25 rad，末端 goal 仍
+      # 保持 0.008 rad，真机控制器配置不受影响。
+      joint1: {trajectory: 0.25, goal: 0.008}
+      joint2: {trajectory: 0.25, goal: 0.008}
+      joint3: {trajectory: 0.25, goal: 0.008}
+      joint4: {trajectory: 0.12, goal: 0.008}
+      joint5: {trajectory: 0.12, goal: 0.008}
+      joint6: {trajectory: 0.12, goal: 0.008}
 
 pika_gripper_controller:
   ros__parameters:

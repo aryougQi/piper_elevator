@@ -63,7 +63,15 @@
     <include>
       <uri>model://elevator_button</uri>
       <name>elevator_button</name>
-      <pose>0.55 0 0.30 0 0 3.14159265359</pose>
+      <!-- A small lateral workcell offset avoids placing the center column
+           on a perfectly symmetric wrist/elbow singularity. -->
+      <!-- 面板整体抬高 0.10 m：原来的按钮行高 0.235/0.300/0.365 m 相对机械臂
+           基座太低（机械狗上的面板实际要高得多），左下角 open/close 需要
+           joint5 弯到 -1.02 rad、离限位只剩 0.197 rad，视觉伺服的滚转调平一
+           推就触发 MoveIt Servo 的限位 HALT。抬高一行后各按钮的 joint5 余量
+           从 0.197 rad 提升到约 0.48 rad，且末端仍在同一可达弧线上
+           （到基座距离 0.55→0.61 m）。 -->
+      <pose>0.55 0.03 0.40 0 0 3.14159265359</pose>
     </include>
   </world>
 </sdf>
