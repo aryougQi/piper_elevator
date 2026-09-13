@@ -1,8 +1,15 @@
 button_press_executor:
   ros__parameters:
     visual_completion_topic: /button_visual_servo/completed
+    servo_claim_topic: /button_press/servo_claimed
+    # 复用视觉阶段正在运行的 Servo，会话中间不 pause/unpause。
+    continuous_servo_handoff: true
+    visual_servo_handoff_service: /button_visual_servo/claim_for_press
+    handoff_timeout_seconds: 2.0
+    stop_timeout_seconds: 8.0
     status_topic: /button_press/status
     completion_topic: /button_press/completed
+    timing_topic: /button_press/timing
     effort_topic: /feedback/joint_states
     # 仿真按当前检测器选择的类别读取同名按钮的独立触点和关节。
     button_selected_topic: /button_selected
@@ -33,6 +40,7 @@ button_press_executor:
     camera_frame: camera_color_optical_frame
     end_effector_link: pika_fingertip_center_link
     servo_twist_topic: /servo_node/delta_twist_cmds
+    servo_status_topic: /servo_node/status
     servo_start_service: /servo_node/start_servo
     servo_pause_service: /servo_node/pause_servo
     servo_unpause_service: /servo_node/unpause_servo
@@ -40,27 +48,61 @@ button_press_executor:
     hardware_gate_required: false
     hardware_gate_heartbeat_seconds: 0.20
 
-    # 先以 8 mm/s 搜索接触，再以 3 mm/s 增加 2.5 mm 触发行程。
+    # 先以 10 mm/s 搜索接触，再以 4 mm/s 增加 2.5 mm 触发行程。
     control_rate_hz: 50.0
-    approach_speed_mps: 0.008
-    press_speed_mps: 0.003
-    retract_speed_mps: 0.015
-    maximum_acceleration_mps2: 0.06
+    approach_speed_mps: 0.010
+    press_speed_mps: 0.004
+    retract_speed_mps: 0.025
+    # 大行程快速撤回，最后 3 mm 降速收敛，避免位置接口在原点附近反复回退。
+    retract_slowdown_distance_m: 0.003
+    retract_slow_speed_mps: 0.008
+    maximum_acceleration_mps2: 0.10
     press_extension_m: 0.0025
     hold_seconds: 0.30
     maximum_approach_travel_m: 0.038
+    # 接触判据：torque（默认，需要标定六关节力矩阈值）/ stall（真机拿不到
+    # 可靠力矩时，用"命令前进但指尖不再前进"的堵转判据）/ stall_or_torque。
+    contact_detection_mode: torque
+    stall_minimum_travel_m: 0.005
+    stall_progress_epsilon_m: 0.00005
+    stall_required_cycles: 5
+    stall_minimum_command_speed_mps: 0.002
+    # 几何行程按压：从交接站位（视觉伺服 30 mm）推到 surface + press_extension_m，
+    # 完全不依赖力/力矩信号；stall 判据仍作为压过头的兜底。
+    # 真机推荐组合：contact_detection_mode: stall + geometry_press_enabled: true。
+    geometry_press_enabled: false
+    geometry_press_surface_travel_m: 0.030
     maximum_lateral_drift_m: 0.003
+    # 在不放宽 3 mm 安全边界的前提下，闭环修正 Servo 的横向路径误差。
+    lateral_correction_gain: 2.0
+    maximum_lateral_correction_speed_mps: 0.006
     maximum_direction_change_rad: 0.06981
     retract_tolerance_m: 0.0005
-    motion_timeout_seconds: 10.0
+    # 真机仍由速度和 38 mm 行程限制；15 s 只给 Gazebo 慢跟踪留余量。
+    motion_timeout_seconds: 15.0
     tf_timeout_seconds: 0.25
     feedback_timeout_seconds: 0.25
+    # 仅仿真生效：Gazebo 以 1 ms 物理步推进仿真时间，TF 与力反馈时间戳
+    # 可能超前节点时钟一个步长。真机（simulation_mode=false）忽略该值，
+    # 任何超前时间戳仍视为无效。
+    simulation_future_stamp_tolerance_seconds: 0.02
+    # 接管视觉阶段的零速度保持后，必须看到连续 5 个新 TF 且已稳定，才记录
+    # 按压原点；不会通过重启 Servo 来清除滚动目标。
+    servo_settle_timeout_seconds: 2.0
+    servo_settle_required_samples: 5
+    servo_settle_position_tolerance_m: 0.0002
+    servo_settle_direction_tolerance_rad: 0.0043633
 
     arm_joint_names: [joint1, joint2, joint3, joint4, joint5, joint6]
-    # 真机标定前保持 false 和零值；节点会拒绝执行，不能猜阈值。
+    # 官方参数推算的保守试运行候选值，不是实测标定结果：
+    # - 增量阈值按 1 N 接触力和 Piper 626 mm 最大臂展/MDH 力臂上界估算，
+    #   并参考旧固件 MIT 指令分辨率向上取整；2.5x 增量会触发急停。
+    # - 绝对值按 1.5 kg 满载、最大臂展约 9.21 Nm 的外载力矩留余量；
+    #   它还包含机械臂自重力矩，若基线超限会在运动前安全拒绝执行。
+    # 未完成使能静态基线和低速空行程验证前必须保持 false。
     torque_thresholds_calibrated: false
-    joint_torque_delta_thresholds_nm: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
-    joint_torque_absolute_limits_nm: [0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    joint_torque_delta_thresholds_nm: [0.65, 0.65, 0.35, 0.15, 0.15, 0.10]
+    joint_torque_absolute_limits_nm: [12.0, 12.0, 12.0, 4.0, 4.0, 4.0]
     baseline_sample_count: 25
     baseline_timeout_seconds: 2.0
     contact_consecutive_samples: 4
@@ -72,10 +114,10 @@ button_press_executor:
     # 判定，成功按压由对应关节从静止位置向负方向压下至少 2 mm 判定。
     simulation_mode: false
     # 仅补偿 Gazebo 位置接口对滚动 Servo 轨迹的低速跟踪损失；真机不应用。
-    simulation_speed_multiplier: 5.0
-    simulation_motion_timeout_seconds: 25.0
-    # 回撤需走完整行程并在起点附近减速收敛，单独放宽；真机仍使用上面的 10 s。
-    simulation_retract_timeout_seconds: 45.0
+    simulation_speed_multiplier: 10.0
+    # Gazebo 位置接口在亚毫米范围会量化振荡；仅仿真使用 0.8 mm，真机仍
+    # 保持上面的 0.5 mm。其他运动超时、行程和横漂边界不放宽。
+    simulation_retract_tolerance_m: 0.0008
     simulation_pressed_depth_m: 0.0020
     simulation_release_tolerance_m: 0.0003
     simulation_release_timeout_seconds: 3.0

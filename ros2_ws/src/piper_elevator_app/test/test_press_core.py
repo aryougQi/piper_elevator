@@ -4,10 +4,78 @@ import numpy as np
 import pytest
 
 from piper_elevator_app.press_core import JointEffortContactDetector
+from piper_elevator_app.press_core import PhaseTimer
 from piper_elevator_app.press_core import simulated_button_depression
+from piper_elevator_app.press_core import StallContactDetector
+
+
+def test_phase_timer_accumulates_repeated_named_phases():
+    samples = iter([10.0, 10.5, 11.5, 12.0, 13.0, 13.5])
+    timer = PhaseTimer(clock=lambda: next(samples))
+
+    timer.start('approach')
+    timer.start('press')
+    timer.start('approach')
+    timer.stop()
+    snapshot = timer.snapshot()
+
+    assert snapshot['phases'] == {
+        'approach': 2.0,
+        'press': 0.5,
+    }
+    assert snapshot['total_seconds'] == 3.5
 
 
 JOINTS = [f'joint{index}' for index in range(1, 7)]
+
+
+def test_stall_detector_ignores_progressing_and_slow_motion():
+    detector = StallContactDetector(
+        minimum_travel_m=0.005,
+        progress_epsilon_m=0.00005,
+        required_cycles=3,
+        minimum_command_speed_mps=0.002,
+    )
+    travel = 0.0
+    for _ in range(20):
+        travel += 0.0002
+        assert detector.update(travel, 0.010) is False
+    # Below the minimum travel a standstill must not count as contact.
+    detector.reset()
+    assert detector.update(0.001, 0.010) is False
+    for _ in range(10):
+        assert detector.update(0.001, 0.010) is False
+    # Slow commanded motion (below the threshold) is not a stall either.
+    detector.reset()
+    assert detector.update(0.020, 0.0001) is False
+    for _ in range(10):
+        assert detector.update(0.020, 0.0001) is False
+
+
+def test_stall_detector_confirms_contact_after_required_cycles():
+    detector = StallContactDetector(
+        minimum_travel_m=0.005,
+        progress_epsilon_m=0.00005,
+        required_cycles=3,
+        minimum_command_speed_mps=0.002,
+    )
+    assert detector.update(0.030, 0.010) is False
+    assert detector.update(0.0302, 0.010) is False
+    assert detector.update(0.0302, 0.010) is False
+    assert detector.update(0.0302, 0.010) is False
+    assert detector.update(0.0302, 0.010) is True
+    assert detector.stalled_cycles == 3
+    detector.reset()
+    assert detector.stalled_cycles == 0
+    assert detector.update(0.040, 0.010) is False
+
+
+def test_stall_detector_rejects_nonfinite_inputs():
+    detector = StallContactDetector()
+    with pytest.raises(ValueError, match='finite'):
+        detector.update(float('nan'), 0.01)
+    with pytest.raises(ValueError, match='finite'):
+        detector.update(0.01, float('inf'))
 
 
 def make_detector(**overrides):

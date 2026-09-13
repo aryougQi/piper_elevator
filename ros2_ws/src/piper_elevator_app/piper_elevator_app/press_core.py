@@ -1,8 +1,55 @@
 """Pure contact-detection helpers for the button press controller."""
 
 from dataclasses import dataclass
+import time
 
 import numpy as np
+
+
+class PhaseTimer:
+    """Accumulate monotonic durations for sequential named phases."""
+
+    def __init__(self, clock=time.monotonic):
+        self._clock = clock
+        self._started_at = float(clock())
+        self._phase = ''
+        self._phase_started_at = self._started_at
+        self._durations = {}
+
+    def start(self, phase):
+        name = str(phase).strip()
+        if not name:
+            raise ValueError('phase name must not be empty')
+        now = float(self._clock())
+        self._finish_active(now)
+        self._phase = name
+        self._phase_started_at = now
+
+    def stop(self):
+        now = float(self._clock())
+        self._finish_active(now)
+
+    def snapshot(self):
+        now = float(self._clock())
+        durations = dict(self._durations)
+        if self._phase:
+            durations[self._phase] = durations.get(self._phase, 0.0) + (
+                now - self._phase_started_at
+            )
+        return {
+            'total_seconds': max(0.0, now - self._started_at),
+            'phases': durations,
+        }
+
+    def _finish_active(self, now):
+        if not self._phase:
+            return
+        elapsed = max(0.0, float(now) - self._phase_started_at)
+        self._durations[self._phase] = (
+            self._durations.get(self._phase, 0.0) + elapsed
+        )
+        self._phase = ''
+        self._phase_started_at = float(now)
 
 
 def simulated_button_depression(rest_position, current_position):
@@ -23,6 +70,78 @@ class ContactDetection:
     normalized_peak: float
     residual: np.ndarray
     reason: str = ''
+
+
+class StallContactDetector:
+    """Detect contact as commanded motion that stopped making progress.
+
+    A real arm without a usable joint-torque signal still shows the physical
+    signature of contact: the controller keeps commanding forward motion while
+    the tip stops advancing.  The rule needs no calibration beyond geometric
+    quantities - how far the tip has already travelled and how much progress
+    each control cycle must show.
+    """
+
+    def __init__(
+        self,
+        minimum_travel_m=0.005,
+        progress_epsilon_m=0.00005,
+        required_cycles=5,
+        minimum_command_speed_mps=0.002,
+    ):
+        self.minimum_travel_m = float(minimum_travel_m)
+        self.progress_epsilon_m = float(progress_epsilon_m)
+        self.required_cycles = max(1, int(required_cycles))
+        self.minimum_command_speed_mps = float(minimum_command_speed_mps)
+        if not np.isfinite(self.minimum_travel_m) or self.minimum_travel_m < 0.0:
+            raise ValueError(
+                'minimum_travel_m must be finite and nonnegative'
+            )
+        if (
+            not np.isfinite(self.progress_epsilon_m)
+            or self.progress_epsilon_m < 0.0
+        ):
+            raise ValueError(
+                'progress_epsilon_m must be finite and nonnegative'
+            )
+        if (
+            not np.isfinite(self.minimum_command_speed_mps)
+            or self.minimum_command_speed_mps < 0.0
+        ):
+            raise ValueError(
+                'minimum_command_speed_mps must be finite and nonnegative'
+            )
+        self.reset()
+
+    def reset(self):
+        self._last_travel = None
+        self._stalled_cycles = 0
+
+    @property
+    def stalled_cycles(self):
+        return self._stalled_cycles
+
+    def update(self, travel_m, commanded_speed_mps):
+        """Return True once the stall is confirmed."""
+        travel = float(travel_m)
+        commanded = float(commanded_speed_mps)
+        if not np.isfinite(travel) or not np.isfinite(commanded):
+            raise ValueError('stall detector inputs must be finite')
+        if self._last_travel is None:
+            self._last_travel = travel
+            self._stalled_cycles = 0
+            return False
+        progress = travel - self._last_travel
+        self._last_travel = travel
+        if (
+            commanded >= self.minimum_command_speed_mps
+            and travel >= self.minimum_travel_m
+            and progress < self.progress_epsilon_m
+        ):
+            self._stalled_cycles += 1
+        else:
+            self._stalled_cycles = 0
+        return self._stalled_cycles >= self.required_cycles
 
 
 class JointEffortContactDetector:
