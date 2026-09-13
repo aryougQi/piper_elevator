@@ -40,6 +40,8 @@ class ElevatorTaskManager(Node):
         self._detection_valid = False
         self._detection_sequence = 0
         self._surface_sequence = 0
+        self._approach_status = ''
+        self._approach_status_sequence = 0
         self._visual_completed = False
         self._visual_completion_sequence = 0
         self._visual_status = ''
@@ -106,6 +108,13 @@ class ElevatorTaskManager(Node):
             self._string_parameter('button_surface_topic'),
             self._surface_callback,
             10,
+            callback_group=self._callback_group,
+        )
+        self.create_subscription(
+            String,
+            self._string_parameter('approach_status_topic'),
+            self._approach_status_callback,
+            latched_qos,
             callback_group=self._callback_group,
         )
         self.create_subscription(
@@ -190,6 +199,9 @@ class ElevatorTaskManager(Node):
         )
         self.declare_parameter('button_surface_topic', '/button_surface_pose')
         self.declare_parameter(
+            'approach_status_topic', '/button_approach/status'
+        )
+        self.declare_parameter(
             'visual_completion_topic', '/button_visual_servo/completed'
         )
         self.declare_parameter(
@@ -227,6 +239,8 @@ class ElevatorTaskManager(Node):
 
         self.declare_parameter('return_home_before_task', True)
         self.declare_parameter('return_home_after_failure', True)
+        # 执行刚被中止时规划器还会短暂处于 busy，恢复回原点需要重试。
+        self.declare_parameter('recovery_retry_seconds', 5.0)
         self.declare_parameter('clear_selection_after_task', True)
         self.declare_parameter(
             'required_unique_nodes',
@@ -242,11 +256,16 @@ class ElevatorTaskManager(Node):
         self.declare_parameter('planning_timeout_seconds', 45.0)
         self.declare_parameter('execution_timeout_seconds', 60.0)
         self.declare_parameter(
-            'post_motion_target_wait_timeout_seconds', 10.0
+            'post_motion_target_wait_timeout_seconds', 5.0
+        )
+        self.declare_parameter(
+            'required_post_motion_surface_observations',
+            3,
         )
         self.declare_parameter('visual_timeout_seconds', 120.0)
         self.declare_parameter('press_timeout_seconds', 120.0)
         self.declare_parameter('home_timeout_seconds', 60.0)
+        self.declare_parameter('stop_timeout_seconds', 9.0)
         self.declare_parameter('selection_publish_period_seconds', 0.5)
 
     def _string_parameter(self, name):
@@ -348,11 +367,13 @@ class ElevatorTaskManager(Node):
                 self._seconds('planning_timeout_seconds'),
             )
             self._phase('COARSE_EXECUTING', button)
+            # The request may move the arm before returning an error or timing
+            # out, including a failed post-motion observation check.
+            at_home = False
             self._call_trigger(
                 'execute',
                 self._seconds('execution_timeout_seconds'),
             )
-            at_home = False
 
             self._phase('WAITING_FOR_VISUAL_TARGET', button)
             self._wait_for_post_motion_target(button)
@@ -442,6 +463,7 @@ class ElevatorTaskManager(Node):
         with self._condition:
             detection_baseline = self._detection_sequence
             surface_baseline = self._surface_sequence
+            approach_status_baseline = self._approach_status_sequence
         deadline = time.monotonic() + self._seconds(
             'target_wait_timeout_seconds'
         )
@@ -461,10 +483,11 @@ class ElevatorTaskManager(Node):
                     and self._detection_valid
                     and self._detection_sequence > detection_baseline
                     and self._surface_sequence > surface_baseline
+                    and self._approach_status_sequence
+                    > approach_status_baseline
+                    and self._approach_status == 'TARGET_READY'
                 )
                 if ready:
-                    # Let the planner consume the same surface-pose sample.
-                    self._condition.wait(timeout=0.10)
                     return
                 self._condition.wait(timeout=0.05)
         raise TaskFailure(
@@ -478,11 +501,24 @@ class ElevatorTaskManager(Node):
         stale when the execute service returns.  Starting visual servo in
         that small gap creates a race where its start service correctly
         rejects the old sample.  Require both a new detection status and a
-        new surface pose before invoking the visual controller.
+        new surface pose before invoking the visual controller. A successful
+        execute has already verified the stationary near-field observation.
+        Visual start atomically claims that planner-approved target and
+        checks its identity, stability and TF before replacing the old
+        visual anchor. Waiting for visual READY here would prevent that
+        replacement whenever the old anchor rejects the new viewpoint.
         """
         with self._condition:
             detection_baseline = self._detection_sequence
             surface_baseline = self._surface_sequence
+        required_surfaces = max(
+            1,
+            int(
+                self.get_parameter(
+                    'required_post_motion_surface_observations'
+                ).value
+            ),
+        )
         deadline = time.monotonic() + self._seconds(
             'post_motion_target_wait_timeout_seconds'
         )
@@ -501,12 +537,10 @@ class ElevatorTaskManager(Node):
                     self._selected_button == button
                     and self._detection_valid
                     and self._detection_sequence > detection_baseline
-                    and self._surface_sequence > surface_baseline
+                    and self._surface_sequence
+                    >= surface_baseline + required_surfaces
                 )
                 if ready:
-                    # Give the visual-servo subscription time to consume the
-                    # same pose before its start service checks freshness.
-                    self._condition.wait(timeout=0.10)
                     return
                 self._condition.wait(timeout=0.05)
         raise TaskFailure(
@@ -521,8 +555,14 @@ class ElevatorTaskManager(Node):
             else:
                 completion_baseline = self._press_completion_sequence
                 status_baseline = self._press_status_sequence
-        self._call_trigger(f'{prefix}_start', min(timeout, 10.0))
         deadline = time.monotonic() + timeout
+        # The visual start service returns only once the alignment reached a
+        # terminal state, so it needs the whole phase budget instead of the
+        # generic short service cap.
+        self._call_trigger(
+            f'{prefix}_start',
+            max(0.1, deadline - time.monotonic()),
+        )
         while time.monotonic() < deadline:
             self._check_stopped()
             with self._condition:
@@ -578,15 +618,27 @@ class ElevatorTaskManager(Node):
         return response.message
 
     def _recover(self, at_home):
+        stop_failures = []
         for key in ('press_stop', 'visual_stop'):
             try:
-                self._call_trigger(key, 3.0, ignore_stop=True)
-            except TaskFailure:
-                pass
+                self._call_trigger(
+                    key,
+                    self._seconds('stop_timeout_seconds'),
+                    ignore_stop=True,
+                )
+            except TaskFailure as error:
+                stop_failures.append(str(error))
         try:
             self._call_trigger('clear_plan', 3.0, ignore_stop=True)
         except TaskFailure:
             pass
+        if stop_failures:
+            message = 'Control stop unconfirmed; home blocked: ' + '; '.join(
+                stop_failures
+            )
+            self.get_logger().error(message)
+            self._publish_status(f'STOP_UNCONFIRMED: {message}')
+            return False
         if (
             at_home
             or not bool(
@@ -594,17 +646,31 @@ class ElevatorTaskManager(Node):
             )
         ):
             return at_home
-        try:
-            self._publish_status('RECOVERING_HOME')
-            self._call_trigger(
-                'home',
-                self._seconds('home_timeout_seconds'),
-                ignore_stop=True,
-            )
-            return True
-        except TaskFailure as error:
-            self.get_logger().error(f'Failed to recover home: {error}')
-            return False
+        self._publish_status('RECOVERING_HOME')
+        retry_deadline = time.monotonic() + max(
+            0.0,
+            float(self.get_parameter('recovery_retry_seconds').value),
+        )
+        while True:
+            try:
+                self._call_trigger(
+                    'home',
+                    self._seconds('home_timeout_seconds'),
+                    ignore_stop=True,
+                )
+                return True
+            except TaskFailure as error:
+                # A just-aborted execution releases the planner a moment
+                # later; rejecting recovery here would end the task with the
+                # arm parked mid-approach.
+                if (
+                    'busy' in str(error).lower()
+                    and time.monotonic() < retry_deadline
+                ):
+                    time.sleep(0.2)
+                    continue
+                self.get_logger().error(f'Failed to recover home: {error}')
+                return False
 
     def _check_stopped(self):
         if self._stop_event.is_set():
@@ -632,6 +698,12 @@ class ElevatorTaskManager(Node):
         del message
         with self._condition:
             self._surface_sequence += 1
+            self._condition.notify_all()
+
+    def _approach_status_callback(self, message):
+        with self._condition:
+            self._approach_status = str(message.data)
+            self._approach_status_sequence += 1
             self._condition.notify_all()
 
     def _visual_completion_callback(self, message):
