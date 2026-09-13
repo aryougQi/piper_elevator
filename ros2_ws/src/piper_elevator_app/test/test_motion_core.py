@@ -9,9 +9,13 @@ from piper_elevator_app.motion_core import (
 )
 from piper_elevator_app.motion_core import level_limited_camera_orientation
 from piper_elevator_app.motion_core import matrix_to_quaternion
+from piper_elevator_app.motion_core import (
+    orientation_prioritized_linear_command,
+)
 from piper_elevator_app.motion_core import position_in_workspace
 from piper_elevator_app.motion_core import quaternion_error_rotation_vector
 from piper_elevator_app.motion_core import quaternion_to_matrix
+from piper_elevator_app.motion_core import tangential_spiral_offset
 from piper_elevator_app.motion_core import limit_pose_step
 from piper_elevator_app.motion_core import transform_button_to_approach
 from piper_elevator_app.motion_core import (
@@ -19,6 +23,70 @@ from piper_elevator_app.motion_core import (
 )
 from piper_elevator_app.motion_core import visual_servo_errors
 from piper_elevator_app.motion_core import visual_servo_target
+
+
+def test_tangential_spiral_waits_then_stays_in_safe_plane_and_radius():
+    assert tangential_spiral_offset(
+        [1.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+        0.4,
+        0.5,
+        0.003,
+        1.5,
+        0.012,
+    ) == pytest.approx([0.0, 0.0, 0.0])
+
+    offset = tangential_spiral_offset(
+        [1.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+        20.0,
+        0.5,
+        0.003,
+        1.5,
+        0.012,
+    )
+
+    assert np.dot(offset, [1.0, 0.0, 0.0]) == pytest.approx(0.0)
+    assert np.linalg.norm(offset) == pytest.approx(0.012)
+
+
+def test_orientation_priority_stops_only_inward_motion_when_misaligned():
+    command, scale = orientation_prioritized_linear_command(
+        [0.08, 0.01, -0.02],
+        [1.0, 0.0, 0.0],
+        math.radians(5.0),
+        math.radians(2.0),
+        math.radians(3.0),
+    )
+
+    assert scale == pytest.approx(0.0)
+    assert command == pytest.approx([0.0, 0.01, -0.02])
+
+
+def test_orientation_priority_blends_inward_motion_after_alignment():
+    command, scale = orientation_prioritized_linear_command(
+        [0.08, 0.01, 0.0],
+        [2.0, 0.0, 0.0],
+        math.radians(2.5),
+        math.radians(2.0),
+        math.radians(3.0),
+    )
+
+    assert scale == pytest.approx(0.5)
+    assert command == pytest.approx([0.04, 0.01, 0.0])
+
+
+def test_orientation_priority_never_limits_safe_retreat():
+    command, scale = orientation_prioritized_linear_command(
+        [-0.03, 0.01, 0.0],
+        [1.0, 0.0, 0.0],
+        math.radians(10.0),
+        math.radians(2.0),
+        math.radians(3.0),
+    )
+
+    assert scale == pytest.approx(1.0)
+    assert command == pytest.approx([-0.03, 0.01, 0.0])
 
 
 def test_identity_transform_creates_standoff_along_optical_z():
@@ -88,6 +156,36 @@ def test_camera_centering_shift_can_be_limited_for_reachability():
     )
 
     assert approach == pytest.approx([0.35, 0.0, -0.045])
+
+
+def test_camera_visibility_compensates_only_offset_outside_safe_radius():
+    approach = camera_centered_tool_approach_position(
+        [0.50, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+        [0.10, 0.0, 0.08],
+        0.15,
+        0.045,
+        0.055,
+    )
+
+    # The 80 mm tangent camera offset is allowed to remain 55 mm off-axis,
+    # so the TCP moves only the minimum 25 mm needed for visibility.
+    assert approach == pytest.approx([0.35, 0.0, -0.025])
+
+
+def test_camera_visibility_needs_no_shift_inside_safe_radius():
+    approach = camera_centered_tool_approach_position(
+        [0.50, 0.0, 0.0],
+        [1.0, 0.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+        [0.10, 0.0, 0.08],
+        0.15,
+        0.045,
+        0.090,
+    )
+
+    assert approach == pytest.approx([0.35, 0.0, 0.0])
 
 
 def test_tool_target_accounts_for_camera_mount_rotation():

@@ -28,6 +28,7 @@ def generate_launch_description():
             'arm_type': 'piper',
             'effector_type': 'none',
             'auto_enable': LaunchConfiguration('auto_enable'),
+            'enable_timeout': LaunchConfiguration('enable_timeout'),
             'speed_percent': LaunchConfiguration('speed_percent'),
             'tcp_offset': LaunchConfiguration('pika_tcp_offset'),
             # Commands remain blocked unless the action-aware gate below runs.
@@ -44,6 +45,13 @@ def generate_launch_description():
             )
         ),
         launch_arguments={
+            # Keep the local ros2_control trajectory controller as the
+            # command proxy. MoveIt reads real feedback below, while the
+            # controller publishes interpolated commands on
+            # /control/joint_states for agx_arm_ctrl. The AGX driver does not
+            # provide a
+            # FollowJointTrajectory action server itself.
+            'external_hardware': 'false',
             'use_rviz': LaunchConfiguration('use_rviz'),
             'pika_tcp_offset': LaunchConfiguration('pika_tcp_offset'),
             'joint_states_topic': '/piper_pika/joint_states',
@@ -65,6 +73,7 @@ def generate_launch_description():
         ),
         DeclareBooleanLaunchArg('use_rviz', default_value=True),
         DeclareBooleanLaunchArg('auto_enable', default_value=False),
+        DeclareLaunchArgument('enable_timeout', default_value='15.0'),
         DeclareBooleanLaunchArg(
             'hardware_commands_enabled',
             default_value=False,
@@ -128,7 +137,20 @@ def generate_launch_description():
                     'follow_joint_trajectory/_action/status'
                 ),
                 'gate_service_name': '/control_enable',
-                'status_timeout_seconds': 1.0,
+                'servo_gate_service_name': '/servo_control_enable',
+                # Action status is state, not a heartbeat. After its terminal
+                # status, keep the gate open until real feedback reaches the
+                # proxy's final command. The hard limits cover both phases.
+                'maximum_trajectory_gate_seconds': 45.0,
+                'trajectory_command_topic': '/control/joint_states',
+                'trajectory_feedback_topic': '/feedback/joint_states',
+                'trajectory_joint_names': [
+                    'joint1', 'joint2', 'joint3',
+                    'joint4', 'joint5', 'joint6',
+                ],
+                'trajectory_settle_tolerance_rad': 0.010,
+                'trajectory_settle_minimum_seconds': 0.25,
+                'trajectory_settle_timeout_seconds': 25.0,
                 'servo_authorization_service': (
                     '/piper_pika_control_gate/servo_enable'
                 ),

@@ -3,6 +3,103 @@ import math
 import numpy as np
 
 
+def tangential_spiral_offset(
+    surface_normal,
+    reference_orientation,
+    elapsed_seconds,
+    hold_seconds,
+    radial_speed_mps,
+    angular_speed_radps,
+    maximum_radius_m,
+):
+    """Return a bounded spiral offset in the surface tangent plane."""
+    normal = np.asarray(surface_normal, dtype=np.float64)
+    if normal.shape != (3,) or not np.all(np.isfinite(normal)):
+        raise ValueError('Surface normal must be finite and 3D')
+    normal_norm = float(np.linalg.norm(normal))
+    if normal_norm < 1.0e-9:
+        raise ValueError('Surface normal must be non-zero')
+    values = (
+        elapsed_seconds,
+        hold_seconds,
+        radial_speed_mps,
+        angular_speed_radps,
+        maximum_radius_m,
+    )
+    if not all(math.isfinite(value) and value >= 0.0 for value in values):
+        raise ValueError('Spiral parameters must be finite and non-negative')
+    search_time = max(0.0, elapsed_seconds - hold_seconds)
+    if search_time <= 0.0 or maximum_radius_m <= 0.0:
+        return np.zeros(3)
+
+    normal /= normal_norm
+    rotation = quaternion_to_matrix(reference_orientation)
+    tangent_x = rotation[:, 0] - np.dot(rotation[:, 0], normal) * normal
+    tangent_norm = float(np.linalg.norm(tangent_x))
+    if tangent_norm < 1.0e-6:
+        tangent_x = rotation[:, 1] - np.dot(
+            rotation[:, 1], normal
+        ) * normal
+        tangent_norm = float(np.linalg.norm(tangent_x))
+    if tangent_norm < 1.0e-6:
+        raise ValueError('Camera axes cannot define a surface tangent plane')
+    tangent_x /= tangent_norm
+    tangent_y = np.cross(normal, tangent_x)
+    tangent_y /= np.linalg.norm(tangent_y)
+    radius = min(maximum_radius_m, radial_speed_mps * search_time)
+    angle = angular_speed_radps * search_time
+    return radius * (
+        math.cos(angle) * tangent_x + math.sin(angle) * tangent_y
+    )
+
+
+def orientation_prioritized_linear_command(
+    linear_error,
+    surface_normal,
+    angular_error,
+    full_speed_angle,
+    stop_angle,
+):
+    """Limit only inward motion until the tool is aligned to the panel.
+
+    Tangential correction and motion away from the panel remain available at
+    full speed.  Inward motion is stopped at ``stop_angle`` and transitions
+    linearly to full speed at ``full_speed_angle``.
+    """
+    command = np.asarray(linear_error, dtype=np.float64)
+    normal = np.asarray(surface_normal, dtype=np.float64)
+    if command.shape != (3,) or normal.shape != (3,):
+        raise ValueError('Linear command and surface normal must be 3D')
+    if not np.all(np.isfinite(command)) or not np.all(np.isfinite(normal)):
+        raise ValueError('Linear command and surface normal must be finite')
+    normal_norm = float(np.linalg.norm(normal))
+    if normal_norm < 1.0e-9:
+        raise ValueError('Surface normal must be non-zero')
+    if not all(math.isfinite(value) for value in (
+        angular_error,
+        full_speed_angle,
+        stop_angle,
+    )):
+        raise ValueError('Orientation-priority angles must be finite')
+    if full_speed_angle < 0.0 or stop_angle <= full_speed_angle:
+        raise ValueError(
+            'Stop angle must be greater than the non-negative full-speed angle'
+        )
+
+    normal /= normal_norm
+    axial = float(np.dot(command, normal))
+    if axial <= 0.0:
+        return command.copy(), 1.0
+    scale = float(np.clip(
+        (stop_angle - max(0.0, angular_error))
+        / (stop_angle - full_speed_angle),
+        0.0,
+        1.0,
+    ))
+    tangent = command - axial * normal
+    return tangent + axial * scale * normal, scale
+
+
 def quaternion_to_matrix(quaternion):
     """Return a 3x3 rotation matrix for an xyzw quaternion."""
     values = np.asarray(quaternion, dtype=np.float64)
@@ -303,6 +400,98 @@ def interpolate_quaternion(first, second, fraction):
     return result / np.linalg.norm(result)
 
 
+def check_servo_capture(
+    button_position,
+    surface_normal,
+    tool_position,
+    camera_orientation,
+    *,
+    maximum_tilt_rad,
+    maximum_roll_rad,
+    minimum_standoff_m,
+    target_standoff_m,
+    maximum_start_error_m,
+    level_reference_axis=(0.0, 0.0, 1.0),
+):
+    """Check whether the current pose can safely enter Servo orientation.
+
+    Inputs use the base frame and the camera optical orientation. This is a
+    capture check before motion, not the tighter final alignment acceptance.
+    """
+    try:
+        vectors = []
+        for value, size, name in (
+            (button_position, 3, 'Button position'),
+            (surface_normal, 3, 'Surface normal'),
+            (tool_position, 3, 'Tool position'),
+            (camera_orientation, 4, 'Camera quaternion'),
+            (level_reference_axis, 3, 'Level reference axis'),
+        ):
+            vector = np.asarray(value, dtype=np.float64)
+            if vector.shape != (size,) or not np.all(np.isfinite(vector)):
+                raise ValueError(f'{name} must contain {size} finite values')
+            vectors.append(vector.copy())
+        button, normal, tool, camera, vertical = vectors
+        normal_length = float(np.linalg.norm(normal))
+        if normal_length < 1.0e-9:
+            raise ValueError('Surface normal must be non-zero')
+        normal /= normal_length
+        camera_rotation = quaternion_to_matrix(camera)
+        limits = (
+            maximum_tilt_rad, maximum_roll_rad, minimum_standoff_m,
+            target_standoff_m, maximum_start_error_m,
+        )
+        if not all(math.isfinite(value) for value in limits):
+            raise ValueError('Servo capture limits must be finite')
+        if not 0.0 <= maximum_tilt_rad <= math.pi / 2.0:
+            raise ValueError('Maximum capture tilt must be in [0, pi/2]')
+        if not 0.0 <= maximum_roll_rad <= math.pi:
+            raise ValueError('Maximum capture roll must be in [0, pi]')
+        if not 0.0 < target_standoff_m < minimum_standoff_m:
+            raise ValueError(
+                'Capture minimum standoff must exceed the positive target '
+                'standoff'
+            )
+        if maximum_start_error_m <= 0.0:
+            raise ValueError('Maximum capture start error must be positive')
+
+        axial = float(np.dot(button - tool, normal))
+        start_error = float(np.linalg.norm(
+            button - target_standoff_m * normal - tool
+        ))
+        tilt = math.acos(float(np.clip(
+            np.dot(camera_rotation[:, 2], normal), -1.0, 1.0,
+        )))
+        roll = camera_level_roll_error(camera, normal.copy(), vertical)
+        if not math.isfinite(roll):
+            raise ValueError('Panel normal has no defined image-up direction')
+        detail = (
+            f'standoff={axial * 1000.0:.1f}mm '
+            f'(minimum={minimum_standoff_m * 1000.0:.1f}mm); '
+            f'target_error={start_error * 1000.0:.1f}mm '
+            f'(maximum={maximum_start_error_m * 1000.0:.1f}mm); '
+            f'tilt={math.degrees(tilt):.2f}deg '
+            f'(maximum={math.degrees(maximum_tilt_rad):.2f}deg); '
+            f'roll={math.degrees(roll):.2f}deg '
+            f'(maximum={math.degrees(maximum_roll_rad):.2f}deg)'
+        )
+        for rejected, reason in (
+            (axial < minimum_standoff_m - 1.0e-9,
+             'TCP standoff below capture minimum'),
+            (start_error > maximum_start_error_m + 1.0e-9,
+             'Target outside Servo capture distance'),
+            (tilt > maximum_tilt_rad + 1.0e-9,
+             'Camera tilt outside Servo capture range'),
+            (abs(roll) > maximum_roll_rad + 1.0e-9,
+             'Camera roll outside Servo capture range'),
+        ):
+            if rejected:
+                return False, f'{reason}; {detail}'
+        return True, detail
+    except (TypeError, ValueError) as error:
+        return False, f'Invalid Servo capture geometry: {error}'
+
+
 def visual_servo_target(
     button_position,
     surface_direction,
@@ -437,16 +626,17 @@ def camera_centered_tool_approach_position(
     tool_to_camera_translation,
     approach_distance,
     maximum_tangent_shift=None,
+    maximum_uncompensated_tangent_offset=0.0,
 ):
-    """Place the camera over a button without changing TCP standoff.
+    """Keep a button safely visible without unnecessarily offsetting the TCP.
 
     An eye-in-hand camera is normally offset from the fingertip.  Driving the
     fingertip directly onto the button-normal ray can therefore move a button
     close to (or outside) the image boundary, especially for panel-edge
-    buttons.  This function compensates only the component of that fixed
-    camera offset tangent to the button surface.  The fingertip remains
-    ``approach_distance`` in front of the surface while the camera optical
-    origin lies on the same normal ray as the selected button.
+    buttons.  Full optical-axis centering also puts the fingertip visibly away
+    from the button.  Leave up to ``maximum_uncompensated_tangent_offset`` of
+    camera offset in the image and compensate only the excess.  The fingertip
+    remains ``approach_distance`` in front of the surface.
     """
     button = np.asarray(button_position, dtype=np.float64)
     normal = np.asarray(surface_normal, dtype=np.float64)
@@ -478,6 +668,20 @@ def camera_centered_tool_approach_position(
     tangent_camera_offset = (
         camera_offset - np.dot(camera_offset, normal) * normal
     )
+    if (
+        not math.isfinite(maximum_uncompensated_tangent_offset)
+        or maximum_uncompensated_tangent_offset < 0.0
+    ):
+        raise ValueError(
+            'Maximum uncompensated camera offset must be non-negative'
+        )
+    tangent_norm = float(np.linalg.norm(tangent_camera_offset))
+    if tangent_norm > 1.0e-9:
+        compensated_norm = max(
+            0.0,
+            tangent_norm - float(maximum_uncompensated_tangent_offset),
+        )
+        tangent_camera_offset *= compensated_norm / tangent_norm
     if maximum_tangent_shift is not None:
         if (
             not math.isfinite(maximum_tangent_shift)

@@ -3,9 +3,11 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument
 from launch.actions import IncludeLaunchDescription
 from launch.actions import OpaqueFunction
 from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
 
@@ -44,6 +46,14 @@ def generate_launch_description():
     )
 
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'camera_serial_no',
+            default_value='_315122272433',
+            description=(
+                'Pinned RealSense serial. The leading underscore is required '
+                'by realsense2_camera launch parsing.'
+            ),
+        ),
         OpaqueFunction(function=_acquire_camera_lock),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
@@ -52,8 +62,12 @@ def generate_launch_description():
             launch_arguments={
                 'camera_name': 'camera',
                 'camera_namespace': '',
+                'serial_no': LaunchConfiguration('camera_serial_no'),
                 'enable_color': 'true',
                 'enable_depth': 'true',
+                'enable_sync': 'true',
+                'depth_module.color_profile': '848x480x30',
+                'depth_module.depth_profile': '848x480x30',
                 'align_depth.enable': 'true',
                 'pointcloud.enable': 'false',
             }.items(),

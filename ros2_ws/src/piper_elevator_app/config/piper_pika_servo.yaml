@@ -28,9 +28,8 @@ robot_link_command_frame: base_link
 
 incoming_command_timeout: 0.10
 num_outgoing_halt_msgs_to_publish: 6
-# The fingertip's long gripper offset makes normal button-facing poses have a
-# Jacobian condition number around 40.  Avoid throttling normal button-facing
-# poses, while retaining a hard stop before truly degenerate configurations.
+# Preserve the hardware safety envelope.  Simulation tracking compensation
+# must not narrow this 55-100 deceleration band.
 lower_singularity_threshold: 55.0
 hard_stop_singularity_threshold: 100.0
 joint_limit_margin: 0.10

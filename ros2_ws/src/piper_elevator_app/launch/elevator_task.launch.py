@@ -52,6 +52,9 @@ def generate_launch_description():
             'confidence_threshold': LaunchConfiguration(
                 'simulation_confidence_threshold'
             ),
+            # Gazebo's floor indicator can look like an arrow to the real
+            # model. Recover semantics from the known simulated 3x3 layout;
+            # close-range tracking continues to use visual identity.
             'simulation_layout_relabel': 'true',
         },
         condition=simulation_condition,
@@ -61,6 +64,8 @@ def generate_launch_description():
         'piper_pika_moveit.launch.py',
         {
             'external_hardware': 'true',
+            # Gazebo owns the model with its control plugin and camera chain.
+            'publish_robot_state': 'false',
             'use_sim_time': 'true',
             'use_rviz': LaunchConfiguration('use_rviz'),
             'start_pika_controller': 'false',
@@ -74,6 +79,10 @@ def generate_launch_description():
         {
             'use_sim_time': 'true',
             'simulation_mode': 'true',
+            # Gazebo's robot_state_publisher already owns the complete camera
+            # chain. Explicitly block parent real-camera launch arguments from
+            # leaking into this included launch and creating duplicate TF.
+            'publish_camera_tf': 'false',
             'camera_calibration_valid': 'true',
             'allow_execution': 'true',
         },
@@ -107,12 +116,14 @@ def generate_launch_description():
         {
             'can_port': LaunchConfiguration('can_port'),
             'pika_serial_port': LaunchConfiguration('pika_serial_port'),
+            'camera_serial_no': LaunchConfiguration('camera_serial_no'),
             'speed_percent': LaunchConfiguration('speed_percent'),
             'pika_tcp_offset': LaunchConfiguration('pika_tcp_offset'),
             'use_rviz': LaunchConfiguration('use_rviz'),
             'start_camera': LaunchConfiguration('start_camera'),
             'start_pika_driver': LaunchConfiguration('start_pika_driver'),
             'auto_enable': LaunchConfiguration('auto_enable'),
+            'enable_timeout': LaunchConfiguration('enable_timeout'),
             'hardware_commands_enabled': LaunchConfiguration(
                 'hardware_commands_enabled'
             ),
@@ -121,6 +132,9 @@ def generate_launch_description():
                 'camera_calibration_valid'
             ),
             'allow_execution': LaunchConfiguration('allow_execution'),
+            'coarse_vertical_offset_m': LaunchConfiguration(
+                'coarse_vertical_offset_m'
+            ),
             'camera_x': LaunchConfiguration('camera_x'),
             'camera_y': LaunchConfiguration('camera_y'),
             'camera_z': LaunchConfiguration('camera_z'),
@@ -159,6 +173,9 @@ def generate_launch_description():
         DeclareLaunchArgument(
             'pika_serial_port', default_value='/dev/ttyUSB60'
         ),
+        DeclareLaunchArgument(
+            'camera_serial_no', default_value='_315122272433'
+        ),
         DeclareLaunchArgument('speed_percent', default_value='10'),
         DeclareLaunchArgument(
             'pika_tcp_offset',
@@ -167,20 +184,27 @@ def generate_launch_description():
         DeclareBooleanLaunchArg('start_camera', default_value=True),
         DeclareBooleanLaunchArg('start_pika_driver', default_value=False),
         DeclareBooleanLaunchArg('auto_enable', default_value=False),
+        DeclareLaunchArgument('enable_timeout', default_value='15.0'),
         DeclareBooleanLaunchArg(
             'hardware_commands_enabled', default_value=False
         ),
+        # Match the real approach entry point: retained hand-eye parameters
+        # require explicit validation before enabling real-camera motion.
         DeclareBooleanLaunchArg('publish_camera_tf', default_value=False),
         DeclareBooleanLaunchArg(
             'camera_calibration_valid', default_value=False
         ),
         DeclareBooleanLaunchArg('allow_execution', default_value=False),
-        DeclareLaunchArgument('camera_x', default_value='0.0'),
-        DeclareLaunchArgument('camera_y', default_value='0.0'),
-        DeclareLaunchArgument('camera_z', default_value='0.0'),
-        DeclareLaunchArgument('camera_roll', default_value='0.0'),
-        DeclareLaunchArgument('camera_pitch', default_value='0.0'),
-        DeclareLaunchArgument('camera_yaw', default_value='0.0'),
+        DeclareLaunchArgument(
+            'coarse_vertical_offset_m',
+            default_value='0.0',
+        ),
+        DeclareLaunchArgument('camera_x', default_value='-0.0525784297'),
+        DeclareLaunchArgument('camera_y', default_value='0.0004861476'),
+        DeclareLaunchArgument('camera_z', default_value='-0.1399236010'),
+        DeclareLaunchArgument('camera_roll', default_value='-1.2709909926'),
+        DeclareLaunchArgument('camera_pitch', default_value='-1.5255574198'),
+        DeclareLaunchArgument('camera_yaw', default_value='1.2243363470'),
         gazebo,
         simulation_detector,
         simulation_moveit,

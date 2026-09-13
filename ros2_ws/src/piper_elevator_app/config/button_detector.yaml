@@ -18,6 +18,7 @@ button_detector:
     # 未选择时不发布 /button_pixel 和 /button_pose。
     button_selection_topic: /button_selection
     button_selected_topic: /button_selected
+    tracking_state_topic: /button_tracking_state
     selected_button_class: ''
     # 仅供 Gazebo launch 覆盖。真机默认关闭，不假设现实面板固定为 3x3。
     simulation_layout_relabel: false
@@ -49,7 +50,7 @@ button_detector:
     reliable_input: false
     # RGB-D 只保留足够完成近似时间同步的少量帧。
     sync_queue_size: 2
-    sync_slop_seconds: 0.08
+    sync_slop_seconds: 0.02
 
     # 没有订阅者时跳过调试图复制、绘制和序列化。
     publish_debug_image: true
@@ -81,7 +82,7 @@ button_detector:
     surface_maximum_samples: 400
     surface_max_residual_m: 0.004
     surface_max_tilt_degrees: 60.0
-    surface_normal_smoothing_alpha: 0.25
+    surface_normal_smoothing_alpha: 1.0
 
     # 连续确认、短时漏检保持关联，以及指数平滑。
     required_stable_frames: 5
@@ -89,3 +90,5 @@ button_detector:
     tracking_minimum_iou: 0.15
     max_center_jump_ratio: 0.10
     position_smoothing_alpha: 0.35
+    # 相机系三维观测不跨帧混合，交由粗定位和 Servo 在 base_link 下滤波。
+    camera_position_smoothing_alpha: 1.0

@@ -1,6 +1,7 @@
 """Run the YOLO ONNX elevator-button ROS 2 node."""
 
 from pathlib import Path
+import json
 from time import monotonic
 from typing import List, Optional, Tuple
 
@@ -161,6 +162,10 @@ class ButtonDetector(Node):
         )
         self.declare_parameter('button_selection_topic', '/button_selection')
         self.declare_parameter('button_selected_topic', '/button_selected')
+        # JSON status consumed by the visual-servo semantic safety gate.  Keep
+        # this separate from the human-facing selection latch so every status
+        # carries the capture timestamp used by the RGB-D pose output.
+        self.declare_parameter('tracking_state_topic', '/button_tracking_state')
         self.declare_parameter('selected_button_class', '')
         self.declare_parameter('simulation_layout_relabel', False)
         self.declare_parameter(
@@ -192,7 +197,7 @@ class ButtonDetector(Node):
         self.declare_parameter('input_queue_size', 1)
         self.declare_parameter('reliable_input', False)
         self.declare_parameter('sync_queue_size', 2)
-        self.declare_parameter('sync_slop_seconds', 0.08)
+        self.declare_parameter('sync_slop_seconds', 0.02)
         self.declare_parameter('publish_debug_image', True)
         self.declare_parameter('debug_image_only_when_subscribed', True)
         self.declare_parameter('debug_image_scale', 0.5)
@@ -213,13 +218,15 @@ class ButtonDetector(Node):
         self.declare_parameter('surface_maximum_samples', 400)
         self.declare_parameter('surface_max_residual_m', 0.004)
         self.declare_parameter('surface_max_tilt_degrees', 60.0)
-        self.declare_parameter('surface_normal_smoothing_alpha', 0.25)
+        self.declare_parameter('surface_normal_smoothing_alpha', 1.0)
 
         self.declare_parameter('required_stable_frames', 5)
         self.declare_parameter('max_missed_frames', 2)
         self.declare_parameter('tracking_minimum_iou', 0.15)
         self.declare_parameter('max_center_jump_ratio', 0.10)
         self.declare_parameter('position_smoothing_alpha', 0.35)
+        # 3D smoothing belongs in base_link; the camera moves between frames.
+        self.declare_parameter('camera_position_smoothing_alpha', 1.0)
 
     def _create_publishers(self) -> None:
         self._pose_publisher = self.create_publisher(
@@ -266,6 +273,11 @@ class ButtonDetector(Node):
         self._selection_state_publisher = self.create_publisher(
             String,
             self._string_parameter('button_selected_topic'),
+            selection_state_qos,
+        )
+        self._tracking_state_publisher = self.create_publisher(
+            String,
+            self._string_parameter('tracking_state_topic'),
             selection_state_qos,
         )
 
@@ -598,6 +610,11 @@ class ButtonDetector(Node):
             self._filtered_position = None
             self._filtered_surface_normal = None
         self._publish_state(selected, valid)
+        self._publish_tracking_state(
+            color_message, selected, stable,
+            depth_valid=position is not None,
+            surface_valid=surface_normal is not None,
+        )
         if valid and selected is not None:
             self._publish_pixel(color_message, selected)
             if position is not None:
@@ -655,7 +672,7 @@ class ButtonDetector(Node):
     def _smooth_position(self, measured: np.ndarray) -> np.ndarray:
         alpha = float(
             np.clip(
-                self.get_parameter('position_smoothing_alpha').value,
+                self.get_parameter('camera_position_smoothing_alpha').value,
                 0.0,
                 1.0,
             )
@@ -724,6 +741,36 @@ class ButtonDetector(Node):
         self._confidence_publisher.publish(
             Float32(data=float(confidence))
         )
+
+    def _publish_tracking_state(
+        self, source_message, selected, stable, *, depth_valid, surface_valid,
+    ):
+        """Expose legacy detection results using the current Servo status schema.
+
+        A missed/unstable detection is never reported as positive evidence.
+        The legacy tracker enforces class identity; it does not implement the
+        projected-label recovery or direction-conflict inference of newer detectors.
+        """
+        measured = None
+        if selected is not None and stable:
+            measured = {'class_name': selected.class_name}
+        payload = {
+            'frame_id': source_message.header.frame_id,
+            'stamp': {
+                'sec': int(source_message.header.stamp.sec),
+                'nanosec': int(source_message.header.stamp.nanosec),
+            },
+            'reason': '' if stable and selected is not None else 'not_observed',
+            'selected': {
+                'class_name': (selected.class_name if selected is not None
+                               else self._selected_button_class),
+                'stable_detection': bool(stable and selected is not None),
+                'depth_valid': bool(depth_valid),
+                'surface_valid': bool(surface_valid),
+                'measured': measured,
+            },
+        }
+        self._tracking_state_publisher.publish(String(data=json.dumps(payload)))
 
     def _publish_pixel(
         self,

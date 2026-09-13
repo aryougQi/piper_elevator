@@ -96,6 +96,11 @@ def generate_launch_description():
                 'normal_y': 0.0,
                 'normal_z': 0.0,
                 'publish_rate_hz': 5.0,
+                # Explicit synthetic optics for this mock-only launch.
+                'publish_camera_info': True,
+                'camera_width': 848,
+                'camera_height': 480,
+                'camera_horizontal_fov_rad': 1.518436,
             }],
         ),
         Node(
@@ -111,6 +116,10 @@ def generate_launch_description():
                     # The fake Pika controller exposes only center_joint; its
                     # mimic finger joints are not command interfaces.
                     'close_gripper_before_plan': False,
+                    'constrain_coarse_orientation': True,
+                    'preserve_coarse_camera_orientation': False,
+                    'preserve_wrist_roll_from_current': False,
+                    'coarse_vertical_offset_m': 0.0,
                     'auto_plan_execute': ParameterValue(
                         LaunchConfiguration('auto_execute'),
                         value_type=bool,

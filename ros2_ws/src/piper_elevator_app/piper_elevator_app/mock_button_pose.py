@@ -1,3 +1,5 @@
+import math
+
 from geometry_msgs.msg import PoseStamped
 import numpy as np
 from piper_elevator_app.motion_core import orientation_from_approach_direction
@@ -6,11 +8,39 @@ import rclpy
 from rclpy.duration import Duration
 from rclpy.node import Node
 from rclpy.time import Time
+from sensor_msgs.msg import CameraInfo
 from tf2_ros import Buffer
 from tf2_ros import ConnectivityException
 from tf2_ros import ExtrapolationException
 from tf2_ros import LookupException
 from tf2_ros import TransformListener
+
+
+def simulated_camera_info(width, height, horizontal_fov):
+    if width <= 0 or height <= 0 or not 0.0 < horizontal_fov < math.pi:
+        raise ValueError(
+            'Simulated camera dimensions and field of view are invalid'
+        )
+    focal_length = width / (2.0 * math.tan(horizontal_fov / 2.0))
+    cx = (width - 1.0) / 2.0
+    cy = (height - 1.0) / 2.0
+    message = CameraInfo()
+    message.width = width
+    message.height = height
+    message.distortion_model = 'plumb_bob'
+    message.d = [0.0] * 5
+    message.k = [
+        focal_length, 0.0, cx,
+        0.0, focal_length, cy,
+        0.0, 0.0, 1.0,
+    ]
+    message.r = [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0]
+    message.p = [
+        focal_length, 0.0, cx, 0.0,
+        0.0, focal_length, cy, 0.0,
+        0.0, 0.0, 1.0, 0.0,
+    ]
+    return message
 
 
 class MockButtonPose(Node):
@@ -29,6 +59,13 @@ class MockButtonPose(Node):
         self.declare_parameter('normal_y', 0.0)
         self.declare_parameter('normal_z', 1.0)
         self.declare_parameter('publish_rate_hz', 5.0)
+        self.declare_parameter('publish_camera_info', False)
+        self.declare_parameter(
+            'camera_info_topic', '/camera/color/camera_info'
+        )
+        self.declare_parameter('camera_width', 848)
+        self.declare_parameter('camera_height', 480)
+        self.declare_parameter('camera_horizontal_fov_rad', 1.518436)
         self._output_frame = str(self.get_parameter('frame_id').value)
         self._fixed_frame = str(
             self.get_parameter('fixed_frame_id').value
@@ -48,6 +85,19 @@ class MockButtonPose(Node):
             str(self.get_parameter('surface_topic').value),
             10,
         )
+        self._camera_info_publisher = None
+        self._camera_info = None
+        if bool(self.get_parameter('publish_camera_info').value):
+            self._camera_info = simulated_camera_info(
+                int(self.get_parameter('camera_width').value),
+                int(self.get_parameter('camera_height').value),
+                float(self.get_parameter('camera_horizontal_fov_rad').value),
+            )
+            self._camera_info_publisher = self.create_publisher(
+                CameraInfo,
+                str(self.get_parameter('camera_info_topic').value),
+                10,
+            )
         rate = max(0.2, float(self.get_parameter('publish_rate_hz').value))
         self.create_timer(1.0 / rate, self._publish)
         self.get_logger().info(
@@ -59,6 +109,7 @@ class MockButtonPose(Node):
         )
 
     def _publish(self):
+        stamp = self.get_clock().now().to_msg()
         position = np.array([
             float(self.get_parameter('x').value),
             float(self.get_parameter('y').value),
@@ -106,9 +157,12 @@ class MockButtonPose(Node):
                 translation.z,
             ]) + matrix @ position
             normal = matrix @ normal
+            # The synthetic observation must refer to the transform used.
+            if transform.header.stamp.sec or transform.header.stamp.nanosec:
+                stamp = transform.header.stamp
 
         message = PoseStamped()
-        message.header.stamp = self.get_clock().now().to_msg()
+        message.header.stamp = stamp
         message.header.frame_id = self._output_frame
         message.pose.position.x = float(position[0])
         message.pose.position.y = float(position[1])
@@ -128,6 +182,9 @@ class MockButtonPose(Node):
         surface.pose.orientation.z = float(orientation[2])
         surface.pose.orientation.w = float(orientation[3])
         self._surface_publisher.publish(surface)
+        if self._camera_info_publisher is not None:
+            self._camera_info.header = message.header
+            self._camera_info_publisher.publish(self._camera_info)
 
 
 def main(args=None):

@@ -27,6 +27,19 @@ def generate_launch_description():
             'hardware_gate_required',
             default_value='false',
         ),
+        DeclareLaunchArgument('level_roll_enabled', default_value='true'),
+        DeclareLaunchArgument(
+            'perpendicular_tolerance_rad',
+            default_value='0.05236',
+        ),
+        DeclareLaunchArgument(
+            'axial_approach_full_speed_angle_rad',
+            default_value='0.03491',
+        ),
+        DeclareLaunchArgument(
+            'axial_approach_stop_angle_rad',
+            default_value='0.05236',
+        ),
         Node(
             package='piper_elevator_app',
             executable='button_visual_servo',
@@ -50,6 +63,24 @@ def generate_launch_description():
                     'hardware_gate_required': ParameterValue(
                         LaunchConfiguration('hardware_gate_required'),
                         value_type=bool,
+                    ),
+                    'level_roll_enabled': ParameterValue(
+                        LaunchConfiguration('level_roll_enabled'),
+                        value_type=bool,
+                    ),
+                    'perpendicular_tolerance_rad': ParameterValue(
+                        LaunchConfiguration('perpendicular_tolerance_rad'),
+                        value_type=float,
+                    ),
+                    'axial_approach_full_speed_angle_rad': ParameterValue(
+                        LaunchConfiguration(
+                            'axial_approach_full_speed_angle_rad'
+                        ),
+                        value_type=float,
+                    ),
+                    'axial_approach_stop_angle_rad': ParameterValue(
+                        LaunchConfiguration('axial_approach_stop_angle_rad'),
+                        value_type=float,
                     ),
                     'use_sim_time': ParameterValue(
                         LaunchConfiguration('use_sim_time'),
