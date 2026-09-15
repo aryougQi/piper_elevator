@@ -56,6 +56,13 @@ def generate_launch_description():
             # model. Recover semantics from the known simulated 3x3 layout;
             # close-range tracking continues to use visual identity.
             'simulation_layout_relabel': 'true',
+            # CI and headless development hosts may not expose CUDA.  The
+            # simulation remains deterministic on CPU; real hardware keeps
+            # the production CUDA defaults in the standalone launches.
+            'inference_device': 'auto',
+            # The shipped ONNX model has a fixed 1280x1280 input. Keep that
+            # contract; the latest-frame queue prevents stale-frame buildup.
+            'model_input_size': '1280',
         },
         condition=simulation_condition,
     )
@@ -94,8 +101,25 @@ def generate_launch_description():
         {
             'use_sim_time': 'true',
             'simulation_mode': 'true',
+            # SAM2 is optional on CPU-only simulation hosts; enable it with
+            # enable_sam2:=true when a CUDA runtime is available.
+            'require_sam2_tracking': LaunchConfiguration('enable_sam2'),
             'camera_calibration_valid': 'true',
             'allow_execution': 'true',
+            # SAM2 surface poses arrive at about 4-5 Hz in this simulation;
+            # accept one normal inference interval without declaring stale.
+            'expected_observation_gap_seconds': '0.40',
+        },
+        condition=simulation_condition,
+    )
+    simulation_tracker = include(
+        'piper_elevator_app',
+        'sam2_button_tracker.launch.py',
+        {
+            'use_sim_time': 'true',
+            'device': 'cuda',
+            'enabled': LaunchConfiguration('enable_sam2'),
+            'debug_image': LaunchConfiguration('sam2_debug_image'),
         },
         condition=simulation_condition,
     )
@@ -153,6 +177,7 @@ def generate_launch_description():
         parameters=[
             os.path.join(app_share, 'config', 'elevator_task.yaml'),
             {
+                'require_sam2_tracking': ParameterValue(simulation, value_type=bool),
                 'use_sim_time': ParameterValue(
                     simulation,
                     value_type=bool,
@@ -163,7 +188,20 @@ def generate_launch_description():
 
     return LaunchDescription([
         DeclareBooleanLaunchArg('simulation_mode', default_value=True),
-        DeclareBooleanLaunchArg('gazebo_gui', default_value=True),
+        DeclareBooleanLaunchArg(
+            'enable_sam2',
+            default_value=True,
+            description='Run SAM2 in simulation; requires a working CUDA runtime',
+        ),
+        DeclareBooleanLaunchArg(
+            'sam2_debug_image',
+            default_value=True,
+            description='Publish the annotated SAM2 debug image',
+        ),
+        # Headless/container runs have no X server; starting the GUI aborts
+        # Gazebo before sensors and controllers come up. Users can opt in with
+        # gazebo_gui:=true on a desktop.
+        DeclareBooleanLaunchArg('gazebo_gui', default_value=False),
         DeclareBooleanLaunchArg('use_rviz', default_value=True),
         DeclareLaunchArgument(
             'simulation_confidence_threshold',
@@ -209,6 +247,7 @@ def generate_launch_description():
         simulation_detector,
         simulation_moveit,
         simulation_planner,
+        simulation_tracker,
         simulation_visual,
         simulation_press,
         real_stack,

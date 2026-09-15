@@ -1,5 +1,9 @@
 # Piper Elevator ROS 2 基础环境
 
+仿真新增全轨迹视野检查和 SAM2 严格交接，启动与行为说明见 [仿真 SAM2 使用说明](docs/simulation_sam2.md)。
+
+当前组合为**旧版按钮识别 + 新版粗定位、Servo、按压和任务调度**。恢复范围、接口和验证记录见 [代码恢复记录](ros2_ws/diagnostics/CODE_RECOVERY.md)。
+
 这个仓库当前负责三件事：
 
 1. 使用 Docker 提供 Ubuntu 22.04 + ROS 2 Humble 环境。

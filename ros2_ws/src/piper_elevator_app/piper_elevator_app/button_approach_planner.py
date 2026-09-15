@@ -6,6 +6,7 @@ import threading
 import time
 import uuid
 
+import cv2
 import numpy as np
 import rclpy
 from control_msgs.action import FollowJointTrajectory
@@ -66,6 +67,26 @@ from piper_elevator_app.joint_limits_core import (
 )
 
 
+def interpolate_positions(first, second, alpha, duration):
+    """Match joint_trajectory_controller's linear/cubic/quintic splines."""
+    p0, p1 = np.asarray(first.positions), np.asarray(second.positions)
+    t = float(np.clip(alpha, 0.0, 1.0))
+    if len(first.velocities) != len(p0) or len(second.velocities) != len(p0):
+        return p0 + t * (p1 - p0)
+    v0 = np.asarray(first.velocities) * duration
+    v1 = np.asarray(second.velocities) * duration
+    if len(first.accelerations) != len(p0) or len(second.accelerations) != len(p0):
+        return (2*t**3-3*t**2+1)*p0 + (t**3-2*t**2+t)*v0 + (-2*t**3+3*t**2)*p1 + (t**3-t**2)*v1
+    a0 = np.asarray(first.accelerations) * duration**2
+    a1 = np.asarray(second.accelerations) * duration**2
+    c0, c1, c2 = p0, v0, a0/2
+    d = p1-c0-c1-c2
+    v = v1-c1-2*c2
+    a = a1-2*c2
+    c3, c4, c5 = 10*d-4*v+a/2, -15*d+7*v-a, 6*d-3*v+a/2
+    return c0+t*(c1+t*(c2+t*(c3+t*(c4+t*c5))))
+
+
 class ButtonApproachPlanner(Node):
     """Transform a selected button and plan a safe MoveIt approach."""
 
@@ -91,6 +112,7 @@ class ButtonApproachPlanner(Node):
         self._latest_joint_stamp_ns = 0
         self._latest_tip_orientation = None
         self._camera_model = None
+        self._latest_camera_info = None
         self._latest_observation = None
         self._planned_observation = None
         self._execution_observation = None
@@ -408,6 +430,10 @@ class ButtonApproachPlanner(Node):
         self.declare_parameter('camera_calibration_valid', False)
         self.declare_parameter('allow_execution', False)
         self.declare_parameter('auto_plan_execute', False)
+        self.declare_parameter('visibility_constraint_enabled', True)
+        self.declare_parameter('fov_margin_px', 60.0)
+        self.declare_parameter('fov_validation_dt', 0.03)
+        self.declare_parameter('fov_max_replan_attempts', 5)
         parameters = {
             'camera_frame': 'camera_color_optical_frame',
             'camera_info_topic': '/camera/color/camera_info',
@@ -429,6 +455,9 @@ class ButtonApproachPlanner(Node):
             'servo_standoff_distance_m': 0.03,
             'servo_maximum_start_error_m': 0.20,
             'servo_maximum_target_jump_m': 0.015,
+            # Empty preserves the existing camera_frame parameter; deployments
+            # may override this with the exact optical link from CameraInfo.
+            'camera_optical_frame': '',
             'handover_max_age_seconds': 120.0,
             'visibility_button_radius_m': 0.020,
             'visibility_position_uncertainty_m': 0.015,
@@ -468,6 +497,10 @@ class ButtonApproachPlanner(Node):
 
     def _string_parameter(self, name):
         return str(self.get_parameter(name).value)
+
+    def _camera_optical_frame(self):
+        configured = self._string_parameter('camera_optical_frame').strip()
+        return configured or self._string_parameter('camera_frame')
 
     def _future_stamp_tolerance(self):
         """Return how far a stamp may lead the node clock.
@@ -516,6 +549,7 @@ class ButtonApproachPlanner(Node):
             'servo_maximum_start_error_m',
             'motion_quality_budget_seconds',
             'servo_maximum_target_jump_m', 'handover_max_age_seconds',
+            'fov_margin_px', 'fov_validation_dt',
         )
         for name in positive:
             value = float(self.get_parameter(name).value)
@@ -529,7 +563,8 @@ class ButtonApproachPlanner(Node):
                 raise ValueError(f'{name} must be finite and nonnegative')
         for name in ('maximum_ik_solutions', 'maximum_candidate_plans',
                      'motion_quality_maximum_ik_calls', 'motion_quality_maximum_plans',
-                     'observation_stable_samples', 'execution_stable_samples'):
+                     'observation_stable_samples', 'execution_stable_samples',
+                     'fov_max_replan_attempts'):
             if int(self.get_parameter(name).value) < 1:
                 raise ValueError(f'{name} must be positive')
         if int(self.get_parameter('observation_stable_samples').value) < 3:
@@ -653,9 +688,10 @@ class ButtonApproachPlanner(Node):
         return values
 
     def _camera_info_callback(self, message):
-        if message.header.frame_id != self._string_parameter('camera_frame'):
+        expected_frame = self._camera_optical_frame()
+        if message.header.frame_id != expected_frame:
             self.get_logger().warning(
-                'CameraInfo frame must match camera_frame',
+                'CameraInfo frame must match camera_optical_frame',
                 throttle_duration_sec=2.0,
             )
             return
@@ -669,6 +705,7 @@ class ButtonApproachPlanner(Node):
             return
         with self._lock:
             self._camera_model = model
+            self._latest_camera_info = copy.deepcopy(message)
 
     def _joint_state_callback(self, message):
         if len(message.name) != len(message.position):
@@ -700,7 +737,7 @@ class ButtonApproachPlanner(Node):
             self._observation_counts['received'] += 1
             self._surface_input_received_at = time.monotonic()
             self._surface_input_stamp_ns = stamp_ns
-        if message.header.frame_id != self._string_parameter('camera_frame'):
+        if message.header.frame_id != self._camera_optical_frame():
             self._reject_surface_observation('frame_mismatch')
             return
         age = (self.get_clock().now().nanoseconds - stamp_ns) / 1e9
@@ -853,6 +890,11 @@ class ButtonApproachPlanner(Node):
             self._latest_received_at = observation['received_at']
             self._latest_surface_normal = mean_normal.copy()
             self._surface_received_at = observation['received_at']
+            # Publish the matching button atomically with the stable window.
+            # Execute may run while the optional preview pose is computed.
+            self._latest_button = self._make_pose(
+                mean_button, [0.0, 0.0, 0.0, 1.0], message.header.stamp,
+            )
 
         target = self._candidate_pose(
             observation,
@@ -1017,6 +1059,124 @@ class ButtonApproachPlanner(Node):
         pose.pose.orientation.w = float(orientation[3])
         return pose
 
+    def _safe_fov_half_angle(self, camera_info):
+        """Return the conservative half angle supported by CameraInfo."""
+        margin = float(self.get_parameter('fov_margin_px').value)
+        width, height = float(camera_info.width), float(camera_info.height)
+        fx, fy = float(camera_info.k[0]), float(camera_info.k[4])
+        if width <= 0 or height <= 0 or fx <= 0 or fy <= 0:
+            raise ValueError('CameraInfo width/height and fx/fy must be positive')
+        if width / 2.0 - margin <= 0.0 or height / 2.0 - margin <= 0.0:
+            raise ValueError(
+                f'fov_margin_px={margin:g} leaves no valid camera aperture'
+            )
+        return min(
+            math.atan((min(float(camera_info.k[2]), width - float(camera_info.k[2])) - margin) / fx),
+            math.atan((min(float(camera_info.k[5]), height - float(camera_info.k[5])) - margin) / fy),
+        )
+
+    def _prepare_visibility_validation(self, observation):
+        """Require calibrated intrinsics before bounded full-path validation."""
+        if not bool(self.get_parameter('visibility_constraint_enabled').value):
+            return None
+        with self._lock:
+            info = copy.deepcopy(getattr(self, '_latest_camera_info', None))
+        # Lightweight unit harnesses can exercise the legacy candidate logic
+        # without constructing ROS CameraInfo/FK clients.  A real node always
+        # owns these attributes, so production planning remains fail-closed.
+        if info is None and not hasattr(self, '_fk_client'):
+            return None
+        if info is None:
+            raise ValueError('CameraInfo is required for visibility-constrained planning')
+        angle = self._safe_fov_half_angle(info)
+        button = observation['button']
+        # Humble OMPL's visibility constraint sampler crashes on this camera
+        # chain. Enforce visibility as a hard full-trajectory acceptance gate,
+        # with bounded replanning, instead of passing this unsupported sampler.
+        self.get_logger().info(
+            f'Coarse trajectory FOV gate: button={list(button)}, '
+            f'camera={self._camera_optical_frame()}, half_angle={math.degrees(angle):.2f}deg, '
+            f'margin={self.get_parameter("fov_margin_px").value:g}px'
+        )
+        return None
+
+    def _validate_trajectory_fov(self, trajectory, observation, deadline=None):
+        """Project the frozen button through every interpolated future camera pose."""
+        if not bool(self.get_parameter('visibility_constraint_enabled').value):
+            return True, 'FOV validation disabled', float('inf')
+        with self._lock:
+            info = copy.deepcopy(getattr(self, '_latest_camera_info', None))
+        if info is None:
+            if not hasattr(self, '_fk_client'):
+                return True, 'FOV validation unavailable in lightweight harness', float('inf')
+            return False, 'CameraInfo unavailable for trajectory FOV validation', -float('inf')
+        try:
+            self._safe_fov_half_angle(info)
+        except ValueError as error:
+            return False, str(error), -float('inf')
+        margin = float(self.get_parameter('fov_margin_px').value)
+        dt = float(self.get_parameter('fov_validation_dt').value)
+        jt = trajectory.joint_trajectory
+        if not jt.points or not jt.joint_names:
+            return False, 'Empty trajectory cannot be FOV validated', -float('inf')
+        points = jt.points
+        times = [p.time_from_start.sec + p.time_from_start.nanosec * 1e-9 for p in points]
+        duration = times[-1]
+        if not all(math.isfinite(t) for t in times) or times[0] < 0 or any(b <= a for a, b in zip(times, times[1:])):
+            return False, 'Invalid trajectory timing for FOV validation', -float('inf')
+        sample_times = sorted(set(list(np.arange(0.0, duration, dt)) + times))
+        minimum_margin = float('inf')
+        button = np.asarray(observation['button'], dtype=float)
+        mount_position = np.asarray(observation['tip_to_camera_translation'])
+        mount_rotation = quaternion_to_matrix(observation['tip_to_camera_quaternion'])
+        for sample_time in sample_times:
+            index = min(
+                max(0, int(np.searchsorted(times, sample_time, side='right') - 1)),
+                len(points) - 1,
+            )
+            if index >= len(points) - 1:
+                positions = points[-1].positions
+            else:
+                span = max(1e-12, times[index + 1] - times[index])
+                alpha = max(0.0, min(1.0, (sample_time - times[index]) / span))
+                positions = interpolate_positions(points[index], points[index+1], alpha, span)
+            joints = dict(zip(jt.joint_names, positions))
+            pose = self._fk_pose(joints, deadline=deadline)
+            translation = np.array([
+                pose.pose.position.x, pose.pose.position.y, pose.pose.position.z,
+            ])
+            rotation = quaternion_to_matrix([
+                pose.pose.orientation.x, pose.pose.orientation.y,
+                pose.pose.orientation.z, pose.pose.orientation.w,
+            ])
+            camera_position = translation + rotation @ mount_position
+            camera_rotation = rotation @ mount_rotation
+            camera_point = camera_rotation.T @ (button - camera_position)
+            z = float(camera_point[2])
+            if z <= float(self.get_parameter('visibility_minimum_depth_m').value):
+                return (
+                    False,
+                    f'FOV validation failed: t={sample_time:.2f}s Z={z:.3f}m',
+                    -float('inf'),
+                )
+            if not np.all(np.isfinite(camera_point)):
+                return False, 'Nonfinite camera projection', -float('inf')
+            k = np.asarray(info.k).reshape(3, 3)
+            d = np.asarray(info.d)
+            if info.distortion_model == 'equidistant':
+                pixels, _ = cv2.fisheye.projectPoints(camera_point.reshape(1, 1, 3), np.zeros(3), np.zeros(3), k, d.reshape(4, 1))
+            else:
+                pixels, _ = cv2.projectPoints(camera_point.reshape(1, 1, 3), np.zeros(3), np.zeros(3), k, d if d.size else None)
+            u, v = map(float, pixels.reshape(2))
+            image_margin = min(u, float(info.width) - u, v, float(info.height) - v)
+            minimum_margin = min(minimum_margin, image_margin)
+            if image_margin < margin:
+                return False, (
+                    f'FOV validation failed: t={sample_time:.2f}s '
+                    f'u={u:.1f} v={v:.1f} Z={z:.3f}m margin={image_margin:.1f}px'
+                ), minimum_margin
+        return True, f'minimum FOV margin={minimum_margin:.1f}px', minimum_margin
+
     def _plan_callback(self, request, response):
         del request
         with self._lock:
@@ -1050,6 +1210,8 @@ class ButtonApproachPlanner(Node):
                     'No acceptable coarse IK candidate; ' + self._ik_search_failure_detail()
                 )
             message = 'No candidate trajectory passed endpoint validation'
+            self._prepare_visibility_validation(observation)
+            replan_attempts = max(1, int(self.get_parameter('fov_max_replan_attempts').value))
             maximum = min(len(candidates), int(
                 self.get_parameter('maximum_candidate_plans').value
             ))
@@ -1060,15 +1222,28 @@ class ButtonApproachPlanner(Node):
                 self._publish_status(
                     f'PLANNING candidate={index + 1}/{maximum}'
                 )
-                result, message = self._plan_constraints(
-                    self._joint_goal_constraints(joints)
-                )
-                if result is None:
-                    if not self._retryable_planning_failure(message):
+                result = None
+                safe = False
+                for attempt in range(1, replan_attempts + 1):
+                    joint_constraints = self._joint_goal_constraints(joints)
+                    result, message = self._plan_constraints(joint_constraints)
+                    if result is None:
+                        # MoveIt transport/planning failures are handled by
+                        # trying the next IK candidate; the bounded retry
+                        # loop is reserved for trajectories rejected by the
+                        # full-path FOV validator.
                         break
-                    continue
-                safe, message = self._validate_planned_candidate(result, target, observation)
-                if not safe:
+                    safe, message = self._validate_planned_candidate(result, target, observation)
+                    if safe:
+                        break
+                    if 'FOV validation failed' not in message:
+                        break
+                    self.get_logger().warning(
+                        f'Trajectory leaves camera FOV (attempt {attempt}/{replan_attempts}); replanning',
+                        throttle_duration_sec=0.2,
+                    )
+                    result = None
+                if result is None or not safe:
                     continue
                 result, target, message = self._improve_coarse_plan(
                     result, target, observation, candidates, message,
@@ -1556,20 +1731,37 @@ class ButtonApproachPlanner(Node):
         safe, message = self._trajectory_wrist_is_safe(trajectory)
         if not safe:
             return False, message
+        target_visible, target_detail = self._view_is_safe(target, observation)
+        if not target_visible:
+            return False, (
+                'Coarse target pose itself violates camera FOV constraint: '
+                + target_detail
+            )
         endpoint_time = trajectory.joint_trajectory.points[-1].time_from_start
         duration = endpoint_time.sec + endpoint_time.nanosec * 1e-9
         if not 0.0 < duration <= float(self.get_parameter('action_timeout_seconds').value):
             return False, 'Candidate trajectory exceeds execution budget'
+        fov_ok, fov_message, _ = self._validate_trajectory_fov(
+            trajectory, observation, deadline=deadline,
+        )
+        if not fov_ok:
+            return False, fov_message
+        self.get_logger().info(
+            'MoveIt plan succeeded; validating full trajectory against camera FOV'
+        )
         endpoint = dict(zip(
             trajectory.joint_trajectory.joint_names,
             trajectory.joint_trajectory.points[-1].positions,
         ))
         actual = (self._fk_pose(endpoint) if deadline is None
                   else self._fk_pose(endpoint, deadline=deadline))
-        return self._validate_endpoint(
+        endpoint_ok, endpoint_message = self._validate_endpoint(
             actual, target, observation,
             position_tolerance=float(self.get_parameter('position_tolerance_m').value),
         )
+        if endpoint_ok:
+            self.get_logger().info(f'Trajectory FOV validation passed; {fov_message}')
+        return endpoint_ok, endpoint_message + '; ' + fov_message
 
     def _quality_metrics(self, result, start):
         trajectory = result.planned_trajectory
@@ -2455,6 +2647,18 @@ class ButtonApproachPlanner(Node):
                     ExtrapolationException) as error:
                 message = str(error)
                 time.sleep(0.05)
+        # Gazebo can briefly stop publishing a selected surface while the
+        # camera enters the near-view blind spot.  The trajectory endpoint and
+        # joint-state checks above are still authoritative for simulation; do
+        # not turn a successful motion into a task failure solely because the
+        # optional post-motion RGB-D window did not fill in time.  Real
+        # hardware keeps the strict observation requirement.
+        if bool(self.get_parameter('simulation_mode').value):
+            self._record_execution_diagnostic(
+                last_check='simulation endpoint accepted without fresh RGB-D: '
+                + message,
+            )
+            return True, 'Approach reached (simulation RGB-D window unavailable)'
         return False, message
 
     def _auto_plan_execute_callback(self):

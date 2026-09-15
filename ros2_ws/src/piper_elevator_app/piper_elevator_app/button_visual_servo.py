@@ -144,8 +144,15 @@ class ButtonVisualServo(Node):
         self.create_subscription(
             PoseStamped,
             self._string_parameter('surface_pose_topic'),
-            self._surface_pose_callback,
+            self._yolo_surface_callback,
             10,
+            callback_group=self._callback_group,
+        )
+        self.create_subscription(
+            PoseStamped,
+            self._string_parameter('sam2_surface_pose_topic'),
+            self._sam2_surface_callback,
+            1,
             callback_group=self._callback_group,
         )
         self.create_subscription(
@@ -238,7 +245,14 @@ class ButtonVisualServo(Node):
         self.declare_parameter('coarse_handover_service', '/button_approach_planner/claim_servo')
         self.declare_parameter('handover_claim_timeout_seconds', 2.0)
         self.declare_parameter('stop_timeout_seconds', 8.0)
+        self.declare_parameter('require_sam2_tracking', False)
+        self._require_sam2 = bool(self.get_parameter('require_sam2_tracking').value)
+        self._sam2_ready = False
+        self._sam2_received_at = 0.0
         self.declare_parameter('surface_pose_topic', '/button_surface_pose')
+        self.declare_parameter(
+            'sam2_surface_pose_topic', '/sam2_button_tracker/surface_pose'
+        )
         self.declare_parameter('tracking_state_topic', '/button_tracking_state')
         self.declare_parameter('initial_selected_button', '')
         self.declare_parameter('button_selection_topic', '/button_selection')
@@ -539,6 +553,20 @@ class ButtonVisualServo(Node):
                 )
             return transform
 
+    def _yolo_surface_callback(self, message):
+        if not self._require_sam2:
+            self._surface_pose_callback(message)
+
+    def _sam2_surface_callback(self, message):
+        if self._require_sam2:
+            self._surface_pose_callback(message)
+
+    def _sam2_failure(self):
+        if getattr(self, '_require_sam2', False):
+            if not self._sam2_ready or time.monotonic() - self._sam2_received_at > 1.0:
+                return 'SAM2 tracking unavailable or stale'
+        return None
+
     def _surface_pose_callback(self, message):
         if message.header.frame_id != self._camera_frame:
             self._publish_status('REJECTED: surface pose frame does not match camera_frame')
@@ -701,9 +729,34 @@ class ButtonVisualServo(Node):
             if not isinstance(payload, dict):
                 return
             selected = payload.get('selected')
+            if getattr(self, '_require_sam2', False) and payload.get('source') != 'sam2_button_tracker':
+                return
             stamp = payload.get('stamp')
             if not isinstance(selected, dict) or not isinstance(stamp, dict):
                 return
+            if payload.get('source') == 'sam2_button_tracker':
+                if not getattr(self, '_require_sam2', False):
+                    return
+                if selected.get('class_name') != self._selected_button:
+                    return
+                stamp_ns = int(stamp.get('sec', 0)) * 1000000000 + int(stamp.get('nanosec', 0))
+                if stamp_ns and stamp_ns < self._selection_changed_stamp_ns:
+                    return
+                if payload.get('state') == 'TRACKING' and payload.get('reason') in ('tracking_valid', 'geometry_invalid'):
+                    return  # Keep the last geometry timestamp; existing freshness checks expire it.
+                ready = payload.get('state') == 'TRACKING' and payload.get('reason') == 'tracker_ready'
+                fresh = self._surface_stamp_is_fresh(stamp_ns)
+                self._sam2_ready = ready and fresh
+                if self._sam2_ready:
+                    self._sam2_received_at = time.monotonic()
+                elif self._running or self._starting:
+                    self._stop_event.set()
+                    self._publish_zero_twist()
+                    with self._condition:
+                        self._condition.notify_all()
+                    self._publish_status('STOPPED: SAM2 tracking lost')
+                if not self._sam2_ready:
+                    return
             label = selected.get('class_name')
             sec, nanosec = stamp.get('sec'), stamp.get('nanosec')
             if (
@@ -717,8 +770,9 @@ class ButtonVisualServo(Node):
             reason = payload.get('reason')
             negative = reason in ('direction_conflict', 'projection_conflict')
             measured = selected.get('measured')
+            sam2_source = payload.get('source') == 'sam2_button_tracker'
             positive = (
-                reason == ''
+                (reason == '' or (sam2_source and reason in ('tracker_ready', 'initialized')))
                 and selected.get('stable_detection') is True
                 and selected.get('depth_valid') is True
                 and isinstance(measured, dict)
@@ -796,6 +850,8 @@ class ButtonVisualServo(Node):
             if selected == self._selected_button:
                 return
             self._selected_button = selected
+            self._sam2_ready = False
+            self._sam2_received_at = 0.0
             self._selection_generation += 1
             self._selection_changed_stamp_ns = (
                 self.get_clock().now().nanoseconds
@@ -840,16 +896,22 @@ class ButtonVisualServo(Node):
         started = time.monotonic()
         if not client.wait_for_service(timeout_sec=timeout):
             raise ValueError('Coarse handover service unavailable; start the approach planner')
-        remaining = timeout - (time.monotonic() - started)
-        if remaining <= 0.0 or self._stop_event.is_set():
-            raise ValueError('Coarse handover request stopped or timed out')
-        future = client.call_async(Trigger.Request())
-        result = self._wait_for_future(future, remaining)
-        if result is None:
-            client.remove_pending_request(future)
-            raise ValueError('Coarse handover request stopped or timed out')
-        if not result.success:
-            raise ValueError(result.message)
+        while True:
+            remaining = timeout - (time.monotonic() - started)
+            if remaining <= 0.0 or self._stop_event.is_set():
+                raise ValueError('Coarse handover request stopped or timed out')
+            future = client.call_async(Trigger.Request())
+            result = self._wait_for_future(future, remaining)
+            if result is None:
+                client.remove_pending_request(future)
+                raise ValueError('Coarse handover request stopped or timed out')
+            if result.success:
+                break
+            if result.message != 'Near-view observation changed during handover; retry':
+                raise ValueError(result.message)
+            # The planner retained its token and requested a new atomic check.
+            # Never retry errors that indicate motion, identity, or stale data.
+            self._stop_event.wait(min(0.05, max(0., remaining)))
         return decode_coarse_handover(
             result.message, selected_button=self._selected_button,
             frame_id=self._base_frame, now_ns=self.get_clock().now().nanoseconds,
@@ -858,6 +920,11 @@ class ButtonVisualServo(Node):
         )
 
     def _start_callback(self, request, response):
+        failure = ButtonVisualServo._sam2_failure(self)
+        if failure:
+            response.success = False
+            response.message = failure
+            return response
         del request
         if not bool(self.get_parameter('allow_execution').value):
             response.success = False
@@ -1067,7 +1134,7 @@ class ButtonVisualServo(Node):
             1.0, float(self.get_parameter('handover_claim_timeout_seconds').value),
         )
         with self._condition:
-            conflict = ButtonVisualServo._semantic_conflict_locked(self)
+            conflict = ButtonVisualServo._sam2_failure(self) or ButtonVisualServo._semantic_conflict_locked(self)
             if conflict:
                 response.success = False
                 response.message = 'Press handover blocked by ' + conflict
@@ -1158,6 +1225,9 @@ class ButtonVisualServo(Node):
             self._wrist_guard_state_received_at = time.monotonic()
 
     def _servo_safety_failure(self):
+        failure = ButtonVisualServo._sam2_failure(self)
+        if failure:
+            return failure
         with self._condition:
             code = self._servo_status_code
             received_at = self._servo_status_received_at
@@ -1517,6 +1587,9 @@ class ButtonVisualServo(Node):
                 observation = None
                 if self._observation is not None:
                     observation_age = now - self._observation[2]
+                    if getattr(self, '_require_sam2', False):
+                        observation_age = max(observation_age, (
+                            self.get_clock().now().nanoseconds-self._observation_stamp_ns)/1e9)
                     expected_gap = float(
                         self.get_parameter(
                             'expected_observation_gap_seconds'
@@ -1532,6 +1605,13 @@ class ButtonVisualServo(Node):
                         self._observation[2],
                         self._observation[3],
                     )
+            if getattr(self, '_require_sam2', False) and observation is None:
+                self._publish_zero_twist()
+                if observation_age > float(self.get_parameter('observation_timeout_seconds').value):
+                    return None, '', 'SAM2 pose timeout; blind continuation disabled'
+                if self._stop_event.wait(period):
+                    break
+                continue
             current = self._current_servo_pose()
             if current is None:
                 self._publish_zero_twist()
@@ -2311,7 +2391,7 @@ class ButtonVisualServo(Node):
         with self._condition:
             # Serialize this final gate with semantic callbacks so a conflict
             # arriving after the control-loop check cannot leak a motion command.
-            if ButtonVisualServo._semantic_conflict_locked(self):
+            if ButtonVisualServo._sam2_failure(self) or ButtonVisualServo._semantic_conflict_locked(self):
                 linear, angular = np.zeros(3), np.zeros(3)
                 self._last_linear_command = np.zeros(3)
                 self._last_angular_command = np.zeros(3)

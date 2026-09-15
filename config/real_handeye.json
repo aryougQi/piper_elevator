@@ -1,0 +1,17 @@
+{
+  "source": "handeye_calibration/calibration/result_20260902_linear/handeye_result.json",
+  "camera_serial": "315122272433",
+  "parent_frame": "tcp_link",
+  "child_frame": "camera_link",
+  "selection": "User explicitly selected this historical result on 2026-09-14. Later rechecks did not pass; this is not a new validation.",
+  "xyz": [
+    -0.05257842972237375,
+    0.0004861475706975968,
+    -0.1399236010321461
+  ],
+  "rpy": [
+    -1.2709909926291576,
+    -1.525557419831534,
+    1.224336346953496
+  ]
+}

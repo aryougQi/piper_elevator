@@ -1,0 +1,37 @@
+sam2_button_tracker:
+  ros__parameters:
+    enabled: true
+    # Official Meta SAM2 video predictor configuration/checkpoint.
+    model_cfg: configs/sam2.1/sam2.1_hiera_t.yaml
+    checkpoint: /opt/sam2/checkpoints/sam2.1_hiera_tiny.pt
+    device: cuda
+    compile_model: true
+    torch_num_threads: 1
+    image_topic: /camera/color/image_raw
+    depth_topic: /camera/aligned_depth_to_color/image_raw
+    camera_info_topic: /camera/color/camera_info
+    detections_topic: /button_detections
+    selected_topic: /button_selected
+    approach_status_topic: /button_approach/status
+    yolo_surface_pose_topic: /button_surface_pose
+    state_topic: /button_tracking_state
+    center_topic: /sam2_button_tracker/center
+    surface_pose_topic: /sam2_button_tracker/surface_pose
+    debug_image_topic: /sam2_button_tracker/debug_image
+    init_max_age_sec: 0.15
+    settle_time_sec: 0.3
+    stable_frames: 5
+    min_mask_area_px: 200
+    max_mask_area_ratio: 0.6
+    max_center_jump_px: 150.0
+    use_mask_median_depth: true
+    min_depth_m: 0.10
+    max_depth_m: 2.0
+    # The display worker keeps only the latest image; control is independent.
+    debug_image: true
+    debug_max_fps: 3.0
+    geometry_max_fps: 15.0
+    debug_image_only_when_subscribed: true
+    performance_log_interval_seconds: 5.0
+    # Legacy compatibility parameter; depth failures no longer trigger LOST.
+    max_geometry_failures: 5

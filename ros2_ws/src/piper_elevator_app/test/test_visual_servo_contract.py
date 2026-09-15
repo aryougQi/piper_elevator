@@ -227,7 +227,8 @@ def test_simulation_servo_adapter_is_bounded_and_simulation_only():
         PACKAGE_ROOT / 'launch' / 'piper_pika_moveit.launch.py'
     ).read_text()
 
-    assert 1.0 < adapter_config['position_gain'] <= 3.0
+    # Compensate Fortress' fixed 0.1 position gain, with the existing hard lead cap.
+    assert 1.0 < adapter_config['position_gain'] <= 10.0
     assert 0.0 < adapter_config['maximum_lead_rad'] <= 0.10
     assert adapter_config['joint_state_timeout_seconds'] <= 0.20
     assert len(adapter_config['joint_names']) == 6

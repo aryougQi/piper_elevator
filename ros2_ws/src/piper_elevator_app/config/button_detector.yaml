@@ -32,9 +32,9 @@ button_detector:
     inference_device: cuda
     # 订阅相机前先预热 CUDA，消除首帧内核初始化卡顿。
     warmup_iterations: 2
-    # 完整三列面板在 home 视角下，中心 up 实测约 0.55；0.40 给帧间
-    # 波动留出余量，同时仍高于相邻 down 被误判成 up 的约 0.26。
-    confidence_threshold: 0.40
+    # 近距离机械爪遮挡会令数字框置信度降到约 0.15（失败回放中为
+    # 0.1515），而选择类别过滤和连续稳定帧仍抑制误检；0.12 保留该框。
+    confidence_threshold: 0.12
     nms_iou_threshold: 0.45
 
     # 类别直接读取新 YOLOv10 ONNX 的元数据。该模型专门检测电梯按钮，

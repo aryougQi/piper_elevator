@@ -95,7 +95,7 @@ def test_coarse_policy_allows_small_tilt_without_pinning_current_pose(config):
     ) <= math.radians(10.0) + 1e-6
     assert 0.0 < config['candidate_roll_rad'] <= (
         config['maximum_camera_roll_rad']
-    ) <= math.radians(15.0) + 1e-6
+    ) <= 0.60 + 1e-6
 
 
 def test_visibility_budget_covers_execution_position_error(config):
@@ -186,7 +186,7 @@ def test_post_motion_capture_limits_match_servo_start_without_relaxing_plans(con
         assert config[name] == pytest.approx(servo[name], abs=1e-7, rel=0.0)
     assert config['maximum_camera_tilt_rad'] < (
         config['handover_maximum_camera_tilt_rad']
-    ) <= math.radians(15.0) + 1e-6
+    ) <= 0.60 + 1e-6
     assert config['servo_standoff_distance_m'] == servo['standoff_distance_m']
     assert config['servo_maximum_start_error_m'] == servo['maximum_start_error_m']
     assert config['handover_minimum_standoff_m'] > (

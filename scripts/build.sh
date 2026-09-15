@@ -28,7 +28,8 @@ docker compose run --rm piper_ros2 bash -lc '
         --rosdistro humble \
         --skip-keys "ament_python launch_pytest moveit_ros_perception warehouse_ros_mongo serial" \
         -r -y
-    colcon build \
+    # Use Humble build tooling; SAM2 may install a newer setuptools lacking develop --uninstall.
+    PYTHONPATH=/usr/lib/python3/dist-packages:${PYTHONPATH:-} colcon build \
         --symlink-install \
         --cmake-args -DBUILD_TESTING=OFF
 '

@@ -2,6 +2,7 @@
 
 import threading
 import time
+import json
 
 from geometry_msgs.msg import PoseStamped
 import rclpy
@@ -40,6 +41,11 @@ class ElevatorTaskManager(Node):
         self._detection_valid = False
         self._detection_sequence = 0
         self._surface_sequence = 0
+        self._sam2_ready = False
+        self._sam2_sequence = 0
+        self._sam2_surface_sequence = 0
+        self._sam2_stamp_ns = 0
+        self._sam2_lost = False
         self._approach_status = ''
         self._approach_status_sequence = 0
         self._visual_completed = False
@@ -107,6 +113,20 @@ class ElevatorTaskManager(Node):
             PoseStamped,
             self._string_parameter('button_surface_topic'),
             self._surface_callback,
+            10,
+            callback_group=self._callback_group,
+        )
+        self.create_subscription(
+            PoseStamped,
+            self._string_parameter('sam2_surface_topic'),
+            self._sam2_surface_callback,
+            10,
+            callback_group=self._callback_group,
+        )
+        self.create_subscription(
+            String,
+            self._string_parameter('tracking_state_topic'),
+            self._tracking_state_callback,
             10,
             callback_group=self._callback_group,
         )
@@ -198,6 +218,9 @@ class ElevatorTaskManager(Node):
             'button_valid_topic', '/button_detection_valid'
         )
         self.declare_parameter('button_surface_topic', '/button_surface_pose')
+        self.declare_parameter('require_sam2_tracking', False)
+        self.declare_parameter('sam2_surface_topic', '/sam2_button_tracker/surface_pose')
+        self.declare_parameter('tracking_state_topic', '/button_tracking_state')
         self.declare_parameter(
             'approach_status_topic', '/button_approach/status'
         )
@@ -511,6 +534,8 @@ class ElevatorTaskManager(Node):
         with self._condition:
             detection_baseline = self._detection_sequence
             surface_baseline = self._surface_sequence
+            sam2_baseline = self._sam2_sequence
+            sam2_surface_baseline = self._sam2_surface_sequence
         required_surfaces = max(
             1,
             int(
@@ -533,13 +558,22 @@ class ElevatorTaskManager(Node):
                 self._selection_publisher.publish(String(data=button))
                 next_publish = now + publish_period
             with self._condition:
-                ready = (
-                    self._selected_button == button
-                    and self._detection_valid
-                    and self._detection_sequence > detection_baseline
-                    and self._surface_sequence
-                    >= surface_baseline + required_surfaces
-                )
+                if bool(self.get_parameter('require_sam2_tracking').value):
+                    if self._sam2_lost:
+                        raise TaskFailure('SAM2 tracking lost before visual handover')
+                    ready = (
+                        self._selected_button == button
+                        and self._sam2_ready
+                        and self._sam2_sequence > sam2_baseline
+                        and self._sam2_surface_sequence >= sam2_surface_baseline + required_surfaces
+                        and 0 <= (self.get_clock().now().nanoseconds - self._sam2_stamp_ns) / 1e9 <= 1.0
+                    )
+                else:
+                    ready = (
+                        self._selected_button == button and self._detection_valid
+                        and self._detection_sequence > detection_baseline
+                        and self._surface_sequence >= surface_baseline + required_surfaces
+                    )
                 if ready:
                     return
                 self._condition.wait(timeout=0.05)
@@ -684,6 +718,10 @@ class ElevatorTaskManager(Node):
 
     def _selected_callback(self, message):
         with self._condition:
+            if self._selected_button != str(message.data):
+                self._sam2_ready = False
+                self._sam2_lost = False
+                self._sam2_stamp_ns = 0
             self._selected_button = str(message.data)
             self._selected_sequence += 1
             self._condition.notify_all()
@@ -698,6 +736,34 @@ class ElevatorTaskManager(Node):
         del message
         with self._condition:
             self._surface_sequence += 1
+            self._condition.notify_all()
+
+    def _sam2_surface_callback(self, message):
+        with self._condition:
+            self._sam2_surface_sequence += 1
+            self._condition.notify_all()
+
+    def _tracking_state_callback(self, message):
+        try:
+            payload = json.loads(message.data)
+            selected = payload.get('selected', {})
+            source = payload.get('source')
+            state = payload.get('state')
+            label = str(selected.get('class_name', '')).strip()
+        except (TypeError, ValueError, AttributeError):
+            return
+        if source != 'sam2_button_tracker':
+            return
+        with self._condition:
+            if label and self._selected_button and label.casefold() != self._selected_button.casefold():
+                return
+            if payload.get('state') == 'TRACKING' and payload.get('reason') in ('tracking_valid', 'geometry_invalid'):
+                return  # Keep the last geometry timestamp; existing freshness checks expire it.
+            self._sam2_ready = state == 'TRACKING' and payload.get('reason') == 'tracker_ready'
+            self._sam2_lost = state == 'LOST'
+            stamp = payload.get('stamp', {})
+            self._sam2_stamp_ns = int(stamp.get('sec', 0)) * 1000000000 + int(stamp.get('nanosec', 0))
+            self._sam2_sequence += 1
             self._condition.notify_all()
 
     def _approach_status_callback(self, message):

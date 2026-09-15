@@ -22,6 +22,7 @@ services:
       # Qt and Mesa into the old software-only path makes MinimalScene crash.
       XDG_RUNTIME_DIR: /tmp/runtime-root
       ROS_DOMAIN_ID: ${ROS_DOMAIN_ID:-0}
+      TORCHINDUCTOR_CACHE_DIR: /var/cache/piper_sam2/inductor
       HTTP_PROXY: ${HTTP_PROXY:-}
       HTTPS_PROXY: ${HTTPS_PROXY:-}
       NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,::1}
@@ -30,7 +31,11 @@ services:
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
       - ${XAUTHORITY:-/dev/null}:/tmp/.docker.xauth:ro
       - /dev:/dev
+      - sam2_compile_cache:/var/cache/piper_sam2
     working_dir: /workspace/ros2_ws
     stdin_open: true
     tty: true
     command: bash
+
+volumes:
+  sam2_compile_cache:

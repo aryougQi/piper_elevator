@@ -17,6 +17,8 @@ def generate_launch_description():
         # production threshold directly from button_detector.yaml.
         DeclareLaunchArgument('confidence_threshold', default_value='0.05'),
         DeclareLaunchArgument('simulation_layout_relabel', default_value='true'),
+        DeclareLaunchArgument('inference_device', default_value='cuda'),
+        DeclareLaunchArgument('model_input_size', default_value='1280'),
         Node(
             package='piper_elevator_app',
             executable='button_detector',
@@ -36,6 +38,10 @@ def generate_launch_description():
                     'simulation_layout_relabel': ParameterValue(
                         LaunchConfiguration('simulation_layout_relabel'),
                         value_type=bool,
+                    ),
+                    'inference_device': LaunchConfiguration('inference_device'),
+                    'model_input_size': ParameterValue(
+                        LaunchConfiguration('model_input_size'), value_type=int,
                     ),
                 },
             ],

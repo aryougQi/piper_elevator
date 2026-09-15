@@ -1,5 +1,7 @@
 # 运行命令
 
+当前组合为**旧版按钮识别 + 新版粗定位、Servo、按压和任务调度**。恢复范围、接口和验证记录见 [代码恢复记录](ros2_ws/diagnostics/CODE_RECOVERY.md)。
+
 ## 编译
 
 ```bash
@@ -163,3 +165,24 @@ ros2 service call /elevator_task_manager/stop \
   std_srvs/srv/Trigger "{}"
 
 ```
+
+cd /home/q/project/piper_elevator/piper_elevator
+./scripts/elevator_task.sh
+
+cd /home/q/project/piper_elevator/piper_elevator
+./scripts/start_real.sh
+
+cd /home/q/project/piper_elevator/piper_elevator
+docker compose build piper_ros2
+
+ros2 topic echo /elevator_task/result
+
+# 选择 up，自动完成粗定位、SAM2、Servo、按压、回退和回 Home
+ros2 topic pub --once /elevator_task/command \
+  std_msgs/msg/String "{data: 'press up'}"
+
+
+cd /home/q/project/piper_elevator/piper_elevator    # 必须在仓库根执行
+git add .
+git commit -m "说明这次改了什么"                    # 不能留空
+git push

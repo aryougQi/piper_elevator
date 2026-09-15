@@ -282,6 +282,14 @@ class ButtonDetector(Node):
         )
 
     def _create_subscriptions(self) -> None:
+        self._sam2_pause_until = 0.0
+        self._sam2_coarse_verified = False
+        self._sam2_servo_started = False
+        self.create_subscription(String, self._string_parameter('tracking_state_topic'),
+                                 self._sam2_tracking_callback, 1)
+        self.create_subscription(String, '/button_approach/status', self._sam2_approach_callback, 10)
+        self.create_subscription(String, '/elevator_task/status', self._sam2_task_callback, 10)
+        self.create_subscription(String, '/button_visual_servo/status', self._sam2_servo_callback, 10)
         color_topic = self._string_parameter('color_topic')
         self._camera_info_subscription = None
         self._color_subscription = None
@@ -331,6 +339,53 @@ class ButtonDetector(Node):
                 self._input_qos,
             )
 
+    def _sam2_approach_callback(self, message):
+        status = str(message.data)
+        if status.startswith('APPROACH_REACHED_VERIFIED'):
+            self._sam2_coarse_verified = True
+        elif status.startswith(('PLANNING', 'EXECUTING')):
+            self._sam2_coarse_verified = False
+            self._sam2_servo_started = False
+            self._sam2_pause_until = 0.0
+
+    def _sam2_task_callback(self, message):
+        if str(message.data).startswith(('HOMING', 'RECOVERING', 'STOP_REQUESTED', 'COMPLETE', 'FAILED', 'IDLE')):
+            self._sam2_coarse_verified = False
+            self._sam2_servo_started = False
+            self._sam2_pause_until = 0.0
+
+    def _sam2_servo_callback(self, message):
+        status = str(message.data)
+        if status == 'STARTING_MOVEIT_SERVO':
+            # This status is emitted only after the planner's atomic handover
+            # claim succeeds. Until then its near-view checks still need YOLO.
+            self._sam2_servo_started = True
+        elif status.startswith(('FAILED', 'STOPPED', 'PRESS_HANDOVER_UNCONFIRMED')):
+            self._sam2_servo_started = False
+            self._sam2_pause_until = 0.0
+
+    def _sam2_tracking_callback(self, message):
+        try:
+            payload = json.loads(message.data)
+            if payload.get('source') != 'sam2_button_tracker':
+                return
+            selected = payload.get('selected', {})
+            stamp = payload.get('stamp', {})
+            stamp_ns = int(stamp.get('sec', 0))*1000000000+int(stamp.get('nanosec', 0))
+            age = (self.get_clock().now().nanoseconds-stamp_ns)/1e9
+            stable = (payload.get('state') == 'TRACKING'
+                      and selected.get('tracking_valid') is True
+                      and selected.get('class_name') == self._selected_button_class
+                      and 0 <= age <= 1.0)
+            self._sam2_pause_until = monotonic()+1.0 if (stable and self._sam2_coarse_verified
+                and self._sam2_servo_started) else 0.0
+        except (TypeError, ValueError, AttributeError):
+            return
+
+    def _sam2_pauses_inference(self):
+        # A dead tracker cannot leave YOLO paused indefinitely.
+        return monotonic() < getattr(self, '_sam2_pause_until', 0.0)
+
     def _selection_callback(self, message: String) -> None:
         requested = str(message.data).strip()
         if requested.casefold() in {'clear', 'none'}:
@@ -338,6 +393,8 @@ class ButtonDetector(Node):
         if requested == self._selected_button_class:
             self._publish_selection_state()
             return
+        self._sam2_pause_until = 0.0
+        self._sam2_servo_started = False
         self._selected_button_class = requested
         self._tracker.reset()
         self._filtered_position = None
@@ -407,6 +464,8 @@ class ButtonDetector(Node):
         self._camera_frame = message.header.frame_id
 
     def _color_callback(self, color_message: Image) -> None:
+        if self._sam2_pauses_inference():
+            return
         started = monotonic()
         try:
             color_image = self._bridge.imgmsg_to_cv2(
@@ -425,6 +484,8 @@ class ButtonDetector(Node):
         color_message: Image,
         depth_message: Image,
     ) -> None:
+        if self._sam2_pauses_inference():
+            return
         started = monotonic()
         try:
             color_image = self._bridge.imgmsg_to_cv2(

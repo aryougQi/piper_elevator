@@ -166,13 +166,11 @@ source /workspace/ros2_ws/install/setup.bash
 ros2 service call /button_approach_planner/plan std_srvs/srv/Trigger "{}"
 ```
 
-第一次粗略规划会先把 `center_joint` 闭合到 `0.0 m`，再以
-`pika_fingertip_center_link`（两指闭合中心的最前端）作为目标点移动到按钮前
-15 cm。位置是该阶段的精确目标；相机指向使用
-`/button_surface_pose` 的深度平面法向，用约 `±8°` 的可视包络修正
-上/下倾斜。滚转以当前可达姿态为基准，避免强制画面正立时将腕部
-推到限位。垂直于按钮表面的精确姿态调整仍由后续视觉伺服完成。目标关节状态还要求
-`joint4/5/6` 远离机械限位，为视觉伺服保留腕部调整余量。
+粗定位使用恢复后的新版流程：在 `base_link` 下积累 8–20 帧有效观测（真机窗口
+容量为 40 帧），过滤位置离群点并检查法向稳定性。以表面前 14 cm 为首选，
+必要时搜索 17/20 cm 候选；通过相机内参验证可见性、碰撞 IK 和全关节余量，
+再对已验证的关节目标规划。执行结束后重新检查关节、TCP、近景观测和视野，
+成功才允许 `/button_approach_planner/claim_servo` 发放一次性交接凭证。
 
 执行仿真轨迹：
 
@@ -190,16 +188,14 @@ ros2 service call /button_approach_planner/clear_plan std_srvs/srv/Trigger "{}"
 
 ## 视觉伺服精定位
 
-粗靠近完成后，RGB-D 检测器会在按钮框内拟合局部深度平面，并将按钮中心和
-表面法向发布到 `/button_surface_pose`。节点先通过 MoveIt Servo 以 50 Hz
-连续速度控制对准到按钮前 75 mm；该阶段包含低通滤波、线速度/角速度限制和
-加速度限制，不再每 20 mm 重新规划、停止一次。闭环线速度上限为
-80 mm/s，最后 `LIN` 段使用 12% 速度缩放。
+按钮识别采用旧版 YOLO、严格类别关联和局部深度平面拟合；相机系三维观测
+不跨帧平均，位置与法向携带当前图像时间戳。粗定位和 Servo 在 `base_link`
+中进行各自的滤波。识别节点同时发布新版接口 `/button_tracking_state`。
 
-到达 75 mm，或者在 90 mm 以内因近距离遮挡丢失目标时，节点会锁定最后一个
-可靠的按钮位置和表面法向，平滑减速并暂停 MoveIt Servo。最后一段使用 Pilz
-`LIN` 规划器生成一条直线轨迹，一次执行到按钮前 30 mm。最终结果使用机器人
-TF 验证，不要求此时 YOLO 仍能看到完整按钮。
+Servo 保持新版连续控制：启动前领取粗定位凭证，先对正，再连续靠近到按钮前
+30 mm；丢检时只在配置限定的时间、位移和目标一致性条件内续行，否则停止。
+完成后保持零速度，按压节点通过 `/button_visual_servo/claim_for_press` 握手
+接管同一个 Servo 会话。此流程不使用旧版 75 mm 处交接 Pilz LIN 的控制方式。
 
 仿真组合启动已经包含 `button_visual_servo`。开始精定位：
 
@@ -208,8 +204,7 @@ ros2 service call /button_visual_servo/start std_srvs/srv/Trigger "{}"
 ros2 topic echo /button_visual_servo/status
 ```
 
-视觉阶段连续 2 帧满足交接条件后进入 `CARTESIAN_HANDOFF`，最终 TF 满足以下
-条件后状态变为 `COMPLETE`：
+Servo 在连续稳定观察和最终姿态验收通过后报告完成，最终条件包括：
 
 - 指尖中心到按钮表面的法向距离为 `30 ± 2.5 mm`；
 - 横向偏差不超过 `3 mm`；
@@ -218,7 +213,7 @@ ros2 topic echo /button_visual_servo/status
 姿态计算会根据 TF 自动补偿相机与夹爪之间的安装外参，不再把
 夹爪 +Z 误当作真实相机光轴。相机 optical frame 的 -Y 视为画面向上，并以
 `base_link +Z` 为竖直参考，将绕光轴滚转软限制在 `±10°`；回正角速度单独限制
-为 `0.15 rad/s`。表面法向垂直度始终优先于画面水平，水平参考退化或受可达性
+为 `0.30 rad/s`。表面法向垂直度始终优先于画面水平，水平参考退化或受可达性
 限制时会保留可达姿态。`/button_visual_servo/status` 中的 `roll=...deg` 可用于
 检查实际滚转误差。
 
@@ -240,8 +235,8 @@ ros2 topic echo /button_press/status
 `config/button_press.yaml` 填入经过实验得到的六关节增量阈值和绝对力矩上限，
 并设置 `torque_thresholds_calibrated: true`；未标定时节点会拒绝执行。
 
-粗定位将 `joint5` 保持在远离零位的负腕弯分支，并检查轨迹终点，避免视觉
-Servo 从腕部奇异姿态启动。视觉伺服收到 MoveIt Servo 的奇异点、碰撞或
+粗定位允许满足可见性和余量要求的腕部分支，但要求 `joint5` 远离零位，
+并检查整条轨迹和实际执行终点，避免 Servo 从腕部奇异姿态启动。视觉伺服收到 MoveIt Servo 的奇异点、碰撞或
 关节边界停机状态时会立即失败，由重复测试流程回到 home 后重新规划。
 
 真机只有在 RGB-D 深度有效、手眼外参已经标定，并显式设置

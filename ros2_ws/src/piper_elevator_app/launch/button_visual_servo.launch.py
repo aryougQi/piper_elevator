@@ -17,6 +17,8 @@ def generate_launch_description():
     )
     return LaunchDescription([
         DeclareLaunchArgument('use_sim_time', default_value='false'),
+        DeclareLaunchArgument('require_sam2_tracking', default_value='false'),
+        DeclareLaunchArgument('expected_observation_gap_seconds', default_value='0.20'),
         DeclareLaunchArgument('simulation_mode', default_value='false'),
         DeclareLaunchArgument(
             'camera_calibration_valid',
@@ -48,6 +50,11 @@ def generate_launch_description():
             parameters=[
                 parameters,
                 {
+                    'require_sam2_tracking': ParameterValue(LaunchConfiguration('require_sam2_tracking'), value_type=bool),
+                    'expected_observation_gap_seconds': ParameterValue(
+                        LaunchConfiguration('expected_observation_gap_seconds'),
+                        value_type=float,
+                    ),
                     'simulation_mode': ParameterValue(
                         LaunchConfiguration('simulation_mode'),
                         value_type=bool,

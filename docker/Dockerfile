@@ -84,6 +84,49 @@ RUN pip3 install --no-cache-dir \
         numpy==1.24.4 \
         onnxruntime-gpu==1.23.2
 
+# Official Meta SAM2 video tracker.  Keep it in the same Python environment as
+# the ROS node; the tiny checkpoint is sufficient for real-time robot tracking.
+#
+# PyPI's CDN truncates the multi-hundred-megabyte CUDA wheels that `torch`
+# pulls in as soon as one pip process fetches several of them through the local
+# HTTP proxy, and pip treats that as a fatal sha256 mismatch.  Resolve them from
+# the Tsinghua PyPI mirror instead, and retry every network step below.
+ARG PIP_INDEX_URL=https://pypi.tuna.tsinghua.edu.cn/simple
+RUN set -e; \
+    for attempt in 1 2 3 4 5 6; do \
+        pip3 install --no-cache-dir --index-url "${PIP_INDEX_URL}" torch torchvision && break \
+            || echo "### torch install attempt ${attempt} failed"; \
+    done; \
+    python3 -c 'import torch, torchvision; print("torch", torch.__version__, "torchvision", torchvision.__version__)'; \
+    for attempt in 1 2 3 4 5 6; do \
+        git clone --depth 1 https://github.com/facebookresearch/sam2.git /opt/sam2 && break \
+            || { echo "### sam2 clone attempt ${attempt} failed"; rm -rf /opt/sam2; }; \
+    done; \
+    test -d /opt/sam2/.git; \
+    for attempt in 1 2 3 4 5 6; do \
+        pip3 install --no-cache-dir --index-url "${PIP_INDEX_URL}" -e /opt/sam2 && break \
+            || echo "### sam2 install attempt ${attempt} failed"; \
+    done; \
+    python3 - <<'PY'
+import pathlib, time, urllib.request
+
+target = pathlib.Path('/opt/sam2/checkpoints/sam2.1_hiera_tiny.pt')
+target.parent.mkdir(parents=True, exist_ok=True)
+# SAM2.1 checkpoints live under the 092824 prefix; the 072824 prefix only holds
+# the original SAM2 checkpoints and answers 403 for sam2.1_*.
+url = 'https://dl.fbaipublicfiles.com/segment_anything_2/092824/sam2.1_hiera_tiny.pt'
+for attempt in range(1, 7):
+    try:
+        urllib.request.urlretrieve(url, target)
+        break
+    except Exception as exc:  # transient proxy/CDN hiccups
+        print(f'### checkpoint download attempt {attempt} failed: {exc}')
+        time.sleep(5)
+else:
+    raise SystemExit('SAM2 checkpoint download failed')
+print('checkpoint bytes:', target.stat().st_size)
+PY
+
 RUN rosdep update --rosdistro humble
 
 COPY docker/entrypoint.sh /piper_entrypoint.sh

@@ -8,6 +8,8 @@ simulation_servo_adapter:
     upper_limits_rad: [2.6179938, 3.1415926, 0.0, 1.7453292, 1.2217304, 2.0943951]
     # This adapter only leads Servo's rolling 20 ms position targets.  Planned
     # MoveIt trajectories continue to reach the controller directly.
-    position_gain: 2.0
+    # Fortress fixes position_proportional_gain at 0.1. Compensate that
+    # attenuation here; keep the 0.08 rad lead cap and joint limits.
+    position_gain: 10.0
     maximum_lead_rad: 0.08
     joint_state_timeout_seconds: 0.20

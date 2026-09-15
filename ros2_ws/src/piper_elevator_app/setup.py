@@ -33,6 +33,7 @@ setup(
     license='Apache-2.0',
     entry_points={
         'console_scripts': [
+            'button_select = piper_elevator_app.button_select:main',
             (
                 'pika_fisheye_camera = '
                 'piper_elevator_app.pika_fisheye_camera:main'
@@ -40,6 +41,10 @@ setup(
             (
                 'button_detector = '
                 'piper_elevator_app.yolo_button_detector:main'
+            ),
+            (
+                'sam2_button_tracker = '
+                'piper_elevator_app.sam2_button_tracker:main'
             ),
             (
                 'button_approach_planner = '
@@ -68,6 +73,10 @@ setup(
             (
                 'piper_pika_control_gate = '
                 'piper_elevator_app.control_gate:main'
+            ),
+            (
+                'simulation_servo_adapter = '
+                'piper_elevator_app.simulation_servo_adapter:main'
             ),
         ],
     },

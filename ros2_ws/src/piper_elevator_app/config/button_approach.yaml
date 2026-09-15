@@ -73,9 +73,11 @@ button_approach_planner:
     joint_state_max_age_seconds: 0.5
     home_execution_retries: 2
     home_retry_delay_seconds: 0.15
-    target_max_age_seconds: 1.0
+    # Debugging often pauses between ~/plan and ~/execute. Keep the frozen
+    # target usable during that pause; execution still rechecks drift and TF.
+    target_max_age_seconds: 30.0
     surface_normal_max_age_seconds: 0.5
-    plan_max_age_seconds: 120.0
+    plan_max_age_seconds: 600.0
     max_target_drift_m: 0.03
     maximum_execution_orientation_error_rad: 0.35
     workspace_min:
@@ -91,7 +93,12 @@ button_approach_planner:
     allow_execution: false
     auto_plan_execute: false
     camera_frame: camera_color_optical_frame
+    camera_optical_frame: camera_color_optical_frame
     camera_info_topic: /camera/color/camera_info
+    visibility_constraint_enabled: true
+    fov_margin_px: 60.0
+    fov_validation_dt: 0.03
+    fov_max_replan_attempts: 5
     ik_service: /compute_ik
     fk_service: /compute_fk
     motion_plan_service: /plan_kinematic_path
@@ -107,8 +114,11 @@ button_approach_planner:
     candidate_tilt_margin_rad: 0.00872665
     maximum_camera_tilt_rad: 0.174533
     maximum_camera_roll_rad: 0.2617994
-    handover_maximum_camera_tilt_rad: 0.2617994
-    handover_maximum_camera_roll_rad: 0.2617994
+    # Allow Servo to correct the wrist/camera orientation after coarse motion
+    # reaches the button. Position, depth, drift and standoff checks remain
+    # unchanged; 0.60 rad is approximately 34.4 degrees.
+    handover_maximum_camera_tilt_rad: 0.60
+    handover_maximum_camera_roll_rad: 0.60
     handover_minimum_standoff_m: 0.08
     servo_standoff_distance_m: 0.03
     servo_maximum_start_error_m: 0.2
@@ -125,7 +135,10 @@ button_approach_planner:
     observation_position_tolerance_m: 0.008
     observation_normal_tolerance_rad: 0.0872665
     joint_goal_tolerance_rad: 0.005
-    joint_limit_margin_rad: 0.15
+    # Keep planned joint goals away from hard URDF limits; joint3's upper
+    # limit is 0 rad, so its home/trajectory targets remain on the negative
+    # side instead of relying on encoder-boundary roundoff.
+    joint_limit_margin_rad: 0.20
     joint_state_boundary_tolerance_rad: 0.0001
     trajectory_boundary_tolerance_rad: 1.0e-09
     ik_timeout_seconds: 0.05

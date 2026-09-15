@@ -127,7 +127,11 @@ def _launch_setup(context):
             '--controller-manager',
             '/controller_manager',
             '--controller-manager-timeout',
-            '60',
+            # Gazebo may take over a minute to load meshes and initialize
+            # gz_ros2_control before /controller_manager appears.  Keep the
+            # spawner alive through that startup instead of failing the whole
+            # task during a cold launch.
+            '180',
         ],
     )
 

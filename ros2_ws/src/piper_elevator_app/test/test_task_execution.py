@@ -23,6 +23,7 @@ class TaskHarness:
             'return_home_after_failure': True,
             'clear_selection_after_task': True,
             'home_timeout_seconds': 60.0,
+            'require_sam2_tracking': False,
             'planning_timeout_seconds': 30.0,
             'execution_timeout_seconds': 60.0,
             'visual_timeout_seconds': 120.0,
@@ -216,6 +217,8 @@ class PostMotionHarness(TaskHarness):
         self._detection_valid = True
         self._detection_sequence = 5
         self._surface_sequence = 5
+        self._sam2_sequence = 0
+        self._sam2_surface_sequence = 0
         self._visual_status = 'IGNORED_TARGET_JUMP'
         self._visual_status_sequence = 5
         self.selected_response = selected
