@@ -44,6 +44,7 @@ docker compose run --rm piper_ros2 bash -lc '
     ros2 pkg executables piper_elevator_app | grep -F "piper_elevator_app mock_button_pose" >/dev/null
     ros2 pkg executables piper_elevator_app | grep -F "piper_elevator_app piper_pika_control_gate" >/dev/null
     ros2 pkg executables piper_elevator_app | grep -F "piper_elevator_app piper_pika_joint_state_mux" >/dev/null
+    ros2 pkg executables piper_elevator_app | grep -F "piper_elevator_app simulation_servo_adapter" >/dev/null
     model_path="$(ros2 pkg prefix piper_elevator_app)/share/piper_elevator_app/models/elevator_buttons_yolov10s.onnx"
     test -s "${model_path}"
     MODEL_PATH="${model_path}" python3 -c "import os, numpy as np, onnxruntime as ort; assert \"CUDAExecutionProvider\" in ort.get_available_providers(), ort.get_available_providers(); session = ort.InferenceSession(os.environ[\"MODEL_PATH\"], providers=[\"CUDAExecutionProvider\", \"CPUExecutionProvider\"]); assert session.get_providers()[0] == \"CUDAExecutionProvider\", session.get_providers(); input_meta = session.get_inputs()[0]; session.run(None, {input_meta.name: np.zeros(input_meta.shape, dtype=np.float32)})"
