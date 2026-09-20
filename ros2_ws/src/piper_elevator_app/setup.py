@@ -42,6 +42,10 @@ setup(
                 'piper_elevator_app.yolo_button_detector:main'
             ),
             (
+                'button_select = '
+                'piper_elevator_app.button_select:main'
+            ),
+            (
                 'button_approach_planner = '
                 'piper_elevator_app.button_approach_planner:main'
             ),

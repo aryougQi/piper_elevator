@@ -8,6 +8,7 @@ from launch.actions import DeclareLaunchArgument
 from launch.actions import IncludeLaunchDescription
 from launch.actions import OpaqueFunction
 from launch.actions import RegisterEventHandler
+from launch.actions import TimerAction
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
@@ -131,12 +132,22 @@ def _launch_setup(context):
         ],
     )
 
+    # Fortress advertises the world create service only after the world and
+    # GUI/server plugins have finished loading.  Starting ros_gz_sim/create
+    # in the same launch tick can hit its short service wait and leave the
+    # whole stack without a robot.  Delay the request while keeping all
+    # infrastructure nodes concurrent.
+    delayed_spawn_robot = TimerAction(
+        period=5.0,
+        actions=[spawn_robot],
+    )
+
     return [
         gazebo,
         robot_state_publisher,
         bridge,
         joint_state_relay,
-        spawn_robot,
+        delayed_spawn_robot,
         RegisterEventHandler(
             OnProcessExit(
                 target_action=spawn_robot,

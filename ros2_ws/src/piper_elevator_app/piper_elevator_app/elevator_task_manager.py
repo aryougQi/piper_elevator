@@ -251,6 +251,8 @@ class ElevatorTaskManager(Node):
                 '/button_press_executor',
             ],
         )
+        self.declare_parameter('stable_target_mode', False)
+        self.declare_parameter('node_uniqueness_wait_timeout_seconds', 5.0)
         self.declare_parameter('service_wait_timeout_seconds', 60.0)
         self.declare_parameter('target_wait_timeout_seconds', 30.0)
         self.declare_parameter('planning_timeout_seconds', 45.0)
@@ -366,14 +368,35 @@ class ElevatorTaskManager(Node):
                 'plan',
                 self._seconds('planning_timeout_seconds'),
             )
-            self._phase('COARSE_EXECUTING', button)
-            # The request may move the arm before returning an error or timing
-            # out, including a failed post-motion observation check.
-            at_home = False
-            self._call_trigger(
-                'execute',
-                self._seconds('execution_timeout_seconds'),
-            )
+            # The planner deliberately rejects a cached trajectory when the
+            # detector target has aged out.  This can happen in simulation
+            # when a service response arrives just after the one-second target
+            # freshness boundary.  Reacquire and replan once; never replay a
+            # trajectory against an old observation.
+            for coarse_attempt in range(2):
+                self._phase('COARSE_EXECUTING', button)
+                # The request may move the arm before returning an error or
+                # timing out, including a failed post-motion check.
+                at_home = False
+                try:
+                    self._call_trigger(
+                        'execute',
+                        self._seconds('execution_timeout_seconds'),
+                    )
+                    break
+                except TaskFailure as error:
+                    stale_target = 'Target is stale' in str(error)
+                    if not stale_target or coarse_attempt:
+                        raise
+                    self._publish_status(
+                        'COARSE_REACQUIRING: execute rejected a stale target'
+                    )
+                    self._select_and_wait_for_target(button)
+                    self._phase('COARSE_REPLANNING', button)
+                    self._call_trigger(
+                        'plan',
+                        self._seconds('planning_timeout_seconds'),
+                    )
 
             self._phase('WAITING_FOR_VISUAL_TARGET', button)
             self._wait_for_post_motion_target(button)
@@ -444,20 +467,37 @@ class ElevatorTaskManager(Node):
                     raise TaskFailure(f'required service unavailable: {key}')
 
     def _ensure_unique_nodes(self):
-        names = []
-        for name, namespace in self.get_node_names_and_namespaces():
-            prefix = namespace.rstrip('/')
-            names.append(f'{prefix}/{name}' if prefix else f'/{name}')
-        duplicates = []
-        for required in self.get_parameter('required_unique_nodes').value:
-            count = names.count(str(required))
-            if count != 1:
-                duplicates.append(f'{required} count={count}')
-        if duplicates:
-            raise TaskFailure(
-                'dependency node uniqueness check failed: '
-                + ', '.join(duplicates)
-            )
+        required_nodes = [
+            str(value)
+            for value in self.get_parameter('required_unique_nodes').value
+        ]
+        if bool(self.get_parameter('stable_target_mode').value):
+            required_nodes = [
+                value for value in required_nodes
+                if value != '/button_detector'
+            ]
+        deadline = time.monotonic() + float(
+            self.get_parameter('node_uniqueness_wait_timeout_seconds').value
+        )
+        while True:
+            names = []
+            for name, namespace in self.get_node_names_and_namespaces():
+                prefix = namespace.rstrip('/')
+                names.append(f'{prefix}/{name}' if prefix else f'/{name}')
+            duplicates = []
+            for required in required_nodes:
+                count = names.count(required)
+                if count != 1:
+                    duplicates.append(f'{required} count={count}')
+            if not duplicates:
+                return
+            if time.monotonic() >= deadline:
+                raise TaskFailure(
+                    'dependency node uniqueness check failed: '
+                    + ', '.join(duplicates)
+                )
+            self._check_stopped()
+            time.sleep(0.1)
 
     def _select_and_wait_for_target(self, button):
         with self._condition:
