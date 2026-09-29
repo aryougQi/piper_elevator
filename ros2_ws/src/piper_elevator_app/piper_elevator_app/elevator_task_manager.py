@@ -421,7 +421,13 @@ class ElevatorTaskManager(Node):
             self._publish_active_button('')
             self._publish_completion(success and at_home)
             if success and at_home:
-                result = f'COMPLETE: button={button} pressed; home reached'
+                press_status = getattr(self, '_press_status', '')
+                result = (
+                    f'COMPLETE: button={button} geometry travel completed; '
+                    'actuation unverified; home reached'
+                    if 'geometry travel completed' in press_status
+                    else f'COMPLETE: button={button} pressed; home reached'
+                )
                 self._publish_result(result)
                 self._publish_status(result)
             else:

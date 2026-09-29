@@ -127,6 +127,11 @@ def generate_launch_description():
             'simulation_mode': 'false',
             'allow_execution': LaunchConfiguration('allow_execution'),
             'hardware_gate_required': 'true',
+            'contact_detection_mode': 'stall',
+            'geometry_press_enabled': 'true',
+            'geometry_press_surface_travel_m': LaunchConfiguration(
+                'geometry_press_surface_travel_m'
+            ),
         }.items(),
     )
 
@@ -139,6 +144,9 @@ def generate_launch_description():
             'camera_serial_no', default_value='_315122272433'
         ),
         DeclareLaunchArgument('speed_percent', default_value='10'),
+        DeclareLaunchArgument(
+            'geometry_press_surface_travel_m', default_value='0.030',
+        ),
         DeclareLaunchArgument(
             'pika_tcp_offset',
             default_value='[0.006, 0.0, 0.189, 0.0, 0.0, 0.0]',

@@ -10,6 +10,8 @@ button_visual_servo:
     # 由已验证粗定位结果一次性交接近景按钮/法向；手动 start 同样需要授权。
     coarse_handover_service: /button_approach_planner/claim_servo
     handover_claim_timeout_seconds: 2.0
+    # 粗定位已验证的近景目标在短暂丢帧时可完成交接，原始时间戳仍保留。
+    cached_coarse_target_max_age_seconds: 10.0
     stop_timeout_seconds: 8.0
     target_pose_topic: /button_visual_servo/target_pose
     status_topic: /button_visual_servo/status
@@ -38,8 +40,8 @@ button_visual_servo:
     lateral_tolerance_m: 0.0030
     perpendicular_tolerance_rad: 0.05236
     # 三阶段连续视觉 Servo：在粗定位点保持位置不动并先对正相机；
-    # 对正后保持姿态并重新获取 RGB-D，确认同一按钮后才连续修正横向
-    # 位置并靠近 30 mm 按压预备点。
+    # 对正后保持姿态并重新获取 RGB-D；短时丢帧时，仅在锁定目标的
+    # 距离、横向、姿态和行程边界内继续靠近 30 mm 按压预备点。
     required_alignment_observations: 2
     # 转腕期间允许使用粗定位验收后交接的静态按钮法向，只发布角速度且绝不
     # 平移；连续稳定后进入显式 REACQUIRING 阶段。
@@ -57,7 +59,10 @@ button_visual_servo:
     required_stable_observations: 2
     # 最终靠近保持已锁姿态；新法向偏差超限立即保持零速度，连续新帧
     # 冲突则退出并重新估计。重复帧或失视不能解除保持或累计冲突次数。
-    maximum_normal_change_rad: 0.17453292519943295
+    # 10 deg 会让仿真中段按钮在临界处误判（实测 `2` 三次都在
+    # 10.45~10.96 deg，只超限 4.5%~9.6%）；放宽到 12 deg，仍小于
+    # handover_maximum_camera_tilt_rad 的 15 deg 包络。
+    maximum_normal_change_rad: 0.2094395102393195
     required_conflicting_normal_observations: 3
 
     maximum_start_error_m: 0.20
@@ -71,6 +76,17 @@ button_visual_servo:
     # 禁止在运动的相机坐标系中平滑，否则闭环会追逐伪运动目标。
     world_position_smoothing_alpha: 0.25
     world_normal_smoothing_alpha: 0.20
+    # 锁定粗规划交接的 base_link 目标；只用连续一致的新 RGB-D 帧小幅修正。
+    target_correction_observations: 3
+    target_correction_consistency_m: 0.004
+    target_correction_max_step_m: 0.002
+    # 姿态对齐后可靠锁定目标到 8 cm；优先重新确认视觉。
+    locked_approach_standoff_m: 0.080
+    # 粗规划最长可在 0.14+0.06=0.20 m 交接，至 0.08 m 需 0.12 m 行程。
+    locked_approach_max_travel_m: 0.125
+    locked_approach_speed_mps: 0.012
+    # Gazebo 控制器实际位移慢于笛卡尔速度指令；仅仿真放大限速。
+    simulation_locked_approach_speed_multiplier: 3.0
     servo_timeout_seconds: 90.0
     # start 服务只在视觉阶段真正结束（对准完成或失败）后返回，避免调用方把
     # “已启动”误当成“已对准”。该上限只需略大于 servo_timeout_seconds。

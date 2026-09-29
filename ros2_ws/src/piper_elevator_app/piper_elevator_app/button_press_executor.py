@@ -246,34 +246,35 @@ class ButtonPressExecutor(Node):
         )
         self.declare_parameter(
             'simulation_button_names',
-            ['1', '2', '3', '4', 'up', 'down', 'open', 'close', 'alarm'],
+            ['alarm', 'intercom', '3', '2', '1', 'open', 'close', 'up',
+             'down'],
         )
         self.declare_parameter(
             'simulation_button_joint_names',
             [
-                'button_1_press_joint',
-                'button_2_press_joint',
+                'button_alarm_press_joint',
+                'button_intercom_press_joint',
                 'button_3_press_joint',
-                'button_4_press_joint',
-                'button_up_press_joint',
-                'button_down_press_joint',
+                'button_2_press_joint',
+                'button_1_press_joint',
                 'button_open_press_joint',
                 'button_close_press_joint',
-                'button_alarm_press_joint',
+                'button_up_press_joint',
+                'button_down_press_joint',
             ],
         )
         self.declare_parameter(
             'simulation_contacts_topics',
             [
-                '/elevator_button/button_1/contacts',
-                '/elevator_button/button_2/contacts',
+                '/elevator_button/button_alarm/contacts',
+                '/elevator_button/button_intercom/contacts',
                 '/elevator_button/button_3/contacts',
-                '/elevator_button/button_4/contacts',
-                '/elevator_button/button_up/contacts',
-                '/elevator_button/button_down/contacts',
+                '/elevator_button/button_2/contacts',
+                '/elevator_button/button_1/contacts',
                 '/elevator_button/button_open/contacts',
                 '/elevator_button/button_close/contacts',
-                '/elevator_button/button_alarm/contacts',
+                '/elevator_button/button_up/contacts',
+                '/elevator_button/button_down/contacts',
             ],
         )
         self.declare_parameter('base_frame', 'base_link')
@@ -607,18 +608,29 @@ class ButtonPressExecutor(Node):
                 return response
             try:
                 self._make_contact_detector()
-                if (
-                    self._geometry_press_enabled()
-                    and self._geometry_press_travel()
-                    > float(
-                        self.get_parameter(
-                            'maximum_approach_travel_m'
-                        ).value
-                    )
-                ):
-                    raise ValueError(
-                        'geometry press travel exceeds maximum_approach_travel_m'
-                    )
+                if self._geometry_press_enabled():
+                    if self._contact_mode() != 'stall':
+                        raise ValueError(
+                            'geometry press requires contact_detection_mode=stall'
+                        )
+                    surface_travel = float(self.get_parameter(
+                        'geometry_press_surface_travel_m'
+                    ).value)
+                    extension = float(self.get_parameter(
+                        'press_extension_m'
+                    ).value)
+                    maximum = float(self.get_parameter(
+                        'maximum_approach_travel_m'
+                    ).value)
+                    if (not all(map(math.isfinite, (
+                            surface_travel, extension, maximum)))
+                            or surface_travel <= 0.0 or extension < 0.0
+                            or maximum <= 0.0
+                            or surface_travel + extension > maximum):
+                        raise ValueError(
+                            'geometry press travel must be finite, positive, '
+                            'and within maximum_approach_travel_m'
+                        )
             except ValueError as error:
                 response.success = False
                 response.message = f'Invalid press configuration: {error}'
@@ -878,8 +890,9 @@ class ButtonPressExecutor(Node):
                 simulation_button,
             )
             self._publish_status(
-                'CONTACT_DETECTED '
-                f'button={simulation_button or "real"} '
+                ('GEOMETRY_TRAVEL_REACHED' if not simulation
+                 and self._geometry_press_enabled() else 'CONTACT_DETECTED')
+                + f' button={simulation_button or "real"} '
                 f'travel={contact_travel * 1000.0:.1f}mm'
             )
             if simulation:
@@ -922,10 +935,16 @@ class ButtonPressExecutor(Node):
                     simulation_button,
                 )
             completed = True
-            final_status = (
-                'COMPLETE: '
-                f'button={simulation_button or "real"} pressed and retracted'
-            )
+            if not simulation and self._geometry_press_enabled():
+                final_status = (
+                    'COMPLETE: button=real geometry travel completed and '
+                    'retracted; actuation unverified'
+                )
+            else:
+                final_status = (
+                    'COMPLETE: '
+                    f'button={simulation_button or "real"} pressed and retracted'
+                )
         except PressFailure as error:
             final_status = f'FAILED: {error}'
             if (
@@ -1030,9 +1049,18 @@ class ButtonPressExecutor(Node):
             self._make_stall_detector()
             if self._stall_detection_enabled() else None
         )
-        commanded_speed = self._motion_speed('approach_speed_mps')
         while not self._stop_event.is_set():
             position, travel = self._guard_motion(start, direction)
+            if geometry_press and travel > min(
+                float(self.get_parameter('maximum_approach_travel_m').value),
+                travel_limit + 0.001,
+            ):
+                self._publish_zero_twist()
+                raise PressFailure(
+                    'geometry press exceeded travel target: '
+                    f'travel={travel * 1000.0:.1f}mm '
+                    f'target={travel_limit * 1000.0:.1f}mm'
+                )
             if travel >= travel_limit:
                 if geometry_press:
                     # Geometry press: 'surface + press depth' is the intended
@@ -1049,8 +1077,22 @@ class ButtonPressExecutor(Node):
                     f'travel={travel * 1000.0:.1f}mm '
                     f'limit={travel_limit * 1000.0:.1f}mm'
                 )
+            speed_parameter = (
+                'press_speed_mps'
+                if geometry_press and travel >= float(self.get_parameter(
+                    'geometry_press_surface_travel_m'
+                ).value)
+                else 'approach_speed_mps'
+            )
+            commanded_speed = self._motion_speed(speed_parameter)
             if stall is not None and stall.update(travel, commanded_speed):
                 self._publish_zero_twist()
+                if geometry_press:
+                    raise PressFailure(
+                        'motion stalled before geometry press target: '
+                        f'travel={travel * 1000.0:.1f}mm '
+                        f'target={travel_limit * 1000.0:.1f}mm'
+                    )
                 self._publish_status(
                     'CONTACT_DETECTED_BY_STALL '
                     f'travel={travel * 1000.0:.1f}mm'
@@ -1107,7 +1149,7 @@ class ButtonPressExecutor(Node):
                     start,
                     position,
                     direction,
-                    'approach_speed_mps',
+                    speed_parameter,
                 )
             )
             self._wait_period()

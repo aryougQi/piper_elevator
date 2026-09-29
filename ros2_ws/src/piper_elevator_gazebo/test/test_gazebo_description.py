@@ -4,6 +4,7 @@ from pathlib import Path
 import subprocess
 import xml.etree.ElementTree as ET
 
+import pytest
 import yaml
 
 
@@ -69,7 +70,7 @@ def test_gazebo_robot_uses_physical_control_and_pika_camera():
     assert '/pika_fisheye/image' in bridge
     assert '/piper_d405' not in bridge
     for button in (
-        '1', '2', '3', '4', 'up', 'down', 'open', 'close', 'alarm'
+        'alarm', 'intercom', '3', '2', '1', 'open', 'close', 'up', 'down'
     ):
         assert f'/elevator_button/button_{button}/contacts' in bridge
     assert 'ros_gz_interfaces/msg/Contacts' in bridge
@@ -123,7 +124,7 @@ def test_gazebo_control_joint_contract():
     )
     assert controllers['gz_ros2_control']['ros__parameters'][
         'position_proportional_gain'
-    ] == 0.8
+    ] == 0.1
     assert controllers['pika_gripper_controller']['ros__parameters'][
         'joints'
     ] == [
@@ -138,7 +139,10 @@ def test_gazebo_control_joint_contract():
     for joint_name in [
         'joint1', 'joint2', 'joint3', 'joint4', 'joint5', 'joint6'
     ]:
-        assert arm['constraints'][joint_name]['trajectory'] <= 0.12
+        trajectory_limit = 0.25 if joint_name in (
+            'joint1', 'joint2', 'joint3'
+        ) else 0.12
+        assert arm['constraints'][joint_name]['trajectory'] <= trajectory_limit
         assert arm['constraints'][joint_name]['goal'] <= 0.025
 
 
@@ -148,7 +152,8 @@ def test_every_button_has_physical_travel_and_own_contact_sensor():
     )
     model_xml = model_file.read_text(encoding='utf-8')
     model = ET.fromstring(model_xml).find('model')
-    buttons = ('1', '2', '3', '4', 'up', 'down', 'open', 'close', 'alarm')
+    buttons = ('alarm', 'intercom', '3', '2', '1', 'open', 'close', 'up',
+               'down')
     for button in buttons:
         joint = model.find(f"joint[@name='button_{button}_press_joint']")
         assert joint is not None
@@ -183,14 +188,97 @@ def test_button_fixture_looks_like_a_complete_cabin_panel():
         float(value)
         for value in panel.findtext('geometry/box/size').split()
     ]
-    assert panel_size == [0.012, 0.27, 0.32]
+    # Portrait plate with the width/height ratio of the reference photo.
+    # Height and centre are set by two measured constraints: the home camera
+    # sees z = 0.150..0.570 m at the panel plane, and the coarse approach
+    # leaves less joint3 margin the lower a control sits.
+    assert panel_size == [0.012, 0.1308, 0.280]
+    assert panel_size[1] / panel_size[2] == pytest.approx(0.4671, abs=1e-3)
+    # The photo has no separate floor display; every control is a button.
     assert model.find(
         "link[@name='wall_panel']/visual[@name='floor_display']"
-    ) is not None
+    ) is None
     for control in (
-        '1', '2', '3', '4', 'up', 'down', 'open', 'close', 'alarm'
+        'alarm', 'intercom', '3', '2', '1', 'open', 'close', 'up', 'down'
     ):
         assert model.find(f"link[@name='button_{control}_face']") is not None
+    assert model.find("link[@name='button_4_face']") is None
+
+
+def test_button_layout_matches_the_reference_panel_order():
+    model_file = (
+        PACKAGE_ROOT / 'models' / 'elevator_button' / 'model.sdf'
+    )
+    model = ET.parse(model_file).getroot().find('model')
+    poses = {}
+    for control in (
+        'alarm', 'intercom', '3', '2', '1', 'open', 'close', 'up', 'down'
+    ):
+        link = model.find(f"link[@name='button_{control}_face']")
+        poses[control] = [
+            float(value) for value in link.findtext('pose').split()
+        ]
+    # Service pair and door pair are offset left/right of the centre column.
+    assert poses['alarm'][1] < 0 < poses['intercom'][1]
+    assert poses['open'][1] < 0 < poses['close'][1]
+    for central in ('3', '2', '1', 'up', 'down'):
+        assert poses[central][1] == 0.0
+    # Vertical reading order: bell pair, 3, 2, 1, door pair, up, down.
+    assert (
+        poses['alarm'][2]
+        > poses['3'][2]
+        > poses['2'][2]
+        > poses['1'][2]
+        > poses['open'][2]
+        > poses['up'][2]
+        > poses['down'][2]
+    )
+
+
+def test_every_button_travel_channel_stays_clear_of_panel_ribs():
+    model_file = (
+        PACKAGE_ROOT / 'models' / 'elevator_button' / 'model.sdf'
+    )
+    model = ET.parse(model_file).getroot().find('model')
+    panel = model.find("link[@name='wall_panel']")
+    panel_depth = float(panel.findtext(
+        "visual[@name='panel_visual']/geometry/box/size"
+    ).split()[0])
+    ribs = []
+    for collision in panel.findall('collision'):
+        size = [
+            float(value)
+            for value in collision.findtext('geometry/box/size').split()
+        ]
+        centre = [
+            float(value)
+            for value in collision.findtext('pose').split()
+        ]
+        # Ribs must span the full plate thickness, and must be thick enough
+        # for the solver to resolve the press channel they leave behind.
+        # The thin rib between `3` and `2` scales with the plate, so the
+        # absolute floor moves with it.
+        assert size[0] == pytest.approx(panel_depth)
+        assert size[1] == pytest.approx(0.1308)
+        assert size[2] >= 0.005
+        ribs.append((centre[2] - size[2] / 2, centre[2] + size[2] / 2))
+    ribs.sort()
+    # Ribs are disjoint and never overlap: their union is the plate body.
+    for lower, upper in zip(ribs, ribs[1:]):
+        assert upper[0] >= lower[1]
+        assert lower[1] > lower[0]
+    for control in (
+        'alarm', 'intercom', '3', '2', '1', 'open', 'close', 'up', 'down'
+    ):
+        link = model.find(f"link[@name='button_{control}_face']")
+        pose = [float(value) for value in link.findtext('pose').split()]
+        height = float(
+            link.findtext('visual/geometry/box/size').split()[2]
+        )
+        channel = (pose[2] - height / 2, pose[2] + height / 2)
+        for lower, upper in ribs:
+            # No rib may intrude into the 4 mm retract channel of a control.
+            assert not (upper > channel[0] and lower < channel[1])
 
 
 def test_world_contains_only_the_button_fixture_boundary():

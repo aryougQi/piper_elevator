@@ -1,0 +1,89 @@
+<?xml version="1.0"?>
+<sdf version="1.8">
+  <world name="button_press">
+    <physics name="1ms" type="ignored">
+      <max_step_size>0.001</max_step_size>
+      <real_time_factor>1.0</real_time_factor>
+    </physics>
+
+    <plugin
+      filename="ignition-gazebo-physics-system"
+      name="ignition::gazebo::systems::Physics"/>
+    <plugin
+      filename="ignition-gazebo-user-commands-system"
+      name="ignition::gazebo::systems::UserCommands"/>
+    <plugin
+      filename="ignition-gazebo-scene-broadcaster-system"
+      name="ignition::gazebo::systems::SceneBroadcaster"/>
+    <plugin
+      filename="ignition-gazebo-sensors-system"
+      name="ignition::gazebo::systems::Sensors">
+      <render_engine>ogre2</render_engine>
+    </plugin>
+    <plugin
+      filename="ignition-gazebo-contact-system"
+      name="ignition::gazebo::systems::Contact"/>
+
+    <light name="key_light" type="directional">
+      <pose>0 0 3 0 0 0</pose>
+      <cast_shadows>true</cast_shadows>
+      <intensity>1.2</intensity>
+      <direction>-0.7 -0.55 -0.8</direction>
+      <diffuse>0.95 0.95 0.95 1</diffuse>
+      <specular>0.2 0.2 0.2 1</specular>
+    </light>
+    <light name="fill_light" type="point">
+      <pose>-0.4 -0.5 0.9 0 0 0</pose>
+      <intensity>0.35</intensity>
+      <diffuse>0.8 0.85 1.0 1</diffuse>
+      <attenuation>
+        <range>5</range>
+        <constant>0.5</constant>
+        <linear>0.1</linear>
+        <quadratic>0.01</quadratic>
+      </attenuation>
+    </light>
+
+    <model name="ground_plane">
+      <static>true</static>
+      <link name="ground_link">
+        <collision name="ground_collision">
+          <geometry><plane><normal>0 0 1</normal><size>5 5</size></plane></geometry>
+        </collision>
+        <visual name="ground_visual">
+          <geometry><plane><normal>0 0 1</normal><size>5 5</size></plane></geometry>
+          <material>
+            <ambient>0.55 0.55 0.55 1</ambient>
+            <diffuse>0.65 0.65 0.65 1</diffuse>
+          </material>
+        </visual>
+      </link>
+    </model>
+
+    <include>
+      <uri>model://elevator_button</uri>
+      <name>elevator_button</name>
+      <!-- A small lateral workcell offset avoids placing the center column
+           on a perfectly symmetric wrist/elbow singularity. -->
+      <!-- 面板改为参考照片的竖版比例（0.1308 x 0.280 m），中心抬到 z = 0.43 m，
+           板体覆盖 z = 0.290..0.570 m。两个约束来自实测：
+           1) home 姿态相机在面板平面只看到 z = 0.150..0.570 m。0.43 m 是板高
+              0.28 m 时"整块板体都进画面"的最大中心高度；再高就会裁掉板顶空白边
+              （0.44 m 试过：可操作键仍在画内，但警铃/对讲瓷砖被切）。
+           2) 粗定位留给 joint3 的余量随控件高度下降而单调变小（实测 `3` 为
+              0.729 rad、`up` 只剩 0.342 rad、`down` 直接失败），所以最下方
+              控件要尽量抬高。抬高后 `down` 从 0.269 m 升到 0.316 m。
+           要继续抬高必须同步缩板高（0.44→0.26 m、0.45→0.24 m），但按钮会从
+           29.1 mm 缩到 27.0/24.9 mm，检测余量下降，因此停在 0.43 m。 -->
+      <pose>0.55 0.03 0.43 0 0 3.14159265359</pose>
+    </include>
+
+    <include>
+      <uri>model://cabin_wall</uri>
+      <name>cabin_wall</name>
+      <!-- 大理石墙紧贴面板背面：面板背面在 x = 0.556，12 mm 厚的板占
+           0.556..0.568。纯视觉，不参与碰撞，避免挡住机械臂和相机。 -->
+      <pose>0.562 0.03 0.43 0 0 3.14159265359</pose>
+    </include>
+  </world>
+</sdf>

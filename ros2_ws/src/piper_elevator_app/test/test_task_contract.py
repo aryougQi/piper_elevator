@@ -142,9 +142,10 @@ def test_real_driver_separates_planned_and_streaming_control_modes():
     ).read_text()
 
     assert '"servo_control_enable"' in driver
-    assert 'motion_mode="j"' in driver
-    assert 'motion_mode="js"' in driver
-    assert 'self._external_control_mode == "servo"' in driver
+    assert '"js" if self._external_control_mode == "servo"' in driver
+    assert 'else "j"' in driver
+    assert 'self.agx_arm.move_j(joints)' in driver
+    assert 'self.agx_arm.move_js(joints)' in driver
     assert "'trajectory': self.create_client(" in gate
     assert "'servo': self.create_client(" in gate
     assert 'Servo authorization rejected while trajectory control' in gate

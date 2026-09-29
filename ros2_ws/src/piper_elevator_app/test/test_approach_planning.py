@@ -246,6 +246,97 @@ def test_ik_checks_collisions_both_wrist_branches_and_ranks_safe_solutions():
     ]
 
 
+def test_candidate_ranking_prefers_current_tcp_pose_when_joint_cost_is_close():
+    planner = PlannerHarness()
+    observed = observation()
+    observed['selected_button'] = '2'
+    targets = list(planner._candidate_poses(observed))[:2]
+    near = copy.deepcopy(targets[0])
+    far = copy.deepcopy(targets[1])
+    far.pose.position.x += 0.25
+    planner._candidate_poses = lambda _: iter([near, far])
+    planner._fk_pose = lambda _joints, **_kwargs: copy.deepcopy(near)
+    current = planner._latest_joint_positions
+    near_joints = dict(current, joint1=0.30)
+    far_joints = dict(current)
+
+    def solve(_client, request, _deadline):
+        target = request.ik_request.pose_stamped
+        joints = near_joints if math.isclose(
+            target.pose.position.x, near.pose.position.x,
+        ) else far_joints
+        return ik_result(joints)
+
+    planner._call_moveit_service = solve
+    candidates = planner._solve_visible_candidates(observed)
+
+    assert [item[1] for item in candidates] == [near_joints, far_joints]
+    assert planner._last_ik_search_diagnostic[
+        'current_tcp_pose_available'
+    ]
+
+
+def test_candidate_ranking_prefers_same_button_success_and_isolates_buttons():
+    planner = PlannerHarness()
+    observed = observation()
+    observed['selected_button'] = '2'
+    targets = list(planner._candidate_poses(observed))[:2]
+    history_target = copy.deepcopy(targets[0])
+    alternate_target = copy.deepcopy(targets[1])
+    alternate_target.pose.position.x += 0.25
+    planner._candidate_poses = lambda _: iter([
+        history_target, alternate_target,
+    ])
+    history_joints = dict(planner._latest_joint_positions, joint1=0.80)
+    alternate_joints = dict(planner._latest_joint_positions)
+    planner._remember_successful_coarse_pose(
+        '2', history_target, history_target, history_joints,
+    )
+
+    def solve(_client, request, _deadline):
+        target = request.ik_request.pose_stamped
+        joints = history_joints if math.isclose(
+            target.pose.position.x, history_target.pose.position.x,
+        ) else alternate_joints
+        return ik_result(joints)
+
+    planner._call_moveit_service = solve
+    same_button = planner._solve_visible_candidates(observed)
+    assert same_button[0][1] == history_joints
+    assert planner._last_ik_search_diagnostic['history_available']
+
+    other = copy.deepcopy(observed)
+    other['selected_button'] = '3'
+    other_button = planner._solve_visible_candidates(other)
+    assert other_button[0][1] == alternate_joints
+    assert not planner._last_ik_search_diagnostic['history_available']
+
+
+def test_success_history_expires_and_configuration_prefers_wrist_clearance():
+    planner = PlannerHarness()
+    target = next(planner._candidate_poses(observation()))
+    joints = dict(planner._latest_joint_positions)
+    planner._remember_successful_coarse_pose('2', target, target, joints)
+    assert planner._coarse_success_for_button('2')['selected_button'] == '2'
+    assert planner._coarse_success_for_button('3') is None
+    planner._coarse_success_history['2']['saved_at'] = (
+        time.monotonic()
+        - planner.values['coarse_success_history_max_age_seconds']
+        - 1.0
+    )
+    assert planner._coarse_success_for_button('2') is None
+
+    low_clearance = dict(joints, joint5=0.45)
+    high_clearance = dict(joints, joint5=0.75)
+    low_score, _ = planner._rank_coarse_candidate(
+        low_clearance, target, joints, None, None,
+    )
+    high_score, _ = planner._rank_coarse_candidate(
+        high_clearance, target, joints, None, None,
+    )
+    assert high_score < low_score
+
+
 def test_ik_stops_at_solution_count_and_expired_budget():
     planner = PlannerHarness()
     observed = observation()
@@ -297,6 +388,8 @@ def test_endpoint_checks_actual_camera_with_legacy_flags_false(failure):
 
 
 def configure_planning(planner, observed, count=3):
+    observed['selected_button'] = '2'
+    planner._selected_button = '2'
     targets = list(planner._candidate_poses(observed))[:count]
     joints = [dict(planner._latest_joint_positions, joint1=0.1 * (i + 1))
               for i in range(count)]
@@ -307,6 +400,8 @@ def configure_planning(planner, observed, count=3):
     planner._fk_pose = lambda actual: targets[min(
         range(count), key=lambda i: abs(joints[i]['joint1'] - actual['joint1'])
     )]
+    planner._last_servo_corridor_minimum_wrist = 0.5
+    planner._preview_servo_corridor = lambda result, observation: (True, 'corridor checked')
     return joints, targets
 
 
@@ -522,8 +617,8 @@ def test_normal_window_handles_depth_noise_and_invalidates_real_rotation():
     assert len(planner._observations) == 1
 
 
-@pytest.mark.parametrize('drift, succeeds', [(0.0, True), (0.05, False)])
-def test_endpoint_waits_for_recovery_and_rechecks_original_target(monkeypatch, drift, succeeds):
+@pytest.mark.parametrize('drift', [0.0, 0.05])
+def test_plan_keeps_frozen_target_when_later_window_disappears(monkeypatch, drift):
     planner = PlannerHarness()
     observed = observation()
     joints, _ = configure_planning(planner, observed, count=1)
@@ -540,10 +635,8 @@ def test_endpoint_waits_for_recovery_and_rechecks_original_target(monkeypatch, d
     planner._plan_constraints = plan
     monkeypatch.setattr('piper_elevator_app.button_approach_planner.time.sleep', recover)
     result = planner._plan_callback(None, Trigger.Response())
-    assert result.success is succeeds, result.message
-    if not succeeds:
-        assert 'Target changed' in result.message
-        assert planner._planned_trajectory is None
+    assert result.success, result.message
+    assert planner._planned_button == pytest.approx(observed['button'])
 
 
 def test_normal_filter_is_in_base_frame_when_camera_rotates():

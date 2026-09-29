@@ -158,6 +158,9 @@ def test_changed_normal_is_accepted_when_current_camera_geometry_is_safe(planner
     assert planner.frames == 8
     assert planner.clock[0] == pytest.approx(100.4)
     assert planner._last_execution_diagnostic
+    history = planner._coarse_success_for_button('2')
+    assert history is not None
+    assert history['joints'] == planner._latest_joint_positions
 
 
 def test_handover_accepts_servo_capture_angle_without_relaxing_planning(planner):

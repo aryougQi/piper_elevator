@@ -1,9 +1,24 @@
 #!/usr/bin/env python3
-"""Generate deterministic, realistic elevator-button simulation textures."""
+"""Generate deterministic, realistic elevator-button simulation textures.
+
+The layout mirrors the reference cabin panel photo:
+
+    [ bell ]  [ handset ]     alarm / intercom service pair
+                [  3  ]
+                [  2  ]
+                [  1  ]
+    [ open ]  [ close ]       door pair
+                [  ^  ]
+                [  v  ]
+
+Every control is a black machined tile with a recessed near-black face, so the
+button texture also carries the bezel that the reference photo shows. Run on
+the host (needs Pillow/numpy); outputs are committed so the container never
+renders textures at launch time.
+"""
 
 from pathlib import Path
 
-import cv2
 import numpy as np
 from PIL import Image, ImageDraw, ImageFilter, ImageFont
 
@@ -18,22 +33,132 @@ MODEL_ROOT = (
     / 'elevator_button'
 )
 TEXTURE_ROOT = MODEL_ROOT / 'textures'
-BUTTONS = ('1', '2', '3', '4', 'up', 'down', 'open', 'close', 'alarm')
+WALL_MODEL_ROOT = (
+    PROJECT_ROOT
+    / 'ros2_ws'
+    / 'src'
+    / 'piper_elevator_gazebo'
+    / 'models'
+    / 'cabin_wall'
+)
+WALL_TEXTURE_ROOT = WALL_MODEL_ROOT / 'textures'
+
+# Reading order of the reference panel, top row first.
+BUTTONS = (
+    'alarm', 'intercom', '3', '2', '1', 'open', 'close', 'up', 'down',
+)
 FONT_REGULAR = Path('/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf')
 FONT_BOLD = Path('/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf')
 
+# Panel geometry, kept in sync with models/elevator_button/model.sdf.
+#
+# Two measured constraints set these numbers:
+#   1. the home camera sees z = 0.150..0.570 m at the panel plane, so the
+#      plate top must stay at or below 0.570 m;
+#   2. the coarse approach leaves less joint3 margin the lower a control sits
+#      (measured: 0.729 rad for `3` down to 0.342 rad for `up`, with `down`
+#      failing outright), so the lowest control should be as high as possible.
+# 0.28 m tall at a 0.43 m centre spans 0.290..0.570 m: the whole plate is in
+# frame and `down` sits at 0.313 m instead of 0.269 m.
+#
+# The physical control faces stay at 0.033 m for the press collision and the
+# detector's field of view.  The visible tile is drawn with the smaller ratio
+# from the reference photo, while the surrounding texture matches the steel
+# plate instead of producing a grey square around every button.
+# Seven 0.033 m rows need 0.231 m and six 6 mm gaps need 0.036 m: that fits
+# the 0.28 m plate with 6.5 mm top and bottom margins, so row centres are
+# uniform at +-0.117 / +-0.078 / +-0.039 / 0.
+# The plate width/height ratio stays 0.467, taken from the photo.
+PANEL_WIDTH_M = 0.1308
+PANEL_HEIGHT_M = 0.280
+BUTTON_FACE_M = 0.033
+PAIR_OFFSET_M = 0.0298
+BUTTON_LOCAL_Z = {
+    'alarm': 0.117,
+    'intercom': 0.117,
+    '3': 0.078,
+    '2': 0.039,
+    '1': 0.0,
+    'open': -0.039,
+    'close': -0.039,
+    'up': -0.078,
+    'down': -0.117,
+}
 
-def _brushed_steel(size, seed=7):
+# Button face palette taken from the photo.
+TILE_FILL = (27, 28, 30)
+TILE_EDGE_LIGHT = (104, 107, 110)
+TILE_EDGE_DARK = (9, 9, 10)
+FACE_FILL = (11, 11, 12)
+FACE_EDGE = (62, 64, 67)
+INK = (238, 239, 241)
+INK_SOFT_OUTLINE = (92, 94, 97)
+BELL_INK = (250, 198, 40)
+OPEN_INK = (56, 166, 62)
+
+
+def _brushed_steel(size, seed=7, base=(96.0, 101.0, 106.0), grain=1.4):
     """Return a subtle brushed stainless-steel RGB texture."""
     rng = np.random.default_rng(seed)
     height, width = size[1], size[0]
-    horizontal = rng.normal(0.0, 5.0, (1, width, 1))
-    grain = rng.normal(0.0, 1.4, (height, width, 1))
-    vertical_light = np.linspace(-10.0, 12.0, width)[None, :, None]
-    base = np.full((height, width, 3), [92.0, 98.0, 103.0])
-    tint = np.asarray([0.92, 1.0, 1.06])[None, None, :]
-    pixels = base + horizontal * tint + grain + vertical_light
+    horizontal = rng.normal(0.0, 4.5, (1, width, 1))
+    noise = rng.normal(0.0, grain, (height, width, 1))
+    vertical_light = np.linspace(-9.0, 11.0, width)[None, :, None]
+    tint = np.asarray([0.93, 1.0, 1.05])[None, None, :]
+    pixels = np.asarray(base)[None, None, :] + horizontal * tint + noise
+    pixels = pixels + vertical_light
     return Image.fromarray(np.uint8(np.clip(pixels, 0, 255)), 'RGB')
+
+
+def _render_marble(size=(1024, 1024), seed=5):
+    """Return a mid-grey marble slab with soft light veins.
+
+    Gazebo has no image-based lighting here, so diffuse albedo is the only
+    thing the camera sees: a near-black base renders as a black wall.  Keep
+    the slab around mid grey and blur the veins so it reads as polished stone
+    instead of speckled noise.
+    """
+    rng = np.random.default_rng(seed)
+    width, height = size
+
+    coarse = rng.normal(0.0, 1.0, (height // 16, width // 16))
+    coarse = np.uint8(np.clip(128.0 + coarse * 44.0, 0, 255))
+    cloud = np.asarray(
+        Image.fromarray(coarse, 'L').resize(size, Image.Resampling.BICUBIC),
+        dtype=np.float64,
+    )
+    base = 104.0 + (cloud - 128.0) * 0.18
+    grain = rng.normal(0.0, 1.1, (height, width))
+    pixels = np.stack(
+        [base * 0.98 + grain, base + grain, base * 1.03 + grain],
+        axis=-1,
+    )
+    image = Image.fromarray(np.uint8(np.clip(pixels, 0, 255)), 'RGB')
+
+    veins = Image.new('L', size, 0)
+    vein_draw = ImageDraw.Draw(veins)
+    for _ in range(16):
+        x = float(rng.uniform(0.0, width))
+        y = float(rng.uniform(0.0, height))
+        heading = float(rng.uniform(0.0, 2.0 * np.pi))
+        stroke = int(rng.integers(2, 5))
+        for _step in range(int(rng.integers(50, 110))):
+            heading += float(rng.normal(0.0, 0.30))
+            nx = x + float(np.cos(heading)) * float(rng.uniform(8.0, 24.0))
+            ny = y + float(np.sin(heading)) * float(rng.uniform(8.0, 24.0))
+            vein_draw.line(
+                (x, y, nx, ny),
+                fill=int(rng.integers(120, 210)),
+                width=stroke,
+            )
+            x, y = nx, ny
+    veins = veins.filter(ImageFilter.GaussianBlur(radius=3.0))
+    mask = veins.point(lambda value: min(255, int(value * 1.15)))
+    return Image.composite(
+        Image.new('RGB', size, (226, 229, 233)),
+        image,
+        mask,
+    )
 
 
 def _font(path, size):
@@ -59,168 +184,201 @@ def _center_text(draw, text, box, font, fill, stroke_width=0):
     )
 
 
+def _outlined_polygon(draw, points, fill, outline, width=7):
+    """Fill a polygon and stroke it with a width Pillow always supports."""
+    draw.polygon(points, fill=fill)
+    draw.line(list(points) + [points[0]], fill=outline, width=width,
+              joint='curve')
+
+
 def _draw_arrow(draw, direction):
+    """Light grey block arrow with a dark rim, as on the reference panel."""
     if direction == 'up':
-        points = [(256, 122), (143, 259), (211, 259), (211, 363),
-                  (301, 363), (301, 259), (369, 259)]
+        points = [(256, 124), (378, 250), (304, 250), (304, 382),
+                  (208, 382), (208, 250), (134, 250)]
     else:
-        points = [(211, 149), (301, 149), (301, 253), (369, 253),
-                  (256, 390), (143, 253), (211, 253)]
-    draw.polygon(points, fill=(245, 247, 246))
+        points = [(256, 388), (134, 262), (208, 262), (208, 130),
+                  (304, 130), (304, 262), (378, 262)]
+    _outlined_polygon(draw, points, INK, INK_SOFT_OUTLINE, width=7)
 
 
-def _draw_door(draw, opening, ink):
-    line = 17
+def _draw_door(draw, opening):
+    """Two leaves plus outward (open) or inward (close) travel arrows."""
+    ink = OPEN_INK if opening else INK
     if opening:
-        # This is the real-panel convention learned most reliably by the
-        # runtime model: two door leaves with arrows moving away from center.
-        draw.line((220, 151, 220, 361), fill=ink, width=18)
-        draw.line((292, 151, 292, 361), fill=ink, width=18)
-        draw.polygon([(123, 256), (202, 202), (202, 310)], fill=ink)
-        draw.polygon([(389, 256), (310, 202), (310, 310)], fill=ink)
-        return
-    draw.rounded_rectangle((126, 123, 386, 389), radius=8,
-                           outline=ink, width=11)
-    draw.line((256, 132, 256, 380), fill=ink, width=8)
-    draw.line((160, 256, 217, 256), fill=ink, width=line)
-    draw.polygon([(243, 256), (201, 221), (201, 291)], fill=ink)
-    draw.line((352, 256, 295, 256), fill=ink, width=line)
-    draw.polygon([(269, 256), (311, 221), (311, 291)], fill=ink)
+        left = [(104, 256), (240, 164), (240, 348)]
+        right = [(408, 256), (272, 164), (272, 348)]
+    else:
+        left = [(104, 164), (104, 348), (240, 256)]
+        right = [(408, 164), (408, 348), (272, 256)]
+    for points in (left, right):
+        draw.polygon(points, fill=ink)
+    draw.rounded_rectangle((241, 148, 271, 364), radius=12, fill=ink)
 
 
-def _draw_alarm(draw):
-    white = (245, 247, 246)
-    draw.arc((150, 125, 362, 351), 190, 350, fill=white, width=20)
-    draw.line((151, 264, 126, 330), fill=white, width=20)
-    draw.line((361, 264, 386, 330), fill=white, width=20)
-    draw.line((126, 330, 386, 330), fill=white, width=20)
-    draw.ellipse((229, 344, 283, 398), fill=white)
-    draw.ellipse((237, 111, 275, 149), fill=white)
+def _draw_bell(draw):
+    """Amber alarm bell."""
+    draw.pieslice((152, 142, 360, 350), 180, 360, fill=BELL_INK)
+    draw.polygon(
+        [(152, 246), (360, 246), (386, 322), (126, 322)],
+        fill=BELL_INK,
+    )
+    draw.rounded_rectangle((118, 318, 394, 348), radius=15, fill=BELL_INK)
+    draw.ellipse((234, 354, 278, 398), fill=BELL_INK)
+    draw.ellipse((238, 116, 274, 152), fill=BELL_INK)
 
 
-def render_button(label):
-    """Render one high-contrast real-elevator-style button face."""
-    image = _brushed_steel((512, 512), seed=31 + BUTTONS.index(label))
-    image = image.filter(ImageFilter.GaussianBlur(radius=0.45))
+def _draw_intercom(draw):
+    """White handset resting on its cradle."""
+    draw.arc((126, 158, 386, 418), 180, 360, fill=INK, width=36)
+    draw.rounded_rectangle((108, 264, 192, 312), radius=20, fill=INK)
+    draw.rounded_rectangle((320, 264, 404, 312), radius=20, fill=INK)
+
+
+def _button_panel_background(panel, label):
+    """Crop the matching panel steel behind one physical button face."""
+    width, height = panel.size
+    scale = height / PANEL_HEIGHT_M
+    if label in {'alarm', 'open'}:
+        offset_y = -PAIR_OFFSET_M
+    elif label in {'intercom', 'close'}:
+        offset_y = PAIR_OFFSET_M
+    else:
+        offset_y = 0.0
+    center_x = width / 2.0 + offset_y * scale
+    center_y = height / 2.0 - BUTTON_LOCAL_Z[label] * scale
+    face = int(round(BUTTON_FACE_M * scale))
+    left = int(round(center_x - face / 2.0))
+    top = int(round(center_y - face / 2.0))
+    crop = panel.crop((left, top, left + face, top + face))
+    return crop.resize((512, 512), Image.Resampling.BICUBIC)
+
+
+def render_button(label, background=None):
+    """Render one black machined button tile with its centered glyph."""
+    if background is None:
+        image = _brushed_steel(
+            (512, 512),
+            seed=31 + BUTTONS.index(label),
+            base=(212.0, 216.0, 221.0),
+            grain=2.6,
+        )
+    else:
+        image = background.copy()
+    image = image.filter(ImageFilter.GaussianBlur(radius=0.4))
     draw = ImageDraw.Draw(image)
 
-    # Layered rings give the button a machined bezel and a real recessed face.
-    if label in {'4', 'open'}:
-        draw.rounded_rectangle((22, 22, 490, 490), radius=62,
-                               fill=(36, 39, 42),
-                               outline=(185, 191, 194), width=8)
-    else:
-        draw.ellipse((22, 22, 490, 490), fill=(36, 39, 42),
-                     outline=(185, 191, 194), width=8)
-    draw.ellipse((48, 48, 464, 464), fill=(181, 187, 190),
-                 outline=(235, 238, 239), width=10)
-    light_face = False
-    face_fill = (226, 228, 224) if light_face else (21, 24, 27)
-    glyph_fill = (18, 20, 22) if light_face else (245, 247, 246)
-    draw.ellipse((78, 78, 434, 434), fill=face_fill,
-                 outline=(79, 84, 88), width=7)
-    highlight = (255, 255, 252) if light_face else (132, 137, 140)
-    draw.arc((89, 89, 423, 423), 205, 335, fill=highlight, width=7)
+    # Contact shadow, raised tile, then the recessed glyph face.
+    draw.rounded_rectangle((36, 40, 484, 488), radius=68,
+                           fill=(46, 48, 50))
+    draw.rounded_rectangle((28, 28, 476, 476), radius=70, fill=TILE_FILL)
+    draw.rounded_rectangle((28, 28, 476, 476), radius=70,
+                           outline=TILE_EDGE_DARK, width=6)
+    draw.arc((34, 34, 470, 470), 190, 350, fill=TILE_EDGE_LIGHT, width=6)
+    draw.rounded_rectangle((64, 64, 440, 440), radius=54, fill=FACE_FILL)
+    draw.rounded_rectangle((64, 64, 440, 440), radius=54,
+                           outline=FACE_EDGE, width=4)
+    draw.arc((70, 70, 434, 434), 200, 340, fill=(38, 40, 42), width=5)
 
-    if label in {'1', '2', '3', '4'}:
-        number_font = FONT_BOLD if label == '4' else FONT_REGULAR
+    if label in {'1', '2', '3'}:
         _center_text(
             draw,
             label,
-            (86, 74, 426, 430),
-            _font(number_font, 245),
-            glyph_fill,
-            stroke_width=0,
+            (58, 46, 454, 466),
+            _font(FONT_REGULAR, 292),
+            INK,
         )
     elif label in {'up', 'down'}:
         _draw_arrow(draw, label)
     elif label in {'open', 'close'}:
-        _draw_door(draw, opening=label == 'open', ink=glyph_fill)
+        _draw_door(draw, opening=label == 'open')
+    elif label == 'intercom':
+        _draw_intercom(draw)
     else:
-        _draw_alarm(draw)
+        _draw_bell(draw)
     return image
+
+
+def render_panel_plate(size=(470, 1006), seed=11):
+    """Render the brushed stainless plate applied to the panel body.
+
+    The world's key light comes from behind the panel (direction
+    ``-0.5 0 -1`` while the plate faces ``-x``), so the plate is only lit by
+    ambient and the fill light.  A high-metalness material would darken it
+    further and Gazebo has no environment map here.  Compensate by baking a
+    bright base, vertical brush grain and a soft vertical sheen band into the
+    albedo map, which is what the reference photo shows.
+    """
+    width, height = size
+    plate = _brushed_steel(size, seed=seed, base=(212.0, 216.0, 221.0),
+                           grain=2.6)
+    pixels = np.asarray(plate, dtype=np.float64)
+    across = np.linspace(0.0, 1.0, width)[None, :, None]
+    # Broad sheen running top-to-bottom, slightly left of centre.
+    sheen = 0.93 + 0.11 * np.exp(-((across - 0.42) / 0.30) ** 2)
+    return Image.fromarray(
+        np.uint8(np.clip(pixels * sheen, 0, 255)), 'RGB'
+    )
 
 
 def render_panel(button_images):
     """Render an orthographic reference of the complete panel."""
-    panel = _brushed_steel((864, 1024), seed=11)
+    width, height = 480, 1024
+    panel = render_panel_plate((width, height))
+    scale = height / PANEL_HEIGHT_M
     draw = ImageDraw.Draw(panel)
-    draw.rounded_rectangle((92, 38, 772, 182), radius=16,
-                           fill=(5, 9, 12), outline=(21, 25, 27), width=7)
-    _center_text(
-        draw,
-        '3',
-        (92, 38, 772, 182),
-        _font(FONT_REGULAR, 116),
-        (255, 52, 31),
+    # The reference has a broad dark outer bezel and a thin bright inner lip.
+    # The live model draws the same frame with panel_rim_* geometry, because a
+    # box albedo map cannot be relied on for the plate's side faces.
+    outer_inset = max(10, int(round(min(width, height) * 0.032)))
+    inner_inset = outer_inset + max(3, outer_inset // 4)
+    draw.rectangle(
+        (0, 0, width - 1, height - 1),
+        outline=(45, 48, 51),
+        width=outer_inset,
     )
-    positions = {
-        '1': (192, 304), '2': (432, 304), '3': (672, 304),
-        '4': (192, 512), 'up': (432, 512), 'down': (672, 512),
-        'open': (192, 720), 'close': (432, 720), 'alarm': (672, 720),
-    }
-    face_size = 166
-    for label, center in positions.items():
-        face = button_images[label].resize(
-            (face_size, face_size), Image.Resampling.LANCZOS
+    draw.rectangle(
+        (inner_inset, inner_inset, width - 1 - inner_inset,
+         height - 1 - inner_inset),
+        outline=(232, 235, 238),
+        width=max(2, outer_inset // 5),
+    )
+
+    face = int(round(BUTTON_FACE_M * scale))
+    for label, z in BUTTON_LOCAL_Z.items():
+        if label in {'alarm', 'open'}:
+            offset_y = -PAIR_OFFSET_M
+        elif label in {'intercom', 'close'}:
+            offset_y = PAIR_OFFSET_M
+        else:
+            offset_y = 0.0
+        center_x = int(round(width / 2.0 + offset_y * scale))
+        center_y = int(round(height / 2.0 - z * scale))
+        image = button_images[label].resize(
+            (face, face), Image.Resampling.LANCZOS
         )
-        panel.paste(
-            face,
-            (center[0] - face_size // 2, center[1] - face_size // 2),
-        )
+        panel.paste(image, (center_x - face // 2, center_y - face // 2))
     return panel
 
 
-def render_home_composite(panel):
-    """Perspective-project the panel into the saved home camera image."""
-    source = PROJECT_ROOT / 'test_logs' / 'home_panel_named_home_view.png'
-    if not source.is_file():
-        return None
-    home = cv2.imread(str(source), cv2.IMREAD_COLOR)
-    texture = cv2.cvtColor(np.asarray(panel), cv2.COLOR_RGB2BGR)
-    source_quad = np.float32([
-        [0, 0],
-        [texture.shape[1] - 1, 0],
-        [texture.shape[1] - 1, texture.shape[0] - 1],
-        [0, texture.shape[0] - 1],
-    ])
-    target_quad = np.float32([
-        [287, 106],
-        [563, 99],
-        [580, 438],
-        [287, 444],
-    ])
-    transform = cv2.getPerspectiveTransform(source_quad, target_quad)
-    warped = cv2.warpPerspective(
-        texture,
-        transform,
-        (home.shape[1], home.shape[0]),
-    )
-    mask = cv2.warpPerspective(
-        np.full(texture.shape[:2], 255, dtype=np.uint8),
-        transform,
-        (home.shape[1], home.shape[0]),
-    )
-    home[mask > 0] = warped[mask > 0]
-    output = PROJECT_ROOT / 'test_logs' / 'home_panel_texture_preview.png'
-    cv2.imwrite(str(output), home)
-    return output
-
-
 def main():
-    """Generate the runtime textures and the home-view regression preview."""
+    """Generate the runtime textures and the panel reference image."""
     TEXTURE_ROOT.mkdir(parents=True, exist_ok=True)
+    WALL_TEXTURE_ROOT.mkdir(parents=True, exist_ok=True)
+    plate = render_panel_plate()
     images = {}
     for label in BUTTONS:
-        image = render_button(label)
+        image = render_button(label, _button_panel_background(plate, label))
         image.save(TEXTURE_ROOT / f'button_{label}.png', optimize=True)
         images[label] = image
     panel = render_panel(images)
     panel.save(TEXTURE_ROOT / 'panel_reference.png', optimize=True)
-    preview = render_home_composite(panel)
+    plate.save(TEXTURE_ROOT / 'panel_steel.png', optimize=True)
+    wall = _render_marble()
+    wall.save(WALL_TEXTURE_ROOT / 'wall_marble.png', optimize=True)
     print(f'generated {len(images)} button textures in {TEXTURE_ROOT}')
-    if preview is not None:
-        print(f'generated detector preview at {preview}')
+    print(f'generated panel plate texture in {TEXTURE_ROOT}')
+    print(f'generated marble wall texture in {WALL_TEXTURE_ROOT}')
 
 
 if __name__ == '__main__':

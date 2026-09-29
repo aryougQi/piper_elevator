@@ -1,0 +1,157 @@
+{
+  "ros_domain_id": 79,
+  "simulation_mode": true,
+  "operation": "execute_cycles",
+  "selected_button": null,
+  "urdf_limits": {
+    "joint1": [
+      -2.6179938,
+      2.6179938
+    ],
+    "joint2": [
+      0.0,
+      3.1415926
+    ],
+    "joint3": [
+      -2.9670597,
+      0.0
+    ],
+    "joint4": [
+      -1.7453292,
+      1.7453292
+    ],
+    "joint5": [
+      -1.2217304,
+      1.2217304
+    ],
+    "joint6": [
+      -2.0943951,
+      2.0943951
+    ]
+  },
+  "initial_feedback": {
+    "joint2": 0.00997784637628111,
+    "joint3": -0.00996443586461971,
+    "joint1": 3.5868194457238233e-09,
+    "joint4": 6.221615099731806e-07,
+    "joint5": -1.217401962970172e-05,
+    "joint6": -6.242309621460273e-07,
+    "center_joint": 0.05000014376330621,
+    "pika_left_finger_joint": 0.024999999287740087,
+    "pika_right_finger_joint": -0.025000000153788237
+  },
+  "attempts": [],
+  "cycles": [
+    {
+      "cycle": 1,
+      "button": "3",
+      "stages": [
+        {
+          "stage": "home",
+          "success": true,
+          "message": "Home already reached and stable; Home region verified: max_error=0.0100rad",
+          "elapsed_seconds": 0.5044713109964505,
+          "selected_button": null,
+          "feedback": {
+            "samples": 101,
+            "ranges": {
+              "joint1": {
+                "minimum": 3.5868194457238068e-09,
+                "maximum": 3.5868194457238696e-09
+              },
+              "joint2": {
+                "minimum": 0.00997784637628111,
+                "maximum": 0.00997784637628111
+              },
+              "joint3": {
+                "minimum": -0.00996443586461971,
+                "maximum": -0.00996443586461971
+              },
+              "joint4": {
+                "minimum": 6.221615099731634e-07,
+                "maximum": 6.221615099731963e-07
+              },
+              "joint5": {
+                "minimum": -1.2174019629701726e-05,
+                "maximum": -1.2174019629701716e-05
+              },
+              "joint6": {
+                "minimum": -6.242309621460551e-07,
+                "maximum": -6.242309621459863e-07
+              }
+            },
+            "first_violation": null,
+            "maximum_violation": null
+          },
+          "endpoint_margins": {
+            "joint1": {
+              "position_rad": 3.5868194457238473e-09,
+              "lower_margin_rad": 2.617993803586819,
+              "upper_margin_rad": 2.6179937964131805
+            },
+            "joint2": {
+              "position_rad": 0.00997784637628111,
+              "lower_margin_rad": 0.00997784637628111,
+              "upper_margin_rad": 3.131614753623719
+            },
+            "joint3": {
+              "position_rad": -0.00996443586461971,
+              "lower_margin_rad": 2.9570952641353805,
+              "upper_margin_rad": 0.00996443586461971
+            },
+            "joint4": {
+              "position_rad": 6.221615099731833e-07,
+              "lower_margin_rad": 1.74532982216151,
+              "upper_margin_rad": 1.7453285778384902
+            },
+            "joint5": {
+              "position_rad": -1.217401962970172e-05,
+              "lower_margin_rad": 1.2217182259803703,
+              "upper_margin_rad": 1.2217425740196297
+            },
+            "joint6": {
+              "position_rad": -6.242309621460329e-07,
+              "lower_margin_rad": 2.094394475769038,
+              "upper_margin_rad": 2.094395724230962
+            }
+          },
+          "endpoint_abs_wrist_bend_rad": 1.217401962970172e-05,
+          "display_trajectories": [],
+          "statuses": [
+            {
+              "received_monotonic": 606701.309153679,
+              "status": "HOME_PLANNING"
+            },
+            {
+              "received_monotonic": 606701.311276865,
+              "status": "HOME_VERIFYING_EXISTING_POSE"
+            },
+            {
+              "received_monotonic": 606701.662872029,
+              "status": "HOME_COMPLETE"
+            },
+            {
+              "received_monotonic": 606701.66879313,
+              "status": "TARGET_READY"
+            }
+          ]
+        },
+        {
+          "stage": "fresh_observation",
+          "success": false,
+          "message": "Fresh TARGET_READY observation did not arrive",
+          "elapsed_seconds": 15.00038147601299,
+          "distinct_surface_frames": 0,
+          "surface_age_ros_seconds": null,
+          "selected_button": null,
+          "planner_status": "TARGET_READY"
+        }
+      ],
+      "success": false,
+      "failure_stage": "fresh_observation"
+    }
+  ],
+  "successes": 0,
+  "failures": 1,
+  "halted_after_failure": true
+}

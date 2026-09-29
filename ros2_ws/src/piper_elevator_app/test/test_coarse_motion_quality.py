@@ -46,7 +46,10 @@ def quality_setup(monkeypatch):
     )
     observed = observation()
     observed['selected_button'] = '2'
+    planner._selected_button = '2'
     planner._latest_observation = observed
+    planner._last_servo_corridor_minimum_wrist = 0.5
+    planner._preview_servo_corridor = lambda *_args: (True, 'corridor checked')
     target = next(planner._candidate_poses(observed))
     start = dict(planner._latest_joint_positions)
     baseline_endpoint = dict(start, joint4=1.2, joint6=-1.2)

@@ -81,11 +81,20 @@ class ButtonVisualServo(Node):
         self._observation_anchor = None
         self._filtered_world_position = None
         self._filtered_world_normal = None
+        self._correction_candidate = None
+        self._correction_count = 0
+        self._raw_observation_normal = None
         self._observation_sequence = 0
+        self._handover_joint_positions = {}
         self._press_claim_event = threading.Event()
         self._servo_started = False
         self._servo_status_code = None
         self._servo_status_received_at = 0.0
+        self._latest_servo_joints = {}
+        self._latest_servo_joints_at = 0.0
+        self._servo_halt_logged = False
+        self._servo_phase = ''
+        self._servo_remaining_m = math.inf
         self._wrist_guard_position = None
         self._wrist_guard_state_received_at = 0.0
         self._wrist_guard_reported = False
@@ -237,6 +246,7 @@ class ButtonVisualServo(Node):
     def _declare_parameters(self):
         self.declare_parameter('coarse_handover_service', '/button_approach_planner/claim_servo')
         self.declare_parameter('handover_claim_timeout_seconds', 2.0)
+        self.declare_parameter('cached_coarse_target_max_age_seconds', 10.0)
         self.declare_parameter('stop_timeout_seconds', 8.0)
         self.declare_parameter('surface_pose_topic', '/button_surface_pose')
         self.declare_parameter('tracking_state_topic', '/button_tracking_state')
@@ -332,6 +342,13 @@ class ButtonVisualServo(Node):
         self.declare_parameter('maximum_target_jump_m', 0.015)
         self.declare_parameter('world_position_smoothing_alpha', 0.25)
         self.declare_parameter('world_normal_smoothing_alpha', 0.20)
+        self.declare_parameter('target_correction_observations', 3)
+        self.declare_parameter('target_correction_consistency_m', 0.004)
+        self.declare_parameter('target_correction_max_step_m', 0.002)
+        self.declare_parameter('locked_approach_standoff_m', 0.080)
+        self.declare_parameter('locked_approach_max_travel_m', 0.070)
+        self.declare_parameter('locked_approach_speed_mps', 0.012)
+        self.declare_parameter('simulation_locked_approach_speed_multiplier', 1.0)
         self.declare_parameter('servo_timeout_seconds', 90.0)
         # start 服务在对准真正结束（成功或失败）后才返回；该上限只需略大于
         # servo_timeout_seconds，正常路径永远不会用到。
@@ -640,6 +657,8 @@ class ButtonVisualServo(Node):
                     self._publish_status(
                         f'IGNORED_TARGET_JUMP: {jump:.3f} m'
                     )
+                    self._correction_candidate = None
+                    self._correction_count = 0
                     return
             else:
                 self._observation_anchor = button_base.copy()
@@ -657,29 +676,46 @@ class ButtonVisualServo(Node):
             ))
             if self._filtered_world_position is None:
                 self._filtered_world_position = button_base.copy()
-            else:
-                self._filtered_world_position = (
-                    position_alpha * button_base
-                    + (1.0 - position_alpha)
-                    * self._filtered_world_position
-                )
-            if self._filtered_world_normal is None:
                 self._filtered_world_normal = normal_base.copy()
             else:
-                if np.dot(
-                    normal_base,
-                    self._filtered_world_normal,
-                ) < 0.0:
-                    normal_base = -normal_base
-                self._filtered_world_normal = (
-                    normal_alpha * normal_base
-                    + (1.0 - normal_alpha)
-                    * self._filtered_world_normal
-                )
-                self._filtered_world_normal /= np.linalg.norm(
-                    self._filtered_world_normal
-                )
+                candidate = getattr(self, '_correction_candidate', None)
+                tolerance = float(self.get_parameter(
+                    'target_correction_consistency_m').value)
+                if (candidate is None or
+                        np.linalg.norm(button_base - candidate[0]) > tolerance or
+                        np.dot(normal_base, candidate[1]) < math.cos(
+                            float(self.get_parameter('maximum_normal_change_rad').value))):
+                    self._correction_candidate = (button_base.copy(), normal_base.copy())
+                    self._correction_count = 1
+                else:
+                    count = getattr(self, '_correction_count', 0) + 1
+                    self._correction_candidate = (
+                        candidate[0] + (button_base - candidate[0]) / count,
+                        candidate[1] + (normal_base - candidate[1]) / count,
+                    )
+                    self._correction_count = count
+                if self._correction_count >= max(2, int(self.get_parameter(
+                        'target_correction_observations').value)):
+                    correction = position_alpha * (
+                        self._correction_candidate[0] - self._filtered_world_position)
+                    maximum_step = float(self.get_parameter(
+                        'target_correction_max_step_m').value)
+                    correction_norm = float(np.linalg.norm(correction))
+                    if correction_norm > maximum_step > 0.0:
+                        correction *= maximum_step / correction_norm
+                    proposed = self._filtered_world_position + correction
+                    if np.linalg.norm(proposed - self._observation_anchor) <= maximum_jump:
+                        self._filtered_world_position = proposed
+                    filtered_normal = (
+                        normal_alpha * self._correction_candidate[1]
+                        + (1.0 - normal_alpha) * self._filtered_world_normal)
+                    self._filtered_world_normal = (
+                        filtered_normal / np.linalg.norm(filtered_normal))
+                    self._correction_candidate = None
+                    self._correction_count = 0
             self._observation_sequence += 1
+            self._raw_observation_normal = (
+                normal_base.copy(), self._observation_sequence)
             self._observation_stamp_ns = message_stamp_ns
             capture_age = max(
                 0.0,
@@ -813,6 +849,9 @@ class ButtonVisualServo(Node):
             self._observation_anchor = None
             self._filtered_world_position = None
             self._filtered_world_normal = None
+            self._correction_candidate = None
+            self._correction_count = 0
+            self._raw_observation_normal = None
             if self._running:
                 self._stop_event.set()
             self._condition.notify_all()
@@ -853,7 +892,8 @@ class ButtonVisualServo(Node):
         return decode_coarse_handover(
             result.message, selected_button=self._selected_button,
             frame_id=self._base_frame, now_ns=self.get_clock().now().nanoseconds,
-            maximum_age_seconds=float(self.get_parameter('target_max_age_seconds').value),
+            maximum_age_seconds=float(self.get_parameter(
+                'cached_coarse_target_max_age_seconds').value),
             future_tolerance_seconds=float(self.get_parameter('maximum_tf_fallback_age_seconds').value),
         )
 
@@ -955,7 +995,20 @@ class ButtonVisualServo(Node):
                         or generation != self._selection_generation
                         or self._press_claim_event.is_set()):
                     raise ValueError('Servo start invalidated while claiming the coarse handover')
-                if not self._surface_stamp_is_fresh(handover['observation_stamp_ns']):
+                observation_age = (
+                    self.get_clock().now().nanoseconds
+                    - handover['observation_stamp_ns']
+                ) / 1e9
+                verified_age = (
+                    self.get_clock().now().nanoseconds
+                    - handover['verified_at_ns']
+                ) / 1e9
+                cached_limit = float(self.get_parameter(
+                    'cached_coarse_target_max_age_seconds').value)
+                if not self._surface_stamp_is_fresh(handover['observation_stamp_ns']) and not (
+                    0.0 <= observation_age <= cached_limit
+                    and 0.0 <= verified_age <= cached_limit
+                ):
                     raise ValueError('Claimed coarse observation expired before Servo start')
                 # Replace the far-view anchor only with this verified near-view
                 # target. In-flight callbacks from the old filter are obsolete.
@@ -963,13 +1016,24 @@ class ButtonVisualServo(Node):
                 self._observation_anchor = handover['button'].copy()
                 self._filtered_world_position = handover['button'].copy()
                 self._filtered_world_normal = handover['normal'].copy()
+                self._correction_candidate = None
+                self._correction_count = 0
+                self._raw_observation_normal = None
                 self._observation_stamp_ns = handover['observation_stamp_ns']
                 self._observation_sequence += 1
                 age = max(0.0, (self.get_clock().now().nanoseconds - self._observation_stamp_ns) / 1e9)
                 self._observation = (handover['button'].copy(), handover['normal'].copy(),
                                      time.monotonic() - age, self._observation_sequence)
+                # The verified near-view target is a separate start anchor.
+                # Keep its original sensor timestamp above for provenance;
+                # fresh frames are still identified by the normal callback.
+                self._handover_initial = (
+                    handover['button'].copy(), handover['normal'].copy(),
+                    time.monotonic(), self._observation_sequence,
+                )
                 ButtonVisualServo._semantic_conflict_locked(self)
                 self._active_handover_id = handover['handover_id']
+                self._handover_joint_positions = dict(handover['joint_positions'])
                 self._running = True
                 self._cleanup_confirmed = True
                 self._handoff_ready = False
@@ -978,6 +1042,7 @@ class ButtonVisualServo(Node):
                 self._press_release_requested.clear()
                 self._servo_status_code = None
                 self._servo_status_received_at = 0.0
+                self._servo_halt_logged = False
                 self._wrist_guard_reported = False
                 self._servo_command_started_at = 0.0
             self._publish_completion(False)
@@ -1135,12 +1200,40 @@ class ButtonVisualServo(Node):
         )
 
     def _servo_status_callback(self, message):
+        diagnostic = None
         with self._condition:
             self._servo_status_code = int(message.data)
             self._servo_status_received_at = time.monotonic()
+            if (
+                self._servo_status_code in (2, 5)
+                and self._servo_command_started_at > 0.0
+                and not self._servo_halt_logged
+            ):
+                self._servo_halt_logged = True
+                diagnostic = (
+                    self._servo_status_code,
+                    self._servo_status_received_at - self._servo_command_started_at,
+                    self._servo_status_received_at - self._latest_servo_joints_at,
+                    dict(self._latest_servo_joints),
+                    self._servo_phase,
+                    self._servo_remaining_m,
+                )
             self._condition.notify_all()
+        if diagnostic is not None:
+            self.get_logger().warning(
+                'Servo halt report: status=%d command_age=%.3fs joint_age=%.3fs '
+                'joints=%s phase=%s remaining=%.3fm'
+                % diagnostic
+            )
 
     def _joint_state_callback(self, message):
+        with self._condition:
+            self._latest_servo_joints = {
+                str(name): float(value)
+                for name, value in zip(message.name, message.position)
+                if math.isfinite(float(value))
+            }
+            self._latest_servo_joints_at = time.monotonic()
         joint = str(
             self.get_parameter('wrist_limit_guard_joint').value
         ).strip()
@@ -1167,13 +1260,19 @@ class ButtonVisualServo(Node):
             or received_at < command_started_at
         ):
             return None
+        joints = getattr(self, '_handover_joint_positions', {})
         failures = {
             2: (
                 'MoveIt Servo halted at a singularity (status=2); '
-                'return home and replan the coarse approach'
+                'return home and replan the coarse approach; '
+                f'handover_joints={joints}'
             ),
             4: 'MoveIt Servo halted for collision (status=4)',
-            5: 'MoveIt Servo halted at a joint bound (status=5)',
+            5: (
+                'MoveIt Servo halted at a joint bound (status=5); '
+                f'handover_joints={joints}; '
+                f'current_joints={self._latest_servo_joints}'
+            ),
         }
         return failures.get(code)
 
@@ -1204,12 +1303,15 @@ class ButtonVisualServo(Node):
         handed_off = False
         final_status = 'FAILED: unknown error'
         try:
+            handover_initial = getattr(self, '_handover_initial', None)
             initial = self._wait_for_observation(
                 -1,
-                float(
+                0.2 if handover_initial is not None else float(
                     self.get_parameter('observation_timeout_seconds').value
                 ),
             )
+            if initial is None and handover_initial is not None:
+                initial = handover_initial
             if initial is None:
                 final_status = 'FAILED: no initial RGB-D surface pose'
                 return
@@ -1462,12 +1564,10 @@ class ButtonVisualServo(Node):
         conflicting_normal_observations = 0
         normal_change = 0.0
         # The coarse MoveIt trajectory has already put the fingertip at a
-        # safe standoff.  Correct the camera orientation at that exact pose
-        # before allowing any translation toward the panel.  If RGB-D drops
-        # while the wrist rotates, the locked static target may still drive
-        # angular correction, but never translation.  Once aligned, hold the
-        # pose until fresh RGB-D observations reacquire the same button, then
-        # transition into the final visual approach.
+        # safe standoff. Correct orientation at that pose first. Once aligned,
+        # the verified base-frame target may drive a bounded approach to 8 cm
+        # from the panel. Prefer fresh RGB-D confirmation before the final
+        # approach; a short dropout may use the separately bounded lock.
         servo_phase = 'ORIENTING'
         aligned_normal = None
         aligned_orientation = None
@@ -1475,9 +1575,11 @@ class ButtonVisualServo(Node):
         reacquisition_origin = None
         reacquisition_reference_orientation = None
         reacquisition_hold_position = None
+        locked_approach_origin = None
         vision_loss_start_position = None
         vision_loss_best_remaining = None
         vision_loss_progress_at = None
+        blind_reacquisition_started_at = None
         self._last_linear_command = np.zeros(3)
         self._last_angular_command = np.zeros(3)
         self._last_command_at = time.monotonic()
@@ -1572,9 +1674,8 @@ class ButtonVisualServo(Node):
                         servo_phase == 'ORIENTING'
                         and loss_age <= observation_timeout
                     ):
-                        # At the coarse 14 cm standoff, finish only angular
-                        # correction from the locked static surface pose.  No
-                        # translation is permitted until RGB-D is reacquired.
+                        # Finish angular correction at the coarse standoff;
+                        # bounded translation starts in LOCKED_APPROACH.
                         observation = (
                             button,
                             normal,
@@ -1592,6 +1693,9 @@ class ButtonVisualServo(Node):
                             f'loss={loss_age:.2f}s '
                             f'angle={math.degrees(angular):.2f}deg',
                         )
+                    elif servo_phase == 'LOCKED_APPROACH':
+                        observation = (button, normal, locked_at, locked_sequence)
+                        using_locked_observation = True
                     elif servo_phase == 'REACQUIRING':
                         reacquisition_age = (
                             math.inf
@@ -1599,12 +1703,42 @@ class ButtonVisualServo(Node):
                             else now - reacquisition_started_at
                         )
                         if reacquisition_age > observation_timeout:
-                            self._publish_zero_twist()
-                            return (
-                                None,
-                                '',
-                                'no fresh RGB-D target after orientation '
-                                f'correction: waited={reacquisition_age:.2f}s',
+                            roll = self._level_roll_error(
+                                camera_orientation, normal)
+                            safe_blind_finish = (
+                                remaining_distance <= float(self.get_parameter(
+                                    'vision_loss_continuation_max_distance_m').value)
+                                and lateral <= float(self.get_parameter(
+                                    'lateral_tolerance_m').value)
+                                and angular <= float(self.get_parameter(
+                                    'perpendicular_tolerance_rad').value)
+                                and self._roll_within_tolerance(roll)
+                                and float(np.dot(button - current_position, normal))
+                                >= float(self.get_parameter('minimum_standoff_m').value)
+                            )
+                            if not safe_blind_finish:
+                                self._publish_zero_twist()
+                                return (
+                                    None, '',
+                                    'no fresh RGB-D target after orientation '
+                                    f'correction: waited={reacquisition_age:.2f}s '
+                                    f'remaining={remaining_distance:.3f}m '
+                                    f'lateral={lateral:.3f}m',
+                                )
+                            # The planner's stable base-frame target remains
+                            # valid for one bounded, odometry-driven finish.
+                            # The final phase still enforces distance, travel,
+                            # progress, orientation, and Servo safety guards.
+                            servo_phase = 'FINAL_APPROACH'
+                            aligned_normal = normal.copy()
+                            aligned_orientation = current_orientation.copy()
+                            vision_loss_start_position = current_position.copy()
+                            vision_loss_best_remaining = remaining_distance
+                            vision_loss_progress_at = now
+                            blind_reacquisition_started_at = now
+                            self._publish_status(
+                                'REACQUISITION_TIMEOUT_LOCKED_FINISH '
+                                f'remaining={remaining_distance:.3f}m'
                             )
                         observation = (
                             button,
@@ -1613,8 +1747,18 @@ class ButtonVisualServo(Node):
                             locked_sequence,
                         )
                         using_locked_observation = True
-                        orientation_only_locked = True
+                        orientation_only_locked = (
+                            servo_phase == 'REACQUIRING'
+                        )
+                        if servo_phase == 'FINAL_APPROACH':
+                            loss_speed_scale = float(np.clip(
+                                self.get_parameter(
+                                    'vision_loss_speed_scale').value,
+                                0.0, 1.0,
+                            ))
                     else:
+                        if blind_reacquisition_started_at is not None:
+                            loss_age = now - blind_reacquisition_started_at
                         if vision_loss_start_position is None:
                             vision_loss_start_position = (
                                 current_position.copy()
@@ -1705,13 +1849,20 @@ class ButtonVisualServo(Node):
                         break
                     continue
 
-            if servo_phase == 'FINAL_APPROACH' and aligned_normal is not None:
+            if servo_phase in (
+                'LOCKED_APPROACH', 'REACQUIRING', 'FINAL_APPROACH'
+            ) and aligned_normal is not None:
                 if (
                     not using_locked_observation
                     and observation[3] > normal_observation_sequence
                 ):
                     normal_observation_sequence = observation[3]
-                    fresh_normal = observation[1]
+                    raw_normal = getattr(self, '_raw_observation_normal', None)
+                    fresh_normal = (
+                        raw_normal[0] if raw_normal is not None
+                        and raw_normal[1] == observation[3]
+                        else observation[1]
+                    )
                     normal_change = math.acos(float(np.clip(
                         np.dot(fresh_normal, aligned_normal), -1.0, 1.0,
                     )))
@@ -1739,7 +1890,7 @@ class ButtonVisualServo(Node):
                             'approach direction: ' + detail,
                         )
                     self._publish_status(
-                        'FINAL_APPROACH_NORMAL_CONFLICT ' + detail
+                        f'{servo_phase}_NORMAL_CONFLICT ' + detail
                     )
                     if self._stop_event.wait(period):
                         break
@@ -1755,6 +1906,7 @@ class ButtonVisualServo(Node):
                 vision_loss_best_remaining = None
                 vision_loss_progress_at = None
                 locked_target_stable_cycles = 0
+                blind_reacquisition_started_at = None
 
             target_distance = tracking_distance
             if servo_phase == 'ORIENTING':
@@ -1814,6 +1966,12 @@ class ButtonVisualServo(Node):
                     target_position = reacquisition_origin + search_offset
                 else:
                     target_position = current_position.copy()
+            elif servo_phase == 'LOCKED_APPROACH':
+                target_position = button - float(self.get_parameter(
+                    'locked_approach_standoff_m').value) * normal
+                _, target_orientation = self._servo_target(
+                    button, normal, current_orientation,
+                    camera_orientation, tracking_distance)
             else:
                 target_distance = tracking_distance
                 target_position = button - target_distance * normal
@@ -1834,6 +1992,8 @@ class ButtonVisualServo(Node):
                 normal,
             )
             measured_distance = axial + target_distance
+            self._servo_phase = servo_phase
+            self._servo_remaining_m = measured_distance
             if orientation_only_locked:
                 tracking_state = f'{servo_phase}_WITH_LOCKED_TARGET'
             elif using_locked_observation:
@@ -1894,6 +2054,33 @@ class ButtonVisualServo(Node):
                         'reacquisition search exceeded tangent boundary: '
                         f'distance={tangent_distance * 1000.0:.1f}mm',
                     )
+            if servo_phase == 'LOCKED_APPROACH':
+                maximum_travel = float(self.get_parameter(
+                    'locked_approach_max_travel_m').value)
+                travel = float(np.linalg.norm(current_position - locked_approach_origin))
+                safe_standoff = float(self.get_parameter(
+                    'locked_approach_standoff_m').value)
+                remaining = float(np.dot(button - current_position, normal))
+                if travel > maximum_travel + 0.002 or remaining < safe_standoff - 0.003:
+                    self._publish_zero_twist()
+                    return (
+                        None, '',
+                        'locked approach exceeded bounded travel or standoff: '
+                        f'travel={travel:.3f}m limit={maximum_travel:.3f}m '
+                        f'remaining={remaining:.3f}m standoff={safe_standoff:.3f}m',
+                    )
+                if remaining <= safe_standoff + 0.003:
+                    servo_phase = 'REACQUIRING'
+                    reacquisition_started_at = now
+                    reacquisition_origin = current_position.copy()
+                    reacquisition_reference_orientation = camera_orientation.copy()
+                    reacquisition_counted_sequence = sequence
+                    reacquisition_stable_observations = 0
+                    self._publish_zero_twist()
+                    self._publish_status('PHASE_COMPLETE: LOCKED_APPROACH; awaiting fresh RGB-D')
+                    if self._stop_event.wait(period):
+                        break
+                    continue
             phase_aligned = (
                 angular <= float(
                     self.get_parameter(
@@ -1939,18 +2126,25 @@ class ButtonVisualServo(Node):
                 aligned_normal = normal.copy()
                 aligned_orientation = target_orientation.copy()
                 locked = (button, aligned_normal)
-                servo_phase = 'REACQUIRING'
-                reacquisition_started_at = now
-                reacquisition_origin = current_position.copy()
-                reacquisition_reference_orientation = (
-                    camera_orientation.copy()
-                )
+                locked_standoff = float(self.get_parameter(
+                    'locked_approach_standoff_m').value)
+                current_standoff = float(np.dot(button - current_position, normal))
+                if current_standoff > locked_standoff + 0.003:
+                    servo_phase = 'LOCKED_APPROACH'
+                    locked_approach_origin = current_position.copy()
+                else:
+                    servo_phase = 'REACQUIRING'
+                    reacquisition_started_at = now
+                    reacquisition_origin = current_position.copy()
+                    reacquisition_reference_orientation = (
+                        camera_orientation.copy()
+                    )
                 reacquisition_hold_position = None
                 reacquisition_counted_sequence = sequence
                 reacquisition_stable_observations = 0
                 self._publish_status(
                     'PHASE_COMPLETE: ORIENTING; '
-                    'holding level pose for fresh RGB-D reacquisition'
+                    'approaching bounded lock or awaiting fresh RGB-D'
                 )
                 self._publish_zero_twist()
                 if self._stop_event.wait(period):
@@ -2073,6 +2267,14 @@ class ButtonVisualServo(Node):
                         ).value
                     ) * self._linear_speed_multiplier(),
                 )
+            elif servo_phase == 'LOCKED_APPROACH':
+                desired_linear = (
+                    target_position - current_position
+                ) * float(self.get_parameter('linear_proportional_gain').value)
+                desired_linear = self._limit_vector(
+                    desired_linear,
+                    self._locked_approach_speed(),
+                )
             else:
                 desired_linear = (
                     target_position - current_position
@@ -2157,6 +2359,16 @@ class ButtonVisualServo(Node):
                         'reacquisition_search_speed_mps'
                     ).value) * self._linear_speed_multiplier(),
                 )
+            elif servo_phase == 'LOCKED_APPROACH':
+                linear = self._limit_vector(
+                    linear,
+                    self._locked_approach_speed(),
+                )
+                inward_speed = float(np.dot(linear, normal))
+                safe_standoff = float(self.get_parameter('locked_approach_standoff_m').value)
+                remaining = float(np.dot(button - current_position, normal))
+                if remaining <= safe_standoff + 0.003 and inward_speed > 0.0:
+                    linear -= inward_speed * normal
             elif axial_speed_scale < 1.0:
                 inward_speed = float(np.dot(linear, normal))
                 allowed_inward_speed = max(
@@ -2216,6 +2428,13 @@ class ButtonVisualServo(Node):
                 ).value
             ),
         )
+
+    def _locked_approach_speed(self):
+        speed = float(self.get_parameter('locked_approach_speed_mps').value)
+        if bool(self.get_parameter('simulation_mode').value):
+            speed *= max(1.0, float(self.get_parameter(
+                'simulation_locked_approach_speed_multiplier').value))
+        return speed
 
     def _blind_approach_speed(self):
         """Constant speed used while completing the approach blind.

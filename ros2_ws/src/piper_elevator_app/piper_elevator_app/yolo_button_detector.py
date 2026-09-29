@@ -170,12 +170,13 @@ class ButtonDetector(Node):
         self.declare_parameter('simulation_layout_relabel', False)
         self.declare_parameter(
             'simulation_panel_layout_labels',
-            ['1', '2', '3', '4', 'up', 'down', 'open', 'close', 'alarm'],
+            ['alarm', 'intercom', '3', '2', '1', 'open', 'close', 'up',
+             'down'],
         )
 
         self.declare_parameter(
             'model_path',
-            'models/elevator_buttons_yolov10s.onnx',
+            'models/elevator_buttons_yolo11s.onnx',
         )
         self.declare_parameter(
             'class_names',
@@ -185,7 +186,7 @@ class ButtonDetector(Node):
             'target_classes',
             ['*'],
         )
-        self.declare_parameter('model_input_size', 1280)
+        self.declare_parameter('model_input_size', 640)
         self.declare_parameter('inference_device', 'cuda')
         self.declare_parameter('warmup_iterations', 2)
         self.declare_parameter('confidence_threshold', 0.60)

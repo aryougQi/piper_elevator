@@ -145,7 +145,7 @@ def test_detector_publishes_only_fitted_surface_pose_for_servo():
         servo.index('    @staticmethod\n    def _limit_vector')
     ]
     assert '_decelerate_servo_to_hold' not in tracking_source
-    assert 'holding level pose for fresh RGB-D reacquisition' in (
+    assert 'PHASE_COMPLETE: LOCKED_APPROACH; awaiting fresh RGB-D' in (
         tracking_source
     )
     assert 'PHASE_COMPLETE: REACQUIRING' in tracking_source

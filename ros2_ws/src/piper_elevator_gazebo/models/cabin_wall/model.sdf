@@ -1,0 +1,20 @@
+<?xml version="1.0"?>
+<sdf version="1.8">
+  <!-- Dark grey marble slab behind the button panel, reproducing the cabin
+       wall of the reference photo. Visual only: it must never block the arm
+       or the RGB-D sensor, so the link carries no collision geometry. -->
+  <model name="cabin_wall">
+    <static>true</static>
+    <link name="wall_link">
+      <visual name="wall_visual">
+        <geometry><box><size>0.012 0.560 0.680</size></box></geometry>
+        <material>
+          <ambient>1 1 1 1</ambient>
+          <diffuse>1 1 1 1</diffuse>
+          <specular>0.14 0.14 0.14 1</specular>
+          <pbr><metal><albedo_map>model://cabin_wall/textures/wall_marble.png</albedo_map><metalness>0.05</metalness><roughness>0.35</roughness></metal></pbr>
+        </material>
+      </visual>
+    </link>
+  </model>
+</sdf>

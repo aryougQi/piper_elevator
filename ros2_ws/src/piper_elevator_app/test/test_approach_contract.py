@@ -285,7 +285,7 @@ def test_real_observation_window_is_longer_without_relaxing_gates(config):
     assert config['observation_normal_tolerance_rad'] == pytest.approx(
         math.radians(5.0), abs=1e-6,
     )
-    assert config['planning_budget_seconds'] == 30.0
+    assert config['planning_budget_seconds'] == 45.0
 
 
 def test_simulation_does_not_inherit_real_observation_window():

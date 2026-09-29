@@ -94,9 +94,11 @@ class ButtonApproachPlanner(Node):
         self._latest_observation = None
         self._planned_observation = None
         self._execution_observation = None
+        self._execution_plan_created_at = 0.0
         self._last_execution_diagnostic = {}
         self._last_ik_search_diagnostic = {}
         self._last_plan_quality_diagnostic = {}
+        self._coarse_success_history = {}
         self._verified_handover = None
         self._observation_not_before_stamp_ns = 0
         self._observations = deque(maxlen=max(
@@ -313,7 +315,7 @@ class ButtonApproachPlanner(Node):
         self.declare_parameter('maximum_camera_centering_shift_m', 0.045)
         self.declare_parameter(
             'maximum_uncompensated_camera_offset_m',
-            0.035,
+            0.05,
         )
         self.declare_parameter('position_tolerance_m', 0.008)
         self.declare_parameter('pointing_tolerance_rad', math.radians(8.0))
@@ -390,6 +392,7 @@ class ButtonApproachPlanner(Node):
         self.declare_parameter('target_max_age_seconds', 1.0)
         self.declare_parameter('surface_normal_max_age_seconds', 0.5)
         self.declare_parameter('plan_max_age_seconds', 120.0)
+        self.declare_parameter('cached_coarse_target_max_age_seconds', 10.0)
         self.declare_parameter('max_target_drift_m', 0.03)
         self.declare_parameter('maximum_execution_position_error_m', 0.015)
         self.declare_parameter(
@@ -446,9 +449,15 @@ class ButtonApproachPlanner(Node):
             'trajectory_boundary_tolerance_rad': 1.0e-9,
             'ik_timeout_seconds': 0.05,
             'ik_search_budget_seconds': 8.0,
-            'maximum_ik_solutions': 8,
-            'maximum_candidate_plans': 3,
-            'planning_budget_seconds': 30.0,
+            'maximum_ik_solutions': 16,
+            'maximum_candidate_plans': 16,
+            'coarse_success_history_max_age_seconds': 900.0,
+            'candidate_current_tcp_position_weight': 0.08,
+            'candidate_current_tcp_orientation_weight': 0.02,
+            'candidate_history_joint_weight': 0.35,
+            'candidate_history_position_weight': 0.08,
+            'candidate_history_orientation_weight': 0.02,
+            'planning_budget_seconds': 45.0,
             'planning_observation_wait_seconds': 6.0,
             'moveit_service_timeout_seconds': 1.0,
             'optimize_coarse_motion': True,
@@ -507,6 +516,8 @@ class ButtonApproachPlanner(Node):
             'execution_timeout_margin_seconds', 'action_timeout_seconds',
             'execution_settle_timeout_seconds', 'joint_state_max_age_seconds',
             'surface_normal_max_age_seconds', 'target_max_age_seconds',
+            'cached_coarse_target_max_age_seconds',
+            'coarse_success_history_max_age_seconds',
             'post_execution_observation_timeout_seconds',
             'observation_position_tolerance_m', 'observation_normal_tolerance_rad',
             'maximum_execution_position_error_m',
@@ -524,6 +535,16 @@ class ButtonApproachPlanner(Node):
         for name in ('candidate_tilt_rad', 'candidate_roll_rad',
                      'candidate_tilt_margin_rad',
                      'visibility_position_uncertainty_m'):
+            value = float(self.get_parameter(name).value)
+            if not math.isfinite(value) or value < 0.0:
+                raise ValueError(f'{name} must be finite and nonnegative')
+        for name in (
+            'candidate_current_tcp_position_weight',
+            'candidate_current_tcp_orientation_weight',
+            'candidate_history_joint_weight',
+            'candidate_history_position_weight',
+            'candidate_history_orientation_weight',
+        ):
             value = float(self.get_parameter(name).value)
             if not math.isfinite(value) or value < 0.0:
                 raise ValueError(f'{name} must be finite and nonnegative')
@@ -1053,6 +1074,7 @@ class ButtonApproachPlanner(Node):
             maximum = min(len(candidates), int(
                 self.get_parameter('maximum_candidate_plans').value
             ))
+            selected = None
             for index, (_, joints, target) in enumerate(candidates[:maximum]):
                 if time.monotonic() >= self._planning_deadline:
                     message = 'Coarse planning budget exhausted'
@@ -1070,56 +1092,40 @@ class ButtonApproachPlanner(Node):
                 safe, message = self._validate_planned_candidate(result, target, observation)
                 if not safe:
                     continue
-                result, target, message = self._improve_coarse_plan(
-                    result, target, observation, candidates, message,
-                )
-                trajectory = result.planned_trajectory
-                # A noisy window at the endpoint is not proof of target motion.
-                # Wait within the existing total budget, then recheck identity,
-                # position and normal against the original planning snapshot.
-                self._wait_for_planning_observation()
-                with self._lock:
-                    latest = self._latest_observation
-                    if latest is None:
-                        raise ValueError(
-                            'Stable target lost during planning; '
-                            + getattr(self, '_observation_detail', 'reacquire')
-                        )
-                    if not self._observation_is_fresh(latest):
-                        raise ValueError(
-                            'Target observation expired during planning; reacquire'
-                        )
-                    if (
-                        latest.get('selected_button')
-                        != observation.get('selected_button')
-                        or np.linalg.norm(
-                            latest['button'] - observation['button']
-                        )
-                        > float(self.get_parameter('max_target_drift_m').value)
-                        or math.acos(float(np.clip(
-                            np.dot(latest['normal'], observation['normal']),
-                            -1.0, 1.0,
-                        ))) > float(self.get_parameter(
-                            'observation_normal_tolerance_rad'
-                        ).value)
-                    ):
-                        raise ValueError(
-                            'Target changed during planning; reacquire'
-                        )
-                    self._planned_trajectory = trajectory
-                    self._planned_target = copy.deepcopy(target)
-                    self._planned_button = observation['button'].copy()
-                    self._planned_observation = copy.deepcopy(observation)
-                    self._plan_created_at = time.monotonic()
-                self._approach_publisher.publish(target)
-                self._publish_display_trajectory(result)
-                response.success = True
-                response.message = (
-                    f'Plan ready: candidate {index + 1}/{maximum}; {message}'
-                )
-                self._publish_status('PLAN_READY')
-                return response
-            raise ValueError(message)
+                selected = (index, result, target, message)
+                break
+            if selected is None:
+                raise ValueError(message)
+            index, result, target, message = selected
+            result, target, message = self._improve_coarse_plan(
+                result, target, observation, candidates, message,
+            )
+            with self._lock:
+                latest = copy.deepcopy(self._latest_observation)
+                if self._selected_button != observation.get('selected_button'):
+                    raise ValueError('Selected button changed during planning')
+                if self._observation_is_fresh(latest) and (
+                    latest.get('selected_button') != observation.get('selected_button')
+                    or np.linalg.norm(latest['button'] - observation['button'])
+                    > float(self.get_parameter('max_target_drift_m').value)
+                    or math.acos(float(np.clip(np.dot(
+                        latest['normal'], observation['normal']), -1.0, 1.0,
+                    ))) > float(self.get_parameter('observation_normal_tolerance_rad').value)
+                ):
+                    raise ValueError('Target changed during planning; reacquire')
+                self._planned_trajectory = result.planned_trajectory
+                self._planned_target = copy.deepcopy(target)
+                self._planned_button = observation['button'].copy()
+                self._planned_observation = copy.deepcopy(observation)
+                self._plan_created_at = time.monotonic()
+            self._approach_publisher.publish(target)
+            self._publish_display_trajectory(result)
+            response.success = True
+            response.message = (
+                f'Plan ready: candidate {index + 1}/{maximum}; {message}'
+            )
+            self._publish_status('PLAN_READY')
+            return response
         except (ValueError, RuntimeError) as error:
             response.success = False
             response.message = str(error)
@@ -1418,6 +1424,153 @@ class ButtonApproachPlanner(Node):
             f'stop={report["stop_reason"]}; elapsed={report["elapsed_seconds"]:.2f}s'
         )
 
+    @staticmethod
+    def _pose_distance(first, second):
+        first_position = np.array([
+            first.pose.position.x, first.pose.position.y,
+            first.pose.position.z,
+        ], dtype=float)
+        second_position = np.array([
+            second.pose.position.x, second.pose.position.y,
+            second.pose.position.z,
+        ], dtype=float)
+        first_rotation = quaternion_to_matrix([
+            first.pose.orientation.x, first.pose.orientation.y,
+            first.pose.orientation.z, first.pose.orientation.w,
+        ])
+        second_rotation = quaternion_to_matrix([
+            second.pose.orientation.x, second.pose.orientation.y,
+            second.pose.orientation.z, second.pose.orientation.w,
+        ])
+        position = float(np.linalg.norm(first_position - second_position))
+        orientation = math.acos(float(np.clip(
+            (np.trace(first_rotation.T @ second_rotation) - 1.0) / 2.0,
+            -1.0, 1.0,
+        )))
+        if not math.isfinite(position) or not math.isfinite(orientation):
+            raise ValueError('Pose distance is not finite')
+        return position, orientation
+
+    def _current_tcp_pose_for_candidate_sorting(self, current, deadline):
+        """Get current TCP once; ranking remains usable if FK is unavailable."""
+        try:
+            if not callable(getattr(self, '_fk_pose', None)):
+                return None
+            try:
+                return self._fk_pose(current, deadline=deadline)
+            except TypeError:
+                return self._fk_pose(current)
+        except (AttributeError, RuntimeError, TypeError, ValueError, OverflowError):
+            return None
+
+    def _coarse_success_for_button(self, selected_button):
+        if not selected_button:
+            return None
+        with self._lock:
+            record = copy.deepcopy(getattr(
+                self, '_coarse_success_history', {},
+            ).get(str(selected_button)))
+        if record is None:
+            return None
+        age = time.monotonic() - float(record.get('saved_at', 0.0))
+        if age < 0.0 or age > float(self.get_parameter(
+            'coarse_success_history_max_age_seconds'
+        ).value):
+            return None
+        return record
+
+    def _remember_successful_coarse_pose(
+        self, selected_button, target, actual, joints,
+    ):
+        if not selected_button or target is None or actual is None:
+            return
+        record = {
+            'saved_at': time.monotonic(),
+            'selected_button': str(selected_button),
+            'target': copy.deepcopy(target),
+            'actual': copy.deepcopy(actual),
+            'joints': {name: float(value) for name, value in joints.items()},
+        }
+        with self._lock:
+            if not hasattr(self, '_coarse_success_history'):
+                self._coarse_success_history = {}
+            self._coarse_success_history[str(selected_button)] = record
+
+    def _rank_coarse_candidate(
+        self, joints, target, current, current_tcp, history,
+    ):
+        try:
+            quality = configuration_quality(
+                joints, current, self._arm_joint_limits,
+                wrist_joint=self._string_parameter('wrist_singularity_joint'),
+                minimum_abs_wrist_bend=float(self.get_parameter(
+                    'minimum_abs_wrist_bend_rad'
+                ).value),
+            )
+        except (KeyError, TypeError, ValueError, OverflowError):
+            quality = {
+                'cost': joint_configuration_cost(
+                    joints, current, self._arm_joint_limits,
+                ),
+            }
+        score = float(quality['cost'])
+        details = {
+            'configuration': float(quality['cost']),
+            'current_tcp': 0.0,
+            'history_joints': 0.0,
+            'history_pose': 0.0,
+        }
+        if current_tcp is not None:
+            try:
+                position, orientation = self._pose_distance(target, current_tcp)
+                current_tcp_cost = (
+                    float(self.get_parameter(
+                        'candidate_current_tcp_position_weight'
+                    ).value) * position / max(
+                        float(self.get_parameter('approach_distance_m').value),
+                        1.0e-6,
+                    ) + float(self.get_parameter(
+                        'candidate_current_tcp_orientation_weight'
+                    ).value) * orientation / 0.35
+                )
+                score += current_tcp_cost
+                details['current_tcp'] = current_tcp_cost
+            except (TypeError, ValueError, OverflowError):
+                pass
+        if history is not None:
+            history_joints = history.get('joints', {})
+            history_cost = joint_configuration_cost(
+                joints, history_joints, self._arm_joint_limits,
+            )
+            if math.isfinite(history_cost):
+                history_joint_cost = float(self.get_parameter(
+                    'candidate_history_joint_weight'
+                ).value) * history_cost
+                score += history_joint_cost
+                details['history_joints'] = history_joint_cost
+            history_pose = history.get('actual')
+            if history_pose is None:
+                history_pose = history.get('target')
+            if history_pose is not None:
+                try:
+                    position, orientation = self._pose_distance(
+                        target, history_pose,
+                    )
+                    history_pose_cost = (
+                        float(self.get_parameter(
+                            'candidate_history_position_weight'
+                        ).value) * position / 0.05 + float(
+                            self.get_parameter(
+                                'candidate_history_orientation_weight'
+                            ).value
+                        ) * orientation / 0.35
+                    )
+                    score += history_pose_cost
+                    details['history_pose'] = history_pose_cost
+                except (TypeError, ValueError, OverflowError):
+                    pass
+        return score, details
+
     def _solve_visible_candidates(self, observation):
         current = self._normalized_joint_positions('IK start')
         names = list(self.get_parameter('home_joint_names').value)
@@ -1446,6 +1599,12 @@ class ButtonApproachPlanner(Node):
         maximum = int(self.get_parameter('maximum_ik_solutions').value)
         started = time.monotonic()
         targets = list(self._candidate_poses(observation))
+        current_tcp = self._current_tcp_pose_for_candidate_sorting(
+            current, deadline,
+        )
+        history = self._coarse_success_for_button(
+            observation.get('selected_button'),
+        )
         report = {
             'selected_button': observation.get('selected_button'),
             'observation_stamp_ns': observation.get('stamp_ns'),
@@ -1457,18 +1616,26 @@ class ButtonApproachPlanner(Node):
             'ik_calls': 0, 'ik_successes': 0, 'ik_return_codes': {},
             'joint_rejections': 0, 'joint_rejection_examples': [],
             'duplicate_solutions': 0, 'accepted_solutions': 0,
+            'current_tcp_pose_available': current_tcp is not None,
+            'history_available': history is not None,
+            'ranking': [],
             'stop_reason': 'complete', 'elapsed_seconds': 0.0,
         }
         attempted = set()
 
         def finish(reason):
+            ranked = sorted(solutions, key=lambda item: item[0])
             report.update(
                 stop_reason=reason, elapsed_seconds=time.monotonic() - started,
                 candidates_attempted=len(attempted), accepted_solutions=len(solutions),
+                ranking=[{
+                    'score': float(item[0]),
+                    'details': copy.deepcopy(item[3]),
+                } for item in ranked],
             )
             with self._lock:
                 self._last_ik_search_diagnostic = copy.deepcopy(report)
-            return sorted(solutions, key=lambda item: item[0])
+            return [item[:3] for item in ranked]
 
         # Give every visible pose a first attempt before spending the bounded
         # budget on alternate wrist seeds at any one pose.
@@ -1531,14 +1698,14 @@ class ButtonApproachPlanner(Node):
                 joints = {name: joints[name] for name in names}
                 if any(
                     max(abs(joints[name] - old[name]) for name in names) < 0.01
-                    for _, old, _ in solutions
+                    for _, old, _, _ in solutions
                 ):
                     report['duplicate_solutions'] += 1
                     continue
-                score = joint_configuration_cost(
-                    joints, current, self._arm_joint_limits
+                score, details = self._rank_coarse_candidate(
+                    joints, target, current, current_tcp, history,
                 )
-                solutions.append((score, joints, target))
+                solutions.append((score, joints, target, details))
         return finish('complete')
 
     def _joint_configuration_is_safe(self, positions, reserve_rad=0.0):
@@ -1891,40 +2058,11 @@ class ButtonApproachPlanner(Node):
             self._execution_observation = copy.deepcopy(
                 getattr(self, '_planned_observation', None)
             )
+            self._execution_plan_created_at = self._plan_created_at
             self._clear_stored_plan_locked()
             if self._execution_observation is None:
                 response.success = False
                 response.message = 'Stored plan has no frozen camera observation; replan required'
-                return response
-            target_age = time.monotonic() - self._latest_received_at
-            current_button = self._latest_button
-            if (
-                current_button is None
-                or planned_button is None
-                or target_age > float(
-                    self.get_parameter('target_max_age_seconds').value
-                )
-            ):
-                response.success = False
-                response.message = (
-                    'Target is stale; acquire a fresh target and replan'
-                )
-                return response
-            current_position = np.asarray([
-                current_button.pose.position.x,
-                current_button.pose.position.y,
-                current_button.pose.position.z,
-            ])
-            if (
-                not np.all(np.isfinite(current_position))
-                or np.linalg.norm(current_position - planned_button) > float(
-                    self.get_parameter('max_target_drift_m').value
-                )
-            ):
-                response.success = False
-                response.message = (
-                    'Target moved after planning; replan required'
-                )
                 return response
             self._busy = True
             self._executing_coarse_target = True
@@ -1937,6 +2075,15 @@ class ButtonApproachPlanner(Node):
                 'planned_button': self._execution_observation['button'].tolist(),
                 'planned_normal': self._execution_observation['normal'].tolist(),
             }
+
+        current, message = self._execution_target_is_current()
+        if not current:
+            with self._lock:
+                self._busy = False
+                self._executing_coarse_target = False
+            response.success = False
+            response.message = message
+            return response
 
         self._publish_status('EXECUTING')
         try:
@@ -2198,7 +2345,16 @@ class ButtonApproachPlanner(Node):
                 selected = self._selected_button
             if selected != token['selected_button']:
                 raise ValueError('Selected button changed after coarse verification')
-            if not self._observation_is_fresh(latest):
+            cached_age_limit = float(self.get_parameter(
+                'cached_coarse_target_max_age_seconds').value)
+            cached_near_view = (
+                latest is not None
+                and latest['stamp_ns'] >= token['observation_stamp_ns']
+                and 0.0 <= age <= cached_age_limit
+                and 0.0 <= (self.get_clock().now().nanoseconds - latest['stamp_ns']) / 1e9
+                <= cached_age_limit
+            )
+            if not (self._observation_is_fresh(latest) or cached_near_view):
                 raise ValueError('Fresh stable near-view observation is required for Servo handover')
             if latest.get('selected_button') != token['selected_button']:
                 raise ValueError('Stable observation belongs to a different button')
@@ -2253,7 +2409,7 @@ class ButtonApproachPlanner(Node):
                         or self._motion_stop_unconfirmed):
                     raise ValueError('Coarse handover was invalidated while checking it')
                 if (current is None or current['stamp_ns'] != latest['stamp_ns']
-                        or not self._observation_is_fresh(latest)):
+                        or not (self._observation_is_fresh(latest) or cached_near_view)):
                     raise ValueError('Near-view observation changed during handover; retry')
                 maximum_age = float(self.get_parameter('joint_state_max_age_seconds').value)
                 now_ns = self.get_clock().now().nanoseconds
@@ -2449,6 +2605,9 @@ class ButtonApproachPlanner(Node):
                     message = 'Observation or TCP changed/expired during post-motion verification'
                     time.sleep(0.05)
                     continue
+                self._remember_successful_coarse_pose(
+                    observation.get('selected_button'), target, actual, joints,
+                )
                 self._record_execution_diagnostic(last_check=message)
                 return True, f'Approach reached and observed: {message}'
             except (ValueError, LookupException, ConnectivityException,
@@ -2933,47 +3092,94 @@ class ButtonApproachPlanner(Node):
             age = time.monotonic() - self._latest_received_at
             latest_observation = copy.deepcopy(self._latest_observation)
             planned_observation = copy.deepcopy(self._execution_observation)
-        if current is None or expected is None or age > float(
-            self.get_parameter('target_max_age_seconds').value
-        ):
-            return False, 'Target is stale before execution; replan required'
-        if latest_observation is None or planned_observation is None:
-            return False, (
-                'Stable paired observation unavailable before execution'
+            selected_button = getattr(self, '_selected_button', '')
+            plan_created_at = getattr(
+                self, '_execution_plan_created_at', 0.0,
             )
-        if not self._observation_is_fresh(latest_observation):
+            if plan_created_at <= 0.0:
+                plan_created_at = getattr(self, '_plan_created_at', 0.0)
+        if planned_observation is None or expected is None:
             return False, (
-                'Paired observation is stale before execution; replan required'
+                'Stored plan has no frozen target snapshot; replan required'
             )
-        if latest_observation.get(
-            'selected_button'
-        ) != planned_observation.get(
-            'selected_button'
+        planned_selection = planned_observation.get('selected_button')
+        if (
+            selected_button
+            and planned_selection
+            and selected_button != planned_selection
         ):
             return False, (
                 'Selected button changed before execution; replan required'
             )
-        normal_error = math.acos(float(np.clip(
-            np.dot(
-                latest_observation['normal'], planned_observation['normal']
-            ),
-            -1.0, 1.0,
-        )))
-        if not math.isfinite(normal_error) or normal_error > float(
-            self.get_parameter('observation_normal_tolerance_rad').value
-        ):
+        cache_age = time.monotonic() - plan_created_at
+        observation_fresh = (
+            latest_observation is not None
+            and self._observation_is_fresh(latest_observation)
+        )
+        cache_allowed = (
+            cache_age <= float(self.get_parameter(
+                'cached_coarse_target_max_age_seconds'
+            ).value)
+            and not observation_fresh
+        )
+        if latest_observation is None and not cache_allowed:
             return False, (
-                'Panel normal changed before execution; replan required'
+                'Stable paired observation unavailable before execution; '
+                'cached coarse target expired'
             )
-        position = np.asarray([
-            current.pose.position.x,
-            current.pose.position.y,
-            current.pose.position.z,
-        ])
-        if not np.all(np.isfinite(position)) or np.linalg.norm(
-            position - expected
-        ) > float(self.get_parameter('max_target_drift_m').value):
-            return False, 'Target moved before execution; replan required'
+        if latest_observation is not None:
+            if latest_observation.get(
+                'selected_button'
+            ) != planned_observation.get(
+                'selected_button'
+            ):
+                return False, (
+                    'Selected button changed before execution; replan required'
+                )
+            normal_error = math.acos(float(np.clip(
+                np.dot(
+                    latest_observation['normal'], planned_observation['normal']
+                ),
+                -1.0, 1.0,
+            )))
+            if not math.isfinite(normal_error) or normal_error > float(
+                self.get_parameter('observation_normal_tolerance_rad').value
+            ):
+                return False, (
+                    'Panel normal changed before execution; replan required'
+                )
+            if np.linalg.norm(
+                latest_observation['button'] - expected
+            ) > float(self.get_parameter('max_target_drift_m').value):
+                return False, 'Target moved before execution; replan required'
+            if not observation_fresh and not cache_allowed:
+                return False, (
+                    'Paired observation is stale before execution; replan required'
+                )
+        if current is None or age > float(
+            self.get_parameter('target_max_age_seconds').value
+        ):
+            # The paired observation is the source of truth for the button
+            # position. Its callback publishes the derived PoseStamped after
+            # committing the observation, so this cache can briefly be empty
+            # or old even while a fresh, checked observation is available.
+            if not observation_fresh and not cache_allowed:
+                return False, 'Target is stale before execution; replan required'
+        else:
+            position = np.asarray([
+                current.pose.position.x,
+                current.pose.position.y,
+                current.pose.position.z,
+            ])
+            if not np.all(np.isfinite(position)) or np.linalg.norm(
+                position - expected
+            ) > float(self.get_parameter('max_target_drift_m').value):
+                return False, 'Target moved before execution; replan required'
+        if cache_allowed:
+            return True, (
+                'Using frozen coarse target while stable observation is '
+                'temporarily unavailable'
+            )
         return True, ''
 
     def _trajectory_start_is_current(self, trajectory):

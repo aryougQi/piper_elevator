@@ -23,7 +23,14 @@ if ${gui_enabled}; then
     fi
 fi
 
-ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-0}" docker compose run --rm piper_ros2 bash -lc '
+docker_args=(run --rm -e IGN_PARTITION)
+if [[ -n "${PANEL_SIM_CONTAINER_NAME:-}" ]]; then
+    docker_args+=(--name "${PANEL_SIM_CONTAINER_NAME}")
+fi
+ROS_DOMAIN_ID="${ROS_DOMAIN_ID:-0}" docker compose "${docker_args[@]}" \
+  -e IGN_GAZEBO_RESOURCE_PATH=/workspace/ros2_ws/src/piper_elevator_gazebo/sim_variants/models:/workspace/ros2_ws/src/piper_elevator_gazebo/models \
+  -e GZ_SIM_RESOURCE_PATH=/workspace/ros2_ws/src/piper_elevator_gazebo/sim_variants/models:/workspace/ros2_ws/src/piper_elevator_gazebo/models \
+  piper_ros2 bash -lc '
     source /workspace/ros2_ws/install/setup.bash
     exec ros2 launch piper_elevator_gazebo gazebo_hardware.launch.py "$@"
 ' bash "$@"

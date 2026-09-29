@@ -1,4 +1,4 @@
-"""Record coarse planning limits in the dedicated ROS 42 simulation only."""
+"""Record coarse planning limits in an isolated ROS simulation domain."""
 
 import argparse
 import json
@@ -21,7 +21,8 @@ from std_srvs.srv import Trigger
 
 
 JOINT_NAMES = [f'joint{index}' for index in range(1, 7)]
-BUTTON_NAMES = {'1', '2', '3', '4', 'up', 'down', 'open', 'close', 'alarm'}
+BUTTON_NAMES = {'alarm', 'intercom', '3', '2', '1', 'open', 'close', 'up',
+                'down'}
 
 
 def await_result(node, future, timeout):
@@ -110,8 +111,9 @@ def main():
         default=Path(__file__).resolve().parents[3] / 'diagnostics' / 'data' / 'coarse_limits_probe.json',
     )
     arguments = parser.parse_args()
-    if os.environ.get('ROS_DOMAIN_ID') != '42':
-        raise RuntimeError('Probe refuses to run outside ROS_DOMAIN_ID=42')
+    domain_id = os.environ.get('ROS_DOMAIN_ID')
+    if domain_id not in {'42', '79'}:
+        raise RuntimeError('Probe requires the isolated ROS_DOMAIN_ID=42 or 79')
     buttons = [button.strip() for button in arguments.buttons.split(',') if button.strip()]
     if buttons and not arguments.execute_cycles:
         raise RuntimeError('--buttons requires the explicit --execute-cycles mode')
@@ -223,9 +225,16 @@ def main():
         planner = node.create_client(Trigger, '/button_approach_planner/plan')
         if not planner.wait_for_service(timeout_sec=10.0):
             raise RuntimeError('Coarse plan service unavailable')
-        spin_for(node, 1.0)
+        startup_deadline = time.monotonic() + 30.0
+        while (
+            time.monotonic() < startup_deadline
+            and time.monotonic() - live['feedback_received_at'] > 0.5
+        ):
+            rclpy.spin_once(node, timeout_sec=0.05)
+        if time.monotonic() - live['feedback_received_at'] > 0.5:
+            raise RuntimeError('Fresh arm feedback unavailable after startup')
         report = {
-            'ros_domain_id': 42,
+            'ros_domain_id': int(domain_id),
             'simulation_mode': True,
             'operation': 'execute_cycles' if arguments.execute_cycles else 'plan_only',
             'selected_button': selected['button'],

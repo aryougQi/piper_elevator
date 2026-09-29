@@ -1,0 +1,316 @@
+[INFO] [launch]: All log files can be found below /root/.ros/log/2026-09-27-15-15-44-443175-qi-123-80
+[INFO] [launch]: Default logging verbosity is set to INFO
+WARNING:root:[33;21mCannot infer SRDF from `/workspace/ros2_ws/install/piper_elevator_app/share/piper_elevator_app`. -- using config/piper_pika.srdf[0m
+[INFO] [ign gazebo-1]: process started with pid [82]
+[INFO] [robot_state_publisher-2]: process started with pid [84]
+[INFO] [parameter_bridge-3]: process started with pid [86]
+[INFO] [relay-4]: process started with pid [89]
+[INFO] [create-5]: process started with pid [91]
+[INFO] [button_detector-6]: process started with pid [93]
+[INFO] [move_group-7]: process started with pid [95]
+[INFO] [servo_node_main-8]: process started with pid [97]
+[INFO] [simulation_servo_adapter-9]: process started with pid [99]
+[INFO] [button_approach_planner-10]: process started with pid [101]
+[INFO] [button_visual_servo-11]: process started with pid [103]
+[INFO] [button_press_executor-12]: process started with pid [105]
+[INFO] [elevator_task_manager-13]: process started with pid [107]
+[robot_state_publisher-2] [0m[INFO] [1790522144.845348100] [robot_state_publisher]: got segment base_link[0m
+[robot_state_publisher-2] [0m[INFO] [1790522144.845613440] [robot_state_publisher]: got segment camera_color_frame[0m
+[robot_state_publisher-2] [0m[INFO] [1790522144.845630725] [robot_state_publisher]: got segment camera_color_optical_frame[0m
+[robot_state_publisher-2] [0m[INFO] [1790522144.845636775] [robot_state_publisher]: got segment camera_link[0m
+[robot_state_publisher-2] [0m[INFO] [1790522144.845641429] [robot_state_publisher]: got segment link1[0m
+[robot_state_publisher-2] [0m[INFO] [1790522144.845647854] [robot_state_publisher]: got segment link2[0m
+[robot_state_publisher-2] [0m[INFO] [1790522144.845653687] [robot_state_publisher]: got segment link3[0m
+[robot_state_publisher-2] [0m[INFO] [1790522144.845658441] [robot_state_publisher]: got segment link4[0m
+[robot_state_publisher-2] [0m[INFO] [1790522144.845662752] [robot_state_publisher]: got segment link5[0m
+[robot_state_publisher-2] [0m[INFO] [1790522144.845669268] [robot_state_publisher]: got segment link6[0m
+[robot_state_publisher-2] [0m[INFO] [1790522144.845672454] [robot_state_publisher]: got segment pika_fingertip_center_link[0m
+[robot_state_publisher-2] [0m[INFO] [1790522144.845677220] [robot_state_publisher]: got segment pika_gripper_actuator_link[0m
+[robot_state_publisher-2] [0m[INFO] [1790522144.845680701] [robot_state_publisher]: got segment pika_gripper_base_link[0m
+[robot_state_publisher-2] [0m[INFO] [1790522144.845686194] [robot_state_publisher]: got segment pika_gripper_left_link[0m
+[robot_state_publisher-2] [0m[INFO] [1790522144.845691979] [robot_state_publisher]: got segment pika_gripper_right_link[0m
+[robot_state_publisher-2] [0m[INFO] [1790522144.845696710] [robot_state_publisher]: got segment tcp_link[0m
+[robot_state_publisher-2] [0m[INFO] [1790522144.845701737] [robot_state_publisher]: got segment world[0m
+[create-5] [0m[INFO] [1790522144.845421101] [ros_gz_sim]: Waiting messages on topic [/robot_description].[0m
+[servo_node_main-8] [33m[WARN] [1790522144.846127144] [moveit_servo.servo_node]: Intra-process communication is disabled, consider enabling it by adding: 
+[servo_node_main-8] extra_arguments=[{'use_intra_process_comms' : True}]
+[servo_node_main-8] to the Servo composable node in the launch file[0m
+[servo_node_main-8] [0m[INFO] [1790522144.873338118] [moveit_rdf_loader.rdf_loader]: Loaded robot model in 0 seconds[0m
+[servo_node_main-8] [0m[INFO] [1790522144.873438345] [moveit_robot_model.robot_model]: Loading robot model 'piper_pika'...[0m
+[servo_node_main-8] [0m[INFO] [1790522144.873449122] [moveit_robot_model.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint[0m
+[move_group-7] [0m[INFO] [1790522144.922534346] [moveit_rdf_loader.rdf_loader]: Loaded robot model in 0 seconds[0m
+[move_group-7] [0m[INFO] [1790522144.922705669] [moveit_robot_model.robot_model]: Loading robot model 'piper_pika'...[0m
+[move_group-7] [0m[INFO] [1790522144.922718674] [moveit_robot_model.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint[0m
+[simulation_servo_adapter-9] [0m[INFO] [1790522145.146737313] [simulation_servo_adapter]: Simulation Servo tracking compensation enabled: gain=2.00, max_lead=0.080 rad[0m
+[button_visual_servo-11] [0m[INFO] [1790522145.286124061] [button_visual_servo]: Button visual servo ready: tip=pika_fingertip_center_link, standoff=0.030 m, execution=True[0m
+[create-5] [0m[INFO] [1790522145.472220457] [ros_gz_sim]: Requested creation of entity.[0m
+[create-5] [0m[INFO] [1790522145.472371414] [ros_gz_sim]: OK creation of entity.[0m
+[INFO] [create-5]: process has finished cleanly [pid 91]
+[INFO] [spawner-14]: process started with pid [390]
+[button_approach_planner-10] [0m[INFO] [1790522145.789873745] [button_approach_planner]: Button approach planner ready: base=base_link, tip=pika_fingertip_center_link, approach=0.140 m, execution=True, policy=visible_joint_goal, vertical_offset=0.000 m[0m
+[parameter_bridge-3] [0m[INFO] [1790522145.889962636] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/pika_fisheye/image (gz.msgs.Image) -> /camera/color/image_raw (sensor_msgs/msg/Image)] (Lazy 1)[0m
+[parameter_bridge-3] [0m[INFO] [1790522146.154048392] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/pika_fisheye/depth_image (gz.msgs.Image) -> /camera/aligned_depth_to_color/image_raw (sensor_msgs/msg/Image)] (Lazy 1)[0m
+[parameter_bridge-3] [0m[INFO] [1790522146.154821732] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/pika_fisheye/camera_info (gz.msgs.CameraInfo) -> /camera/color/camera_info (sensor_msgs/msg/CameraInfo)] (Lazy 1)[0m
+[parameter_bridge-3] [0m[INFO] [1790522146.155513671] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/clock (gz.msgs.Clock) -> /clock (rosgraph_msgs/msg/Clock)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790522146.156345063] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/elevator_button/touched (gz.msgs.Boolean) -> /elevator_button/pressed (std_msgs/msg/Bool)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790522146.157230965] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/button_press/model/elevator_button/link/button_1_face/sensor/button_1_contact/contact (gz.msgs.Contacts) -> /elevator_button/button_1/contacts (ros_gz_interfaces/msg/Contacts)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790522146.161441739] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/button_press/model/elevator_button/link/button_2_face/sensor/button_2_contact/contact (gz.msgs.Contacts) -> /elevator_button/button_2/contacts (ros_gz_interfaces/msg/Contacts)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790522146.162400426] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/button_press/model/elevator_button/link/button_3_face/sensor/button_3_contact/contact (gz.msgs.Contacts) -> /elevator_button/button_3/contacts (ros_gz_interfaces/msg/Contacts)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790522146.164134939] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/button_press/model/elevator_button/link/button_intercom_face/sensor/button_intercom_contact/contact (gz.msgs.Contacts) -> /elevator_button/button_intercom/contacts (ros_gz_interfaces/msg/Contacts)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790522146.164794804] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/button_press/model/elevator_button/link/button_up_face/sensor/button_up_contact/contact (gz.msgs.Contacts) -> /elevator_button/button_up/contacts (ros_gz_interfaces/msg/Contacts)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790522146.165386324] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/button_press/model/elevator_button/link/button_down_face/sensor/button_down_contact/contact (gz.msgs.Contacts) -> /elevator_button/button_down/contacts (ros_gz_interfaces/msg/Contacts)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790522146.165805873] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/button_press/model/elevator_button/link/button_open_face/sensor/button_open_contact/contact (gz.msgs.Contacts) -> /elevator_button/button_open/contacts (ros_gz_interfaces/msg/Contacts)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790522146.168127303] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/button_press/model/elevator_button/link/button_close_face/sensor/button_close_contact/contact (gz.msgs.Contacts) -> /elevator_button/button_close/contacts (ros_gz_interfaces/msg/Contacts)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790522146.169288599] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/button_press/model/elevator_button/link/button_alarm_face/sensor/button_alarm_contact/contact (gz.msgs.Contacts) -> /elevator_button/button_alarm/contacts (ros_gz_interfaces/msg/Contacts)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790522146.170337767] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/elevator_button/joint_state (gz.msgs.Model) -> /elevator_button/joint_states (sensor_msgs/msg/JointState)] (Lazy 0)[0m
+[spawner-14] [0m[INFO] [1790522146.191638381] [spawner_joint_state_broadcaster]: waiting for service /controller_manager/list_controllers to become available...[0m
+[button_detector-6] [0m[INFO] [1790522146.300204846] [button_detector]: Model warmup completed: iterations=2, elapsed=0.516s[0m
+[button_detector-6] [0m[INFO] [1790522146.310370767] [button_detector]: YOLO button detector ready in RGB-D mode. model=/workspace/ros2_ws/install/piper_elevator_app/share/piper_elevator_app/models/elevator_buttons_yolo11s.onnx, providers=['CUDAExecutionProvider', 'CPUExecutionProvider'], color=/camera/color/image_raw, input_queue=1, input_reliability=BEST_EFFORT, selected_button=<none>[0m
+[move_group-7] [0m[INFO] [1790522146.530730030] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'[0m
+[move_group-7] [0m[INFO] [1790522146.530970635] [moveit.ros_planning_interface.moveit_cpp]: Listening to 'joint_states' for joint states[0m
+[servo_node_main-8] [0m[INFO] [1790522146.531286949] [moveit_ros.current_state_monitor]: Listening to joint states on topic '/piper_pika/joint_states'[0m
+[move_group-7] [0m[INFO] [1790522146.531660032] [moveit_ros.current_state_monitor]: Listening to joint states on topic 'joint_states'[0m
+[move_group-7] [0m[INFO] [1790522146.531921902] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to '/attached_collision_object' for attached collision objects[0m
+[move_group-7] [0m[INFO] [1790522146.531935904] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Starting planning scene monitor[0m
+[move_group-7] [0m[INFO] [1790522146.532102942] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to '/planning_scene'[0m
+[move_group-7] [0m[INFO] [1790522146.532111848] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Starting world geometry update monitor for collision objects, attached objects, octomap updates.[0m
+[move_group-7] [0m[INFO] [1790522146.532317060] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to 'collision_object'[0m
+[move_group-7] [0m[INFO] [1790522146.532503544] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to 'planning_scene_world' for planning scene world geometry[0m
+[move_group-7] [33m[WARN] [1790522146.532651219] [moveit.ros.occupancy_map_monitor.middleware_handle]: Resolution not specified for Octomap. Assuming resolution = 0.1 instead[0m
+[move_group-7] [31m[ERROR] [1790522146.532659790] [moveit.ros.occupancy_map_monitor.middleware_handle]: No 3D sensor plugin(s) defined for octomap updates[0m
+[servo_node_main-8] [0m[INFO] [1790522146.534192854] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to '/attached_collision_object' for attached collision objects[0m
+[servo_node_main-8] [0m[INFO] [1790522146.534210764] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Starting planning scene monitor[0m
+[servo_node_main-8] [0m[INFO] [1790522146.534847829] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to '/planning_scene'[0m
+[servo_node_main-8] [0m[INFO] [1790522146.534857591] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Starting world geometry update monitor for collision objects, attached objects, octomap updates.[0m
+[servo_node_main-8] [0m[INFO] [1790522146.535069096] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to 'collision_object'[0m
+[servo_node_main-8] [0m[INFO] [1790522146.535258930] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to 'planning_scene_world' for planning scene world geometry[0m
+[servo_node_main-8] [33m[WARN] [1790522146.535381911] [moveit.ros.occupancy_map_monitor.middleware_handle]: Resolution not specified for Octomap. Assuming resolution = 0.1 instead[0m
+[servo_node_main-8] [31m[ERROR] [1790522146.535388369] [moveit.ros.occupancy_map_monitor.middleware_handle]: No 3D sensor plugin(s) defined for octomap updates[0m
+[ign gazebo-1] [0m[INFO] [1790522147.064227492] [GazeboSimROS2ControlPlugin]: robot_param_node is robot_state_publisher[0m
+[ign gazebo-1] [0m[INFO] [1790522147.064250901] [GazeboSimROS2ControlPlugin]: robot_param_node is robot_description[0m
+[ign gazebo-1] [0m[INFO] [1790522148.073654177] [gz_ros2_control]: connected to service!! robot_state_publisher asking for robot_description[0m
+[ign gazebo-1] [0m[INFO] [1790522148.074316106] [gz_ros2_control]: Received URDF from param server[0m
+[ign gazebo-1] [0m[INFO] [1790522148.075196784] [gz_ros2_control]: [gz_ros2_control] Fixed joint ['world_to_base_link'] (Entity='108') is skipped.[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077569517] [gz_ros2_control]: The position_proportional_gain has been set to: 0.1[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077608543] [gz_ros2_control]: Loading joint: joint1[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077617444] [gz_ros2_control]: 	State:[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077621470] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077627566] [gz_ros2_control]: 			 found initial value: 0.000000[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077631666] [gz_ros2_control]: 		 velocity[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077634630] [gz_ros2_control]: 	Command:[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077637377] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077649963] [gz_ros2_control]: Loading joint: joint2[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077654440] [gz_ros2_control]: 	State:[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077659397] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077666956] [gz_ros2_control]: 			 found initial value: 0.010000[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077671838] [gz_ros2_control]: 		 velocity[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077676151] [gz_ros2_control]: 	Command:[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077679799] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077692180] [gz_ros2_control]: Loading joint: joint3[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077696663] [gz_ros2_control]: 	State:[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077700995] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077705587] [gz_ros2_control]: 			 found initial value: -0.010000[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077710070] [gz_ros2_control]: 		 velocity[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077714678] [gz_ros2_control]: 	Command:[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077718699] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077732288] [gz_ros2_control]: Loading joint: joint4[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077736231] [gz_ros2_control]: 	State:[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077741574] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077746991] [gz_ros2_control]: 			 found initial value: 0.000000[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077751757] [gz_ros2_control]: 		 velocity[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077756781] [gz_ros2_control]: 	Command:[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077761015] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077771142] [gz_ros2_control]: Loading joint: joint5[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077774202] [gz_ros2_control]: 	State:[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077776953] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077779703] [gz_ros2_control]: 			 found initial value: 0.000000[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077782516] [gz_ros2_control]: 		 velocity[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077785258] [gz_ros2_control]: 	Command:[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077787546] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077793119] [gz_ros2_control]: Loading joint: joint6[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077796287] [gz_ros2_control]: 	State:[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077798497] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077800658] [gz_ros2_control]: 			 found initial value: 0.000000[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077803181] [gz_ros2_control]: 		 velocity[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077805357] [gz_ros2_control]: 	Command:[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077807464] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077812254] [gz_ros2_control]: Loading joint: center_joint[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077815051] [gz_ros2_control]: 	State:[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077817595] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077819730] [gz_ros2_control]: 			 found initial value: 0.050000[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077822402] [gz_ros2_control]: 		 velocity[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077824589] [gz_ros2_control]: 	Command:[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077826749] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077831647] [gz_ros2_control]: Loading joint: pika_left_finger_joint[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077834463] [gz_ros2_control]: 	State:[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077836683] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077838900] [gz_ros2_control]: 			 found initial value: 0.025000[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077841336] [gz_ros2_control]: 		 velocity[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077843624] [gz_ros2_control]: 	Command:[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077845964] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077853219] [gz_ros2_control]: Loading joint: pika_right_finger_joint[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077898223] [gz_ros2_control]: 	State:[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077902576] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077907359] [gz_ros2_control]: 			 found initial value: -0.025000[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077912235] [gz_ros2_control]: 		 velocity[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077916225] [gz_ros2_control]: 	Command:[0m
+[ign gazebo-1] [0m[INFO] [1790522148.077924724] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790522148.078015300] [resource_manager]: Initialize hardware 'PiperPikaGazeboSystem' [0m
+[ign gazebo-1] [0m[INFO] [1790522148.078051224] [resource_manager]: Successful initialization of hardware 'PiperPikaGazeboSystem'[0m
+[ign gazebo-1] [0m[INFO] [1790522148.078086109] [resource_manager]: 'configure' hardware 'PiperPikaGazeboSystem' [0m
+[ign gazebo-1] [0m[INFO] [1790522148.078090295] [gz_ros2_control]: System Successfully configured![0m
+[ign gazebo-1] [0m[INFO] [1790522148.078099092] [resource_manager]: Successful 'configure' of hardware 'PiperPikaGazeboSystem'[0m
+[ign gazebo-1] [0m[INFO] [1790522148.078105526] [resource_manager]: 'activate' hardware 'PiperPikaGazeboSystem' [0m
+[ign gazebo-1] [0m[INFO] [1790522148.078111017] [resource_manager]: Successful 'activate' of hardware 'PiperPikaGazeboSystem'[0m
+[ign gazebo-1] [0m[INFO] [1790522148.078114415] [gz_ros2_control]: Loading controller_manager[0m
+[ign gazebo-1] [0m[INFO] [1790522148.197306038] [controller_manager]: Loading controller 'joint_state_broadcaster'[0m
+[spawner-14] [0m[INFO] [1790522148.204616342] [spawner_joint_state_broadcaster]: [94mLoaded [1mjoint_state_broadcaster[0m[0m
+[ign gazebo-1] [0m[INFO] [1790522148.205599995] [controller_manager]: Configuring controller 'joint_state_broadcaster'[0m
+[ign gazebo-1] [0m[INFO] [1790522148.205707462] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published[0m
+[move_group-7] [0m[INFO] [1790522148.313212304] [moveit.ros_planning_interface.moveit_cpp]: Loading planning pipeline 'chomp'[0m
+[move_group-7] [0m[INFO] [1790522148.315178098] [moveit.ros_planning.planning_pipeline]: Using planning interface 'CHOMP'[0m
+[servo_node_main-8] [0m[INFO] [1790522148.316489137] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Publishing maintained planning scene on '/servo_node/publish_planning_scene'[0m
+[move_group-7] [0m[INFO] [1790522148.316872350] [moveit_ros.add_time_optimal_parameterization]: Param 'chomp.path_tolerance' was not set. Using default value: 0.100000[0m
+[move_group-7] [0m[INFO] [1790522148.316886127] [moveit_ros.add_time_optimal_parameterization]: Param 'chomp.resample_dt' was not set. Using default value: 0.100000[0m
+[move_group-7] [0m[INFO] [1790522148.316888588] [moveit_ros.add_time_optimal_parameterization]: Param 'chomp.min_angle_change' was not set. Using default value: 0.001000[0m
+[move_group-7] [0m[INFO] [1790522148.316903936] [moveit_ros.fix_workspace_bounds]: Param 'chomp.default_workspace_bounds' was not set. Using default value: 10.000000[0m
+[move_group-7] [0m[INFO] [1790522148.316912752] [moveit_ros.fix_start_state_bounds]: Param 'chomp.start_state_max_bounds_error' was set to 0.100000[0m
+[move_group-7] [0m[INFO] [1790522148.316922380] [moveit_ros.fix_start_state_bounds]: Param 'chomp.start_state_max_dt' was not set. Using default value: 0.500000[0m
+[move_group-7] [0m[INFO] [1790522148.316929523] [moveit_ros.fix_start_state_collision]: Param 'chomp.start_state_max_dt' was not set. Using default value: 0.500000[0m
+[move_group-7] [0m[INFO] [1790522148.316934007] [moveit_ros.fix_start_state_collision]: Param 'chomp.jiggle_fraction' was set to 0.050000[0m
+[move_group-7] [0m[INFO] [1790522148.316937036] [moveit_ros.fix_start_state_collision]: Param 'chomp.max_sampling_attempts' was not set. Using default value: 100[0m
+[move_group-7] [0m[INFO] [1790522148.316943388] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Add Time Optimal Parameterization'[0m
+[move_group-7] [0m[INFO] [1790522148.316946474] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Resolve constraint frames to robot links'[0m
+[move_group-7] [0m[INFO] [1790522148.316948738] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Workspace Bounds'[0m
+[move_group-7] [0m[INFO] [1790522148.316951191] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Start State Bounds'[0m
+[move_group-7] [0m[INFO] [1790522148.316952605] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Start State In Collision'[0m
+[move_group-7] [0m[INFO] [1790522148.316953952] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Start State Path Constraints'[0m
+[move_group-7] [0m[INFO] [1790522148.319839053] [moveit.ros_planning_interface.moveit_cpp]: Loading planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790522148.321584472] [moveit.pilz_industrial_motion_planner.joint_limits_aggregator]: Reading limits from namespace robot_description_planning[0m
+[move_group-7] [0m[INFO] [1790522148.323740359] [moveit.pilz_industrial_motion_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP [0m
+[move_group-7] [0m[INFO] [1790522148.323754592] [moveit.pilz_industrial_motion_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC[0m
+[move_group-7] [0m[INFO] [1790522148.324644096] [moveit.pilz_industrial_motion_planner]: Registered Algorithm [CIRC][0m
+[move_group-7] [0m[INFO] [1790522148.324652957] [moveit.pilz_industrial_motion_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN[0m
+[move_group-7] [0m[INFO] [1790522148.325102240] [moveit.pilz_industrial_motion_planner]: Registered Algorithm [LIN][0m
+[move_group-7] [0m[INFO] [1790522148.325107173] [moveit.pilz_industrial_motion_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP[0m
+[move_group-7] [0m[INFO] [1790522148.325526822] [moveit.pilz_industrial_motion_planner]: Registered Algorithm [PTP][0m
+[move_group-7] [0m[INFO] [1790522148.325532443] [moveit.ros_planning.planning_pipeline]: Using planning interface 'Pilz Industrial Motion Planner'[0m
+[move_group-7] [0m[INFO] [1790522148.326123357] [moveit.ros_planning_interface.moveit_cpp]: Loading planning pipeline 'ompl'[0m
+[move_group-7] [0m[INFO] [1790522148.332049170] [moveit.ros_planning.planning_pipeline]: Using planning interface 'OMPL'[0m
+[move_group-7] [0m[INFO] [1790522148.332696189] [moveit_ros.add_time_optimal_parameterization]: Param 'ompl.path_tolerance' was not set. Using default value: 0.100000[0m
+[move_group-7] [0m[INFO] [1790522148.332702783] [moveit_ros.add_time_optimal_parameterization]: Param 'ompl.resample_dt' was not set. Using default value: 0.100000[0m
+[move_group-7] [0m[INFO] [1790522148.332720370] [moveit_ros.add_time_optimal_parameterization]: Param 'ompl.min_angle_change' was not set. Using default value: 0.001000[0m
+[move_group-7] [0m[INFO] [1790522148.332732374] [moveit_ros.fix_workspace_bounds]: Param 'ompl.default_workspace_bounds' was not set. Using default value: 10.000000[0m
+[move_group-7] [0m[INFO] [1790522148.332740583] [moveit_ros.fix_start_state_bounds]: Param 'ompl.start_state_max_bounds_error' was set to 0.100000[0m
+[move_group-7] [0m[INFO] [1790522148.332743694] [moveit_ros.fix_start_state_bounds]: Param 'ompl.start_state_max_dt' was not set. Using default value: 0.500000[0m
+[move_group-7] [0m[INFO] [1790522148.332750054] [moveit_ros.fix_start_state_collision]: Param 'ompl.start_state_max_dt' was not set. Using default value: 0.500000[0m
+[move_group-7] [0m[INFO] [1790522148.332753092] [moveit_ros.fix_start_state_collision]: Param 'ompl.jiggle_fraction' was set to 0.050000[0m
+[move_group-7] [0m[INFO] [1790522148.332755123] [moveit_ros.fix_start_state_collision]: Param 'ompl.max_sampling_attempts' was not set. Using default value: 100[0m
+[move_group-7] [0m[INFO] [1790522148.332760609] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Add Time Optimal Parameterization'[0m
+[move_group-7] [0m[INFO] [1790522148.332762359] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Resolve constraint frames to robot links'[0m
+[move_group-7] [0m[INFO] [1790522148.332763755] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Workspace Bounds'[0m
+[move_group-7] [0m[INFO] [1790522148.332765246] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Start State Bounds'[0m
+[move_group-7] [0m[INFO] [1790522148.332766610] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Start State In Collision'[0m
+[move_group-7] [0m[INFO] [1790522148.332767929] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Start State Path Constraints'[0m
+[move_group-7] [0m[INFO] [1790522148.349095357] [moveit.plugins.moveit_simple_controller_manager]: Added FollowJointTrajectory controller for arm_controller[0m
+[move_group-7] [0m[INFO] [1790522148.351069230] [moveit.plugins.moveit_simple_controller_manager]: Added FollowJointTrajectory controller for pika_gripper_controller[0m
+[move_group-7] [0m[INFO] [1790522148.351366149] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790522148.351405446] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790522148.351832938] [moveit_ros.trajectory_execution_manager]: Trajectory execution is managing controllers[0m
+[move_group-7] [0m[INFO] [1790522148.351861557] [move_group.move_group]: MoveGroup debug mode is ON[0m
+[move_group-7] [33m[WARN] [1790522148.358696226] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Unable to transform object from frame 'camera_color_frame' to planning frame'world' (Could not find a connection between 'world' and 'camera_color_frame' because they are not part of the same tree.Tf has two or more unconnected trees.)[0m
+[move_group-7] [33m[WARN] [1790522148.358726873] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Unable to transform object from frame 'camera_link' to planning frame'world' (Could not find a connection between 'world' and 'camera_link' because they are not part of the same tree.Tf has two or more unconnected trees.)[0m
+[move_group-7] [33m[WARN] [1790522148.358734884] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Unable to transform object from frame 'camera_color_optical_frame' to planning frame'world' (Could not find a connection between 'world' and 'camera_color_optical_frame' because they are not part of the same tree.Tf has two or more unconnected trees.)[0m
+[move_group-7] [0m[INFO] [1790522148.362066905] [move_group.move_group]: 
+[move_group-7] 
+[move_group-7] ********************************************************
+[move_group-7] * MoveGroup using: 
+[move_group-7] *     - ApplyPlanningSceneService
+[move_group-7] *     - ClearOctomapService
+[move_group-7] *     - CartesianPathService
+[move_group-7] *     - ExecuteTrajectoryAction
+[move_group-7] *     - GetPlanningSceneService
+[move_group-7] *     - KinematicsService
+[move_group-7] *     - MoveAction
+[move_group-7] *     - MotionPlanService
+[move_group-7] *     - QueryPlannersService
+[move_group-7] *     - StateValidationService
+[move_group-7] ********************************************************
+[move_group-7] [0m
+[move_group-7] [0m[INFO] [1790522148.362097322] [moveit_move_group_capabilities_base.move_group_context]: MoveGroup context using planning plugin ompl_interface/OMPLPlanner[0m
+[move_group-7] [0m[INFO] [1790522148.362128519] [moveit_move_group_capabilities_base.move_group_context]: MoveGroup context initialization complete[0m
+[move_group-7] [96mLoading 'move_group/ApplyPlanningSceneService'...
+[move_group-7] [0m[96mLoading 'move_group/ClearOctomapService'...
+[move_group-7] [0m[96mLoading 'move_group/MoveGroupCartesianPathService'...
+[move_group-7] [0m[96mLoading 'move_group/MoveGroupExecuteTrajectoryAction'...
+[move_group-7] [0m[96mLoading 'move_group/MoveGroupGetPlanningSceneService'...
+[move_group-7] [0m[96mLoading 'move_group/MoveGroupKinematicsService'...
+[move_group-7] [0m[96mLoading 'move_group/MoveGroupMoveAction'...
+[move_group-7] [0m[96mLoading 'move_group/MoveGroupPlanService'...
+[move_group-7] [0m[96mLoading 'move_group/MoveGroupQueryPlannersService'...
+[move_group-7] [0m[96mLoading 'move_group/MoveGroupStateValidationService'...
+[move_group-7] [0m[92m
+[move_group-7] You can start planning now!
+[move_group-7] 
+[ign gazebo-1] [33m[WARN] [1790522148.756926501] [gz_ros2_control]:  Desired controller update period (0.005 s) is slower than the gazebo simulation period (0.001 s).[0m
+[ign gazebo-1] libEGL warning: egl: failed to create dri2 screen
+[ign gazebo-1] libEGL warning: egl: failed to create dri2 screen
+[spawner-14] [0m[INFO] [1790522150.084266705] [spawner_joint_state_broadcaster]: [92mConfigured and activated [1mjoint_state_broadcaster[0m[0m
+[ign gazebo-1] [0m[INFO] [1790522150.085237561] [controller_manager]: Loading controller 'arm_controller'[0m
+[spawner-14] [0m[INFO] [1790522150.100256888] [spawner_joint_state_broadcaster]: [94mLoaded [1marm_controller[0m[0m
+[ign gazebo-1] [0m[INFO] [1790522150.101166848] [controller_manager]: Configuring controller 'arm_controller'[0m
+[ign gazebo-1] [0m[INFO] [1790522150.101500648] [arm_controller]: No specific joint names are used for command interfaces. Using 'joints' parameter.[0m
+[ign gazebo-1] [0m[INFO] [1790522150.101543491] [arm_controller]: Command interfaces are [position] and state interfaces are [position velocity].[0m
+[ign gazebo-1] [0m[INFO] [1790522150.101591879] [arm_controller]: Using 'splines' interpolation method.[0m
+[ign gazebo-1] [0m[INFO] [1790522150.103475337] [arm_controller]: Controller state will be published at 50.00 Hz.[0m
+[ign gazebo-1] [0m[INFO] [1790522150.106347362] [arm_controller]: Action status changes will be monitored at 20.00 Hz.[0m
+[spawner-14] [0m[INFO] [1790522150.125814959] [spawner_joint_state_broadcaster]: [92mConfigured and activated [1marm_controller[0m[0m
+[ign gazebo-1] [0m[INFO] [1790522150.127369638] [controller_manager]: Loading controller 'pika_gripper_controller'[0m
+[spawner-14] [0m[INFO] [1790522150.150453285] [spawner_joint_state_broadcaster]: [94mLoaded [1mpika_gripper_controller[0m[0m
+[ign gazebo-1] [0m[INFO] [1790522150.151309647] [controller_manager]: Configuring controller 'pika_gripper_controller'[0m
+[ign gazebo-1] [0m[INFO] [1790522150.151600732] [pika_gripper_controller]: No specific joint names are used for command interfaces. Using 'joints' parameter.[0m
+[ign gazebo-1] [0m[INFO] [1790522150.151652559] [pika_gripper_controller]: Command interfaces are [position] and state interfaces are [position velocity].[0m
+[ign gazebo-1] [0m[INFO] [1790522150.151677225] [pika_gripper_controller]: Using 'splines' interpolation method.[0m
+[ign gazebo-1] [0m[INFO] [1790522150.153264761] [pika_gripper_controller]: Controller state will be published at 50.00 Hz.[0m
+[ign gazebo-1] [0m[INFO] [1790522150.155935153] [pika_gripper_controller]: Action status changes will be monitored at 20.00 Hz.[0m
+[spawner-14] [0m[INFO] [1790522150.181096399] [spawner_joint_state_broadcaster]: [92mConfigured and activated [1mpika_gripper_controller[0m[0m
+[INFO] [spawner-14]: process has finished cleanly [pid 390]
+[button_detector-6] [0m[INFO] [1790522151.352312929] [button_detector]: Performance: 4.4 FPS, debug=0.0 FPS, average=38.7 ms, max=47.3 ms, input_age=45.0 ms[0m
+[button_detector-6] [0m[INFO] [1790522156.405984304] [button_detector]: Performance: 19.4 FPS, debug=0.0 FPS, average=37.0 ms, max=58.3 ms, input_age=17.0 ms[0m
+[button_detector-6] [0m[INFO] [1790522158.082088980] [button_detector]: Button selection changed: up[0m
+[ign gazebo-1] [0m[INFO] [1790522158.779493356] [pika_gripper_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790522158.779734924] [pika_gripper_controller]: Accepted new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790522159.944678668] [pika_gripper_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790522160.638065541] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790522160.638244393] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790522160.639417956] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790522160.639444292] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790522160.642503899] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790522160.644221614] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790522160.784200156] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[button_detector-6] [0m[INFO] [1790522161.457639348] [button_detector]: Performance: 15.8 FPS, debug=0.0 FPS, average=44.1 ms, max=60.0 ms, input_age=19.0 ms[0m
+[move_group-7] [0m[INFO] [1790522161.592060338] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790522161.593182924] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790522161.593370348] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790522161.593475628] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790522161.667808849] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790522161.669675175] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790522161.669852203] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790522161.669962407] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790522161.954739894] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790522161.954950961] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790522161.955012340] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790522161.955032606] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790522161.955166051] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790522161.956583884] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790522161.956636462] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790522161.956653713] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790522161.956954662] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[ign gazebo-1] [0m[INFO] [1790522161.957269441] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790522161.957338088] [arm_controller]: Accepted new action goal[0m
+[move_group-7] [0m[INFO] [1790522161.957474286] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790522161.957491709] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[ign gazebo-1] [0m[INFO] [1790522165.013374550] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790522165.058284258] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790522165.075168828] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790522165.075331892] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m

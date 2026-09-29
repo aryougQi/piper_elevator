@@ -43,6 +43,7 @@ class TrackingHarness:
     _limit_level_roll_speed = ButtonVisualServo._limit_level_roll_speed
     _roll_status = staticmethod(ButtonVisualServo._roll_status)
     _linear_speed_multiplier = ButtonVisualServo._linear_speed_multiplier
+    _locked_approach_speed = ButtonVisualServo._locked_approach_speed
     _blind_approach_speed = ButtonVisualServo._blind_approach_speed
     _vision_loss_continuation_seconds = (
         ButtonVisualServo._vision_loss_continuation_seconds
@@ -152,6 +153,53 @@ def test_consistent_fresh_normals_finish_with_locked_orientation(monkeypatch, an
     np.testing.assert_allclose(locked[1], [1.0, 0.0, 0.0])
     for _, orientation in servo.targets:
         np.testing.assert_allclose(orientation, CAMERA_ORIENTATION, atol=1e-12)
+
+
+def test_verified_lock_drives_only_bounded_preapproach_without_new_vision(monkeypatch):
+    servo = TrackingHarness(
+        [frame(1)] + [frame(2, visible=False)] * 8,
+        monkeypatch,
+        required_alignment_observations=1,
+    )
+    servo.position = np.array([0.25, 0.0, 0.3])
+    locked, source, _ = servo.run()
+    assert locked is None and source == ''
+    assert any('bounded lock' in status for _, status in servo.statuses)
+    assert any(linear[0] > 0.0 for _, linear, _ in servo.commands)
+    assert all(np.linalg.norm(linear) <= 0.012 + 1e-9
+               for _, linear, _ in servo.commands)
+
+
+def test_locked_preapproach_holds_on_fresh_normal_conflict(monkeypatch):
+    servo = TrackingHarness(
+        [frame(1), frame(2, 30), frame(3, 30), frame(4, 30)],
+        monkeypatch,
+        required_alignment_observations=1,
+    )
+    servo.position = np.array([0.25, 0.0, 0.3])
+    locked, _, message = servo.run()
+    assert locked is None
+    assert 'fresh surface normal disagrees' in message
+    assert_held(servo, [1, 2, 3])
+
+
+def test_locked_preapproach_stops_at_reacquisition_standoff(monkeypatch):
+    class MovingHarness(TrackingHarness):
+        def advance(self, period):
+            if self.commands:
+                self.position += self.commands[-1][1] * period
+            return super().advance(period)
+
+    servo = MovingHarness(
+        [frame(1)] + [frame(2, visible=False)] * 1100,
+        monkeypatch,
+        required_alignment_observations=1,
+    )
+    servo.position = np.array([0.25, 0.0, 0.3])
+    locked, _, _ = servo.run(timeout=25.0)
+    assert locked is None
+    assert 0.077 <= BUTTON[0] - servo.position[0] <= 0.085
+    assert any('awaiting fresh RGB-D' in status for _, status in servo.statuses)
 
 
 def test_three_new_conflicting_normals_fail_instead_of_completing(monkeypatch):

@@ -52,9 +52,10 @@ def generate_launch_description():
             'confidence_threshold': LaunchConfiguration(
                 'simulation_confidence_threshold'
             ),
-            # Gazebo's floor indicator can look like an arrow to the real
-            # model. Recover semantics from the known simulated 3x3 layout;
-            # close-range tracking continues to use visual identity.
+            # Recover semantics from the known simulated panel layout. The
+            # vertical cabin panel has a bell and a handset tile that this
+            # model has no class for, so relabel safely steps aside and
+            # close-range tracking keeps using visual identity.
             'simulation_layout_relabel': 'true',
         },
         condition=simulation_condition,
@@ -118,6 +119,9 @@ def generate_launch_description():
             'pika_serial_port': LaunchConfiguration('pika_serial_port'),
             'camera_serial_no': LaunchConfiguration('camera_serial_no'),
             'speed_percent': LaunchConfiguration('speed_percent'),
+            'geometry_press_surface_travel_m': LaunchConfiguration(
+                'geometry_press_surface_travel_m'
+            ),
             'pika_tcp_offset': LaunchConfiguration('pika_tcp_offset'),
             'use_rviz': LaunchConfiguration('use_rviz'),
             'start_camera': LaunchConfiguration('start_camera'),
@@ -177,6 +181,9 @@ def generate_launch_description():
             'camera_serial_no', default_value='_315122272433'
         ),
         DeclareLaunchArgument('speed_percent', default_value='10'),
+        DeclareLaunchArgument(
+            'geometry_press_surface_travel_m', default_value='0.030',
+        ),
         DeclareLaunchArgument(
             'pika_tcp_offset',
             default_value='[0.006, 0.0, 0.189, 0.0, 0.0, 0.0]',

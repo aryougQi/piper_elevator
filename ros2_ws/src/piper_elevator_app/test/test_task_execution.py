@@ -163,6 +163,20 @@ def test_normal_task_completes_only_after_final_home():
     assert not task._busy
 
 
+def test_geometry_task_reports_motion_without_claiming_button_actuation():
+    task = TaskHarness()
+    task._press_status = (
+        'COMPLETE: button=real geometry travel completed and retracted; '
+        'actuation unverified'
+    )
+    task._run_task(1, '2')
+    assert task.completed
+    assert task.result == (
+        'COMPLETE: button=2 geometry travel completed; '
+        'actuation unverified; home reached'
+    )
+
+
 def test_initial_home_failure_requires_another_confirmed_home():
     task = TaskHarness({('home', 1): 'initial home timed out'})
     task._run_task(1, '2')

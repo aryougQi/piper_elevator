@@ -1,0 +1,889 @@
+[INFO] [launch]: All log files can be found below /root/.ros/log/2026-09-27-15-36-44-769126-qi-123-80
+[INFO] [launch]: Default logging verbosity is set to INFO
+WARNING:root:[33;21mCannot infer SRDF from `/workspace/ros2_ws/install/piper_elevator_app/share/piper_elevator_app`. -- using config/piper_pika.srdf[0m
+[INFO] [ign gazebo-1]: process started with pid [82]
+[INFO] [robot_state_publisher-2]: process started with pid [84]
+[INFO] [parameter_bridge-3]: process started with pid [86]
+[INFO] [relay-4]: process started with pid [89]
+[INFO] [create-5]: process started with pid [91]
+[INFO] [button_detector-6]: process started with pid [93]
+[INFO] [move_group-7]: process started with pid [95]
+[INFO] [servo_node_main-8]: process started with pid [97]
+[INFO] [simulation_servo_adapter-9]: process started with pid [99]
+[INFO] [button_approach_planner-10]: process started with pid [101]
+[INFO] [button_visual_servo-11]: process started with pid [103]
+[INFO] [button_press_executor-12]: process started with pid [105]
+[INFO] [elevator_task_manager-13]: process started with pid [107]
+[create-5] [0m[INFO] [1790523405.188700154] [ros_gz_sim]: Waiting messages on topic [/robot_description].[0m
+[servo_node_main-8] [33m[WARN] [1790523405.218729732] [moveit_servo.servo_node]: Intra-process communication is disabled, consider enabling it by adding: 
+[servo_node_main-8] extra_arguments=[{'use_intra_process_comms' : True}]
+[servo_node_main-8] to the Servo composable node in the launch file[0m
+[robot_state_publisher-2] [0m[INFO] [1790523405.225070564] [robot_state_publisher]: got segment base_link[0m
+[robot_state_publisher-2] [0m[INFO] [1790523405.225394756] [robot_state_publisher]: got segment camera_color_frame[0m
+[robot_state_publisher-2] [0m[INFO] [1790523405.225418703] [robot_state_publisher]: got segment camera_color_optical_frame[0m
+[robot_state_publisher-2] [0m[INFO] [1790523405.225427857] [robot_state_publisher]: got segment camera_link[0m
+[robot_state_publisher-2] [0m[INFO] [1790523405.225436309] [robot_state_publisher]: got segment link1[0m
+[robot_state_publisher-2] [0m[INFO] [1790523405.225443901] [robot_state_publisher]: got segment link2[0m
+[robot_state_publisher-2] [0m[INFO] [1790523405.225450962] [robot_state_publisher]: got segment link3[0m
+[robot_state_publisher-2] [0m[INFO] [1790523405.225457647] [robot_state_publisher]: got segment link4[0m
+[robot_state_publisher-2] [0m[INFO] [1790523405.225464552] [robot_state_publisher]: got segment link5[0m
+[robot_state_publisher-2] [0m[INFO] [1790523405.225471890] [robot_state_publisher]: got segment link6[0m
+[robot_state_publisher-2] [0m[INFO] [1790523405.225478698] [robot_state_publisher]: got segment pika_fingertip_center_link[0m
+[robot_state_publisher-2] [0m[INFO] [1790523405.225485226] [robot_state_publisher]: got segment pika_gripper_actuator_link[0m
+[robot_state_publisher-2] [0m[INFO] [1790523405.225491924] [robot_state_publisher]: got segment pika_gripper_base_link[0m
+[robot_state_publisher-2] [0m[INFO] [1790523405.225498569] [robot_state_publisher]: got segment pika_gripper_left_link[0m
+[robot_state_publisher-2] [0m[INFO] [1790523405.225506496] [robot_state_publisher]: got segment pika_gripper_right_link[0m
+[robot_state_publisher-2] [0m[INFO] [1790523405.225512817] [robot_state_publisher]: got segment tcp_link[0m
+[robot_state_publisher-2] [0m[INFO] [1790523405.225520337] [robot_state_publisher]: got segment world[0m
+[move_group-7] [0m[INFO] [1790523405.234578503] [moveit_rdf_loader.rdf_loader]: Loaded robot model in 0 seconds[0m
+[move_group-7] [0m[INFO] [1790523405.234702999] [moveit_robot_model.robot_model]: Loading robot model 'piper_pika'...[0m
+[move_group-7] [0m[INFO] [1790523405.234714138] [moveit_robot_model.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint[0m
+[servo_node_main-8] [0m[INFO] [1790523405.252763417] [moveit_rdf_loader.rdf_loader]: Loaded robot model in 0 seconds[0m
+[servo_node_main-8] [0m[INFO] [1790523405.252886865] [moveit_robot_model.robot_model]: Loading robot model 'piper_pika'...[0m
+[servo_node_main-8] [0m[INFO] [1790523405.252901990] [moveit_robot_model.robot_model]: No root/virtual joint specified in SRDF. Assuming fixed joint[0m
+[simulation_servo_adapter-9] [0m[INFO] [1790523405.554474443] [simulation_servo_adapter]: Simulation Servo tracking compensation enabled: gain=2.00, max_lead=0.080 rad[0m
+[button_visual_servo-11] [0m[INFO] [1790523405.717214397] [button_visual_servo]: Button visual servo ready: tip=pika_fingertip_center_link, standoff=0.030 m, execution=True[0m
+[create-5] [0m[INFO] [1790523405.842380100] [ros_gz_sim]: Requested creation of entity.[0m
+[create-5] [0m[INFO] [1790523405.842622043] [ros_gz_sim]: OK creation of entity.[0m
+[INFO] [create-5]: process has finished cleanly [pid 91]
+[INFO] [spawner-14]: process started with pid [376]
+[parameter_bridge-3] [0m[INFO] [1790523406.237115195] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/pika_fisheye/image (gz.msgs.Image) -> /camera/color/image_raw (sensor_msgs/msg/Image)] (Lazy 1)[0m
+[parameter_bridge-3] [0m[INFO] [1790523406.241298646] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/pika_fisheye/depth_image (gz.msgs.Image) -> /camera/aligned_depth_to_color/image_raw (sensor_msgs/msg/Image)] (Lazy 1)[0m
+[parameter_bridge-3] [0m[INFO] [1790523406.241946660] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/pika_fisheye/camera_info (gz.msgs.CameraInfo) -> /camera/color/camera_info (sensor_msgs/msg/CameraInfo)] (Lazy 1)[0m
+[button_approach_planner-10] [0m[INFO] [1790523406.243627393] [button_approach_planner]: Button approach planner ready: base=base_link, tip=pika_fingertip_center_link, approach=0.140 m, execution=True, policy=visible_joint_goal, vertical_offset=0.000 m[0m
+[parameter_bridge-3] [0m[INFO] [1790523406.245263859] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/clock (gz.msgs.Clock) -> /clock (rosgraph_msgs/msg/Clock)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790523406.247189493] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/elevator_button/touched (gz.msgs.Boolean) -> /elevator_button/pressed (std_msgs/msg/Bool)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790523406.248613425] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/button_press/model/elevator_button/link/button_1_face/sensor/button_1_contact/contact (gz.msgs.Contacts) -> /elevator_button/button_1/contacts (ros_gz_interfaces/msg/Contacts)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790523406.250582895] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/button_press/model/elevator_button/link/button_2_face/sensor/button_2_contact/contact (gz.msgs.Contacts) -> /elevator_button/button_2/contacts (ros_gz_interfaces/msg/Contacts)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790523406.251810738] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/button_press/model/elevator_button/link/button_3_face/sensor/button_3_contact/contact (gz.msgs.Contacts) -> /elevator_button/button_3/contacts (ros_gz_interfaces/msg/Contacts)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790523406.252317728] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/button_press/model/elevator_button/link/button_intercom_face/sensor/button_intercom_contact/contact (gz.msgs.Contacts) -> /elevator_button/button_intercom/contacts (ros_gz_interfaces/msg/Contacts)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790523406.252615642] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/button_press/model/elevator_button/link/button_up_face/sensor/button_up_contact/contact (gz.msgs.Contacts) -> /elevator_button/button_up/contacts (ros_gz_interfaces/msg/Contacts)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790523406.252865994] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/button_press/model/elevator_button/link/button_down_face/sensor/button_down_contact/contact (gz.msgs.Contacts) -> /elevator_button/button_down/contacts (ros_gz_interfaces/msg/Contacts)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790523406.253133462] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/button_press/model/elevator_button/link/button_open_face/sensor/button_open_contact/contact (gz.msgs.Contacts) -> /elevator_button/button_open/contacts (ros_gz_interfaces/msg/Contacts)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790523406.253371536] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/button_press/model/elevator_button/link/button_close_face/sensor/button_close_contact/contact (gz.msgs.Contacts) -> /elevator_button/button_close/contacts (ros_gz_interfaces/msg/Contacts)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790523406.253605738] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/world/button_press/model/elevator_button/link/button_alarm_face/sensor/button_alarm_contact/contact (gz.msgs.Contacts) -> /elevator_button/button_alarm/contacts (ros_gz_interfaces/msg/Contacts)] (Lazy 0)[0m
+[parameter_bridge-3] [0m[INFO] [1790523406.253839492] [ros_gz_bridge]: Creating GZ->ROS Bridge: [/elevator_button/joint_state (gz.msgs.Model) -> /elevator_button/joint_states (sensor_msgs/msg/JointState)] (Lazy 0)[0m
+[spawner-14] [0m[INFO] [1790523406.268954702] [spawner_joint_state_broadcaster]: waiting for service /controller_manager/list_controllers to become available...[0m
+[button_detector-6] [0m[INFO] [1790523406.734439662] [button_detector]: Model warmup completed: iterations=2, elapsed=0.495s[0m
+[button_detector-6] [0m[INFO] [1790523406.745952210] [button_detector]: YOLO button detector ready in RGB-D mode. model=/workspace/ros2_ws/install/piper_elevator_app/share/piper_elevator_app/models/elevator_buttons_yolo11s.onnx, providers=['CUDAExecutionProvider', 'CPUExecutionProvider'], color=/camera/color/image_raw, input_queue=1, input_reliability=BEST_EFFORT, selected_button=<none>[0m
+[servo_node_main-8] [0m[INFO] [1790523406.940109188] [moveit_ros.current_state_monitor]: Listening to joint states on topic '/piper_pika/joint_states'[0m
+[servo_node_main-8] [0m[INFO] [1790523406.943057002] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to '/attached_collision_object' for attached collision objects[0m
+[servo_node_main-8] [0m[INFO] [1790523406.943093617] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Starting planning scene monitor[0m
+[move_group-7] [0m[INFO] [1790523406.943655365] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Publishing maintained planning scene on 'monitored_planning_scene'[0m
+[move_group-7] [0m[INFO] [1790523406.943806368] [moveit.ros_planning_interface.moveit_cpp]: Listening to 'joint_states' for joint states[0m
+[servo_node_main-8] [0m[INFO] [1790523406.943821644] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to '/planning_scene'[0m
+[servo_node_main-8] [0m[INFO] [1790523406.943835248] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Starting world geometry update monitor for collision objects, attached objects, octomap updates.[0m
+[servo_node_main-8] [0m[INFO] [1790523406.944044359] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to 'collision_object'[0m
+[move_group-7] [0m[INFO] [1790523406.944222113] [moveit_ros.current_state_monitor]: Listening to joint states on topic 'joint_states'[0m
+[servo_node_main-8] [0m[INFO] [1790523406.944273265] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to 'planning_scene_world' for planning scene world geometry[0m
+[servo_node_main-8] [33m[WARN] [1790523406.944419171] [moveit.ros.occupancy_map_monitor.middleware_handle]: Resolution not specified for Octomap. Assuming resolution = 0.1 instead[0m
+[servo_node_main-8] [31m[ERROR] [1790523406.944427526] [moveit.ros.occupancy_map_monitor.middleware_handle]: No 3D sensor plugin(s) defined for octomap updates[0m
+[move_group-7] [0m[INFO] [1790523406.944499427] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to '/attached_collision_object' for attached collision objects[0m
+[move_group-7] [0m[INFO] [1790523406.944511119] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Starting planning scene monitor[0m
+[move_group-7] [0m[INFO] [1790523406.944674774] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to '/planning_scene'[0m
+[move_group-7] [0m[INFO] [1790523406.944681557] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Starting world geometry update monitor for collision objects, attached objects, octomap updates.[0m
+[move_group-7] [0m[INFO] [1790523406.944925983] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to 'collision_object'[0m
+[move_group-7] [0m[INFO] [1790523406.945115854] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Listening to 'planning_scene_world' for planning scene world geometry[0m
+[move_group-7] [33m[WARN] [1790523406.945302236] [moveit.ros.occupancy_map_monitor.middleware_handle]: Resolution not specified for Octomap. Assuming resolution = 0.1 instead[0m
+[move_group-7] [31m[ERROR] [1790523406.945310414] [moveit.ros.occupancy_map_monitor.middleware_handle]: No 3D sensor plugin(s) defined for octomap updates[0m
+[ign gazebo-1] [0m[INFO] [1790523407.435356576] [GazeboSimROS2ControlPlugin]: robot_param_node is robot_state_publisher[0m
+[ign gazebo-1] [0m[INFO] [1790523407.435384564] [GazeboSimROS2ControlPlugin]: robot_param_node is robot_description[0m
+[ign gazebo-1] [0m[INFO] [1790523407.792821471] [gz_ros2_control]: connected to service!! robot_state_publisher asking for robot_description[0m
+[ign gazebo-1] [0m[INFO] [1790523408.527271787] [gz_ros2_control]: Received URDF from param server[0m
+[ign gazebo-1] [0m[INFO] [1790523408.528881612] [gz_ros2_control]: [gz_ros2_control] Fixed joint ['world_to_base_link'] (Entity='108') is skipped.[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533209858] [gz_ros2_control]: The position_proportional_gain has been set to: 0.1[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533358687] [gz_ros2_control]: Loading joint: joint1[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533377694] [gz_ros2_control]: 	State:[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533387059] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533400925] [gz_ros2_control]: 			 found initial value: 0.000000[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533415281] [gz_ros2_control]: 		 velocity[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533421460] [gz_ros2_control]: 	Command:[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533428745] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533457924] [gz_ros2_control]: Loading joint: joint2[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533464002] [gz_ros2_control]: 	State:[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533469699] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533477177] [gz_ros2_control]: 			 found initial value: 0.010000[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533483987] [gz_ros2_control]: 		 velocity[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533490476] [gz_ros2_control]: 	Command:[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533495540] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533510506] [gz_ros2_control]: Loading joint: joint3[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533517233] [gz_ros2_control]: 	State:[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533523709] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533529134] [gz_ros2_control]: 			 found initial value: -0.010000[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533536250] [gz_ros2_control]: 		 velocity[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533540209] [gz_ros2_control]: 	Command:[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533546600] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533562779] [gz_ros2_control]: Loading joint: joint4[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533567571] [gz_ros2_control]: 	State:[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533573242] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533577012] [gz_ros2_control]: 			 found initial value: 0.000000[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533584260] [gz_ros2_control]: 		 velocity[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533590363] [gz_ros2_control]: 	Command:[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533598178] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533619603] [gz_ros2_control]: Loading joint: joint5[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533626740] [gz_ros2_control]: 	State:[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533632261] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533637791] [gz_ros2_control]: 			 found initial value: 0.000000[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533642827] [gz_ros2_control]: 		 velocity[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533648910] [gz_ros2_control]: 	Command:[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533654878] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533665739] [gz_ros2_control]: Loading joint: joint6[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533671779] [gz_ros2_control]: 	State:[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533677319] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533682362] [gz_ros2_control]: 			 found initial value: 0.000000[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533690523] [gz_ros2_control]: 		 velocity[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533696315] [gz_ros2_control]: 	Command:[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533701822] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533718432] [gz_ros2_control]: Loading joint: center_joint[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533726049] [gz_ros2_control]: 	State:[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533730639] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533735857] [gz_ros2_control]: 			 found initial value: 0.050000[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533741751] [gz_ros2_control]: 		 velocity[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533746344] [gz_ros2_control]: 	Command:[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533750269] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533764766] [gz_ros2_control]: Loading joint: pika_left_finger_joint[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533772736] [gz_ros2_control]: 	State:[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533779932] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533787427] [gz_ros2_control]: 			 found initial value: 0.025000[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533794779] [gz_ros2_control]: 		 velocity[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533799133] [gz_ros2_control]: 	Command:[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533804699] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533818322] [gz_ros2_control]: Loading joint: pika_right_finger_joint[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533912267] [gz_ros2_control]: 	State:[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533924446] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533931093] [gz_ros2_control]: 			 found initial value: -0.025000[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533939522] [gz_ros2_control]: 		 velocity[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533947586] [gz_ros2_control]: 	Command:[0m
+[ign gazebo-1] [0m[INFO] [1790523408.533951704] [gz_ros2_control]: 		 position[0m
+[ign gazebo-1] [0m[INFO] [1790523408.534225375] [resource_manager]: Initialize hardware 'PiperPikaGazeboSystem' [0m
+[ign gazebo-1] [0m[INFO] [1790523408.534298470] [resource_manager]: Successful initialization of hardware 'PiperPikaGazeboSystem'[0m
+[ign gazebo-1] [0m[INFO] [1790523408.534349904] [resource_manager]: 'configure' hardware 'PiperPikaGazeboSystem' [0m
+[ign gazebo-1] [0m[INFO] [1790523408.534355459] [gz_ros2_control]: System Successfully configured![0m
+[ign gazebo-1] [0m[INFO] [1790523408.534369473] [resource_manager]: Successful 'configure' of hardware 'PiperPikaGazeboSystem'[0m
+[ign gazebo-1] [0m[INFO] [1790523408.534377056] [resource_manager]: 'activate' hardware 'PiperPikaGazeboSystem' [0m
+[ign gazebo-1] [0m[INFO] [1790523408.534384389] [resource_manager]: Successful 'activate' of hardware 'PiperPikaGazeboSystem'[0m
+[ign gazebo-1] [0m[INFO] [1790523408.534390535] [gz_ros2_control]: Loading controller_manager[0m
+[servo_node_main-8] [0m[INFO] [1790523408.730168888] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Publishing maintained planning scene on '/servo_node/publish_planning_scene'[0m
+[move_group-7] [0m[INFO] [1790523408.746518064] [moveit.ros_planning_interface.moveit_cpp]: Loading planning pipeline 'chomp'[0m
+[move_group-7] [0m[INFO] [1790523408.748639333] [moveit.ros_planning.planning_pipeline]: Using planning interface 'CHOMP'[0m
+[move_group-7] [0m[INFO] [1790523408.749935525] [moveit_ros.add_time_optimal_parameterization]: Param 'chomp.path_tolerance' was not set. Using default value: 0.100000[0m
+[move_group-7] [0m[INFO] [1790523408.749944695] [moveit_ros.add_time_optimal_parameterization]: Param 'chomp.resample_dt' was not set. Using default value: 0.100000[0m
+[move_group-7] [0m[INFO] [1790523408.749947347] [moveit_ros.add_time_optimal_parameterization]: Param 'chomp.min_angle_change' was not set. Using default value: 0.001000[0m
+[move_group-7] [0m[INFO] [1790523408.749958465] [moveit_ros.fix_workspace_bounds]: Param 'chomp.default_workspace_bounds' was not set. Using default value: 10.000000[0m
+[move_group-7] [0m[INFO] [1790523408.749966088] [moveit_ros.fix_start_state_bounds]: Param 'chomp.start_state_max_bounds_error' was set to 0.100000[0m
+[move_group-7] [0m[INFO] [1790523408.749968510] [moveit_ros.fix_start_state_bounds]: Param 'chomp.start_state_max_dt' was not set. Using default value: 0.500000[0m
+[move_group-7] [0m[INFO] [1790523408.749974364] [moveit_ros.fix_start_state_collision]: Param 'chomp.start_state_max_dt' was not set. Using default value: 0.500000[0m
+[move_group-7] [0m[INFO] [1790523408.749976951] [moveit_ros.fix_start_state_collision]: Param 'chomp.jiggle_fraction' was set to 0.050000[0m
+[move_group-7] [0m[INFO] [1790523408.749979677] [moveit_ros.fix_start_state_collision]: Param 'chomp.max_sampling_attempts' was not set. Using default value: 100[0m
+[move_group-7] [0m[INFO] [1790523408.749985120] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Add Time Optimal Parameterization'[0m
+[move_group-7] [0m[INFO] [1790523408.749986986] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Resolve constraint frames to robot links'[0m
+[move_group-7] [0m[INFO] [1790523408.749988449] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Workspace Bounds'[0m
+[move_group-7] [0m[INFO] [1790523408.749989879] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Start State Bounds'[0m
+[move_group-7] [0m[INFO] [1790523408.749991264] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Start State In Collision'[0m
+[move_group-7] [0m[INFO] [1790523408.749992625] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Start State Path Constraints'[0m
+[move_group-7] [0m[INFO] [1790523408.751832871] [moveit.ros_planning_interface.moveit_cpp]: Loading planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523408.753066468] [moveit.pilz_industrial_motion_planner.joint_limits_aggregator]: Reading limits from namespace robot_description_planning[0m
+[move_group-7] [0m[INFO] [1790523408.754567102] [moveit.pilz_industrial_motion_planner]: Available plugins: pilz_industrial_motion_planner/PlanningContextLoaderCIRC pilz_industrial_motion_planner/PlanningContextLoaderLIN pilz_industrial_motion_planner/PlanningContextLoaderPTP [0m
+[move_group-7] [0m[INFO] [1790523408.754575274] [moveit.pilz_industrial_motion_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderCIRC[0m
+[move_group-7] [0m[INFO] [1790523408.755286731] [moveit.pilz_industrial_motion_planner]: Registered Algorithm [CIRC][0m
+[move_group-7] [0m[INFO] [1790523408.755293751] [moveit.pilz_industrial_motion_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderLIN[0m
+[move_group-7] [0m[INFO] [1790523408.755795891] [moveit.pilz_industrial_motion_planner]: Registered Algorithm [LIN][0m
+[move_group-7] [0m[INFO] [1790523408.755801274] [moveit.pilz_industrial_motion_planner]: About to load: pilz_industrial_motion_planner/PlanningContextLoaderPTP[0m
+[move_group-7] [0m[INFO] [1790523408.756241319] [moveit.pilz_industrial_motion_planner]: Registered Algorithm [PTP][0m
+[move_group-7] [0m[INFO] [1790523408.756248290] [moveit.ros_planning.planning_pipeline]: Using planning interface 'Pilz Industrial Motion Planner'[0m
+[move_group-7] [0m[INFO] [1790523408.756862935] [moveit.ros_planning_interface.moveit_cpp]: Loading planning pipeline 'ompl'[0m
+[move_group-7] [0m[INFO] [1790523408.765574509] [moveit.ros_planning.planning_pipeline]: Using planning interface 'OMPL'[0m
+[move_group-7] [0m[INFO] [1790523408.766798292] [moveit_ros.add_time_optimal_parameterization]: Param 'ompl.path_tolerance' was not set. Using default value: 0.100000[0m
+[move_group-7] [0m[INFO] [1790523408.766809212] [moveit_ros.add_time_optimal_parameterization]: Param 'ompl.resample_dt' was not set. Using default value: 0.100000[0m
+[move_group-7] [0m[INFO] [1790523408.766842700] [moveit_ros.add_time_optimal_parameterization]: Param 'ompl.min_angle_change' was not set. Using default value: 0.001000[0m
+[move_group-7] [0m[INFO] [1790523408.766860389] [moveit_ros.fix_workspace_bounds]: Param 'ompl.default_workspace_bounds' was not set. Using default value: 10.000000[0m
+[move_group-7] [0m[INFO] [1790523408.766873988] [moveit_ros.fix_start_state_bounds]: Param 'ompl.start_state_max_bounds_error' was set to 0.100000[0m
+[move_group-7] [0m[INFO] [1790523408.766879624] [moveit_ros.fix_start_state_bounds]: Param 'ompl.start_state_max_dt' was not set. Using default value: 0.500000[0m
+[move_group-7] [0m[INFO] [1790523408.766885787] [moveit_ros.fix_start_state_collision]: Param 'ompl.start_state_max_dt' was not set. Using default value: 0.500000[0m
+[move_group-7] [0m[INFO] [1790523408.766889062] [moveit_ros.fix_start_state_collision]: Param 'ompl.jiggle_fraction' was set to 0.050000[0m
+[move_group-7] [0m[INFO] [1790523408.766891443] [moveit_ros.fix_start_state_collision]: Param 'ompl.max_sampling_attempts' was not set. Using default value: 100[0m
+[move_group-7] [0m[INFO] [1790523408.766898427] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Add Time Optimal Parameterization'[0m
+[move_group-7] [0m[INFO] [1790523408.766900375] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Resolve constraint frames to robot links'[0m
+[move_group-7] [0m[INFO] [1790523408.766901890] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Workspace Bounds'[0m
+[move_group-7] [0m[INFO] [1790523408.766903459] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Start State Bounds'[0m
+[move_group-7] [0m[INFO] [1790523408.766905036] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Start State In Collision'[0m
+[move_group-7] [0m[INFO] [1790523408.766906383] [moveit.ros_planning.planning_pipeline]: Using planning request adapter 'Fix Start State Path Constraints'[0m
+[ign gazebo-1] [0m[INFO] [1790523408.774415560] [controller_manager]: Loading controller 'joint_state_broadcaster'[0m
+[spawner-14] [0m[INFO] [1790523408.787140816] [spawner_joint_state_broadcaster]: [94mLoaded [1mjoint_state_broadcaster[0m[0m
+[ign gazebo-1] [0m[INFO] [1790523408.788130101] [controller_manager]: Configuring controller 'joint_state_broadcaster'[0m
+[ign gazebo-1] [0m[INFO] [1790523408.788261684] [joint_state_broadcaster]: 'joints' or 'interfaces' parameter is empty. All available state interfaces will be published[0m
+[move_group-7] [0m[INFO] [1790523408.790907115] [moveit.plugins.moveit_simple_controller_manager]: Added FollowJointTrajectory controller for arm_controller[0m
+[move_group-7] [0m[INFO] [1790523408.792557532] [moveit.plugins.moveit_simple_controller_manager]: Added FollowJointTrajectory controller for pika_gripper_controller[0m
+[move_group-7] [0m[INFO] [1790523408.792891137] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523408.792943331] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523408.793607340] [moveit_ros.trajectory_execution_manager]: Trajectory execution is managing controllers[0m
+[move_group-7] [0m[INFO] [1790523408.793630449] [move_group.move_group]: MoveGroup debug mode is ON[0m
+[move_group-7] [33m[WARN] [1790523408.805449141] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Unable to transform object from frame 'camera_color_frame' to planning frame'world' (Could not find a connection between 'world' and 'camera_color_frame' because they are not part of the same tree.Tf has two or more unconnected trees.)[0m
+[move_group-7] [33m[WARN] [1790523408.805549630] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Unable to transform object from frame 'camera_link' to planning frame'world' (Could not find a connection between 'world' and 'camera_link' because they are not part of the same tree.Tf has two or more unconnected trees.)[0m
+[move_group-7] [33m[WARN] [1790523408.805565833] [moveit_ros.planning_scene_monitor.planning_scene_monitor]: Unable to transform object from frame 'camera_color_optical_frame' to planning frame'world' (Could not find a connection between 'world' and 'camera_color_optical_frame' because they are not part of the same tree.Tf has two or more unconnected trees.)[0m
+[move_group-7] [0m[INFO] [1790523408.810431295] [move_group.move_group]: 
+[move_group-7] 
+[move_group-7] ********************************************************
+[move_group-7] * MoveGroup using: 
+[move_group-7] *     - ApplyPlanningSceneService
+[move_group-7] *     - ClearOctomapService
+[move_group-7] *     - CartesianPathService
+[move_group-7] *     - ExecuteTrajectoryAction
+[move_group-7] *     - GetPlanningSceneService
+[move_group-7] *     - KinematicsService
+[move_group-7] *     - MoveAction
+[move_group-7] *     - MotionPlanService
+[move_group-7] *     - QueryPlannersService
+[move_group-7] *     - StateValidationService
+[move_group-7] ********************************************************
+[move_group-7] [0m
+[move_group-7] [0m[INFO] [1790523408.810557853] [moveit_move_group_capabilities_base.move_group_context]: MoveGroup context using planning plugin ompl_interface/OMPLPlanner[0m
+[move_group-7] [0m[INFO] [1790523408.810641955] [moveit_move_group_capabilities_base.move_group_context]: MoveGroup context initialization complete[0m
+[move_group-7] [96mLoading 'move_group/ApplyPlanningSceneService'...
+[move_group-7] [0m[96mLoading 'move_group/ClearOctomapService'...
+[move_group-7] [0m[96mLoading 'move_group/MoveGroupCartesianPathService'...
+[move_group-7] [0m[96mLoading 'move_group/MoveGroupExecuteTrajectoryAction'...
+[move_group-7] [0m[96mLoading 'move_group/MoveGroupGetPlanningSceneService'...
+[move_group-7] [0m[96mLoading 'move_group/MoveGroupKinematicsService'...
+[move_group-7] [0m[96mLoading 'move_group/MoveGroupMoveAction'...
+[move_group-7] [0m[96mLoading 'move_group/MoveGroupPlanService'...
+[move_group-7] [0m[96mLoading 'move_group/MoveGroupQueryPlannersService'...
+[move_group-7] [0m[96mLoading 'move_group/MoveGroupStateValidationService'...
+[move_group-7] [0m[92m
+[move_group-7] You can start planning now!
+[move_group-7] 
+[ign gazebo-1] [33m[WARN] [1790523409.274088308] [gz_ros2_control]:  Desired controller update period (0.005 s) is slower than the gazebo simulation period (0.001 s).[0m
+[ign gazebo-1] libEGL warning: egl: failed to create dri2 screen
+[ign gazebo-1] libEGL warning: egl: failed to create dri2 screen
+[spawner-14] [0m[INFO] [1790523410.899725235] [spawner_joint_state_broadcaster]: [92mConfigured and activated [1mjoint_state_broadcaster[0m[0m
+[ign gazebo-1] [0m[INFO] [1790523410.900496459] [controller_manager]: Loading controller 'arm_controller'[0m
+[spawner-14] [0m[INFO] [1790523410.916505819] [spawner_joint_state_broadcaster]: [94mLoaded [1marm_controller[0m[0m
+[ign gazebo-1] [0m[INFO] [1790523410.917296545] [controller_manager]: Configuring controller 'arm_controller'[0m
+[ign gazebo-1] [0m[INFO] [1790523410.917612084] [arm_controller]: No specific joint names are used for command interfaces. Using 'joints' parameter.[0m
+[ign gazebo-1] [0m[INFO] [1790523410.917646115] [arm_controller]: Command interfaces are [position] and state interfaces are [position velocity].[0m
+[ign gazebo-1] [0m[INFO] [1790523410.917686266] [arm_controller]: Using 'splines' interpolation method.[0m
+[ign gazebo-1] [0m[INFO] [1790523410.919646124] [arm_controller]: Controller state will be published at 50.00 Hz.[0m
+[ign gazebo-1] [0m[INFO] [1790523410.922963115] [arm_controller]: Action status changes will be monitored at 20.00 Hz.[0m
+[spawner-14] [0m[INFO] [1790523410.943546317] [spawner_joint_state_broadcaster]: [92mConfigured and activated [1marm_controller[0m[0m
+[ign gazebo-1] [0m[INFO] [1790523410.946250771] [controller_manager]: Loading controller 'pika_gripper_controller'[0m
+[spawner-14] [0m[INFO] [1790523410.968850394] [spawner_joint_state_broadcaster]: [94mLoaded [1mpika_gripper_controller[0m[0m
+[ign gazebo-1] [0m[INFO] [1790523410.969590164] [controller_manager]: Configuring controller 'pika_gripper_controller'[0m
+[ign gazebo-1] [0m[INFO] [1790523410.969801425] [pika_gripper_controller]: No specific joint names are used for command interfaces. Using 'joints' parameter.[0m
+[ign gazebo-1] [0m[INFO] [1790523410.969834400] [pika_gripper_controller]: Command interfaces are [position] and state interfaces are [position velocity].[0m
+[ign gazebo-1] [0m[INFO] [1790523410.969856124] [pika_gripper_controller]: Using 'splines' interpolation method.[0m
+[ign gazebo-1] [0m[INFO] [1790523410.971410509] [pika_gripper_controller]: Controller state will be published at 50.00 Hz.[0m
+[ign gazebo-1] [0m[INFO] [1790523410.973651533] [pika_gripper_controller]: Action status changes will be monitored at 20.00 Hz.[0m
+[spawner-14] [0m[INFO] [1790523410.998523979] [spawner_joint_state_broadcaster]: [92mConfigured and activated [1mpika_gripper_controller[0m[0m
+[INFO] [spawner-14]: process has finished cleanly [pid 376]
+[button_detector-6] [0m[INFO] [1790523411.805435464] [button_detector]: Performance: 1.8 FPS, debug=0.0 FPS, average=46.1 ms, max=62.3 ms, input_age=22.0 ms[0m
+[button_detector-6] [0m[INFO] [1790523416.844482287] [button_detector]: Performance: 14.5 FPS, debug=0.0 FPS, average=44.6 ms, max=59.8 ms, input_age=8.0 ms[0m
+[button_detector-6] [0m[INFO] [1790523418.544232681] [button_detector]: Button selection changed: open[0m
+[ign gazebo-1] [0m[INFO] [1790523419.560153394] [pika_gripper_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523419.560410490] [pika_gripper_controller]: Accepted new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523420.794605239] [pika_gripper_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523421.402751234] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523421.403144291] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523421.407985298] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523421.408057643] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523421.412714568] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523421.414016523] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790523421.669195468] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[button_detector-6] [0m[INFO] [1790523421.908172583] [button_detector]: Performance: 12.8 FPS, debug=0.0 FPS, average=48.3 ms, max=61.0 ms, input_age=26.0 ms[0m
+[move_group-7] [0m[INFO] [1790523422.405646898] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790523422.410361901] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523422.410601643] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523422.410718577] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790523422.489717656] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790523422.489987236] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523422.490058323] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523422.490152268] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790523422.840454546] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790523422.840812543] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790523422.840948656] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523422.841005239] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523422.841276493] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790523422.845671272] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790523422.845807313] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523422.845832978] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523422.846827844] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[ign gazebo-1] [0m[INFO] [1790523422.847697930] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523422.847887272] [arm_controller]: Accepted new action goal[0m
+[move_group-7] [0m[INFO] [1790523422.848276926] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790523422.848314209] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[button_detector-6] [0m[INFO] [1790523426.957183710] [button_detector]: Performance: 13.1 FPS, debug=0.0 FPS, average=49.0 ms, max=59.6 ms, input_age=30.0 ms[0m
+[ign gazebo-1] [0m[INFO] [1790523427.133793020] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523427.148948435] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790523427.159837496] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790523427.160242511] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m
+[move_group-7] [0m[INFO] [1790523428.209322634] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523428.209565307] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523428.215892181] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523428.215973289] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523428.220034805] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523428.220840910] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790523428.443573001] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[move_group-7] [0m[INFO] [1790523428.505287220] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790523428.505650102] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790523428.505752527] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523428.505814424] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523428.506003583] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790523428.509788849] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790523428.509974135] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523428.510033539] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523428.510508330] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[ign gazebo-1] [0m[INFO] [1790523428.511123265] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523428.511215923] [arm_controller]: Accepted new action goal[0m
+[move_group-7] [0m[INFO] [1790523428.511495798] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790523428.511516919] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[button_detector-6] [0m[INFO] [1790523432.009532164] [button_detector]: Performance: 13.9 FPS, debug=0.0 FPS, average=49.0 ms, max=67.5 ms, input_age=37.0 ms[0m
+[ign gazebo-1] [0m[INFO] [1790523432.791977263] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523432.812098146] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790523432.820834648] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790523432.821035166] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m
+[button_detector-6] [0m[INFO] [1790523433.506492545] [button_detector]: Button selection changed: up[0m
+[ign gazebo-1] [0m[INFO] [1790523434.256860077] [pika_gripper_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523434.256969380] [pika_gripper_controller]: Accepted new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523435.454650920] [pika_gripper_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523436.116708096] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523436.116927463] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523436.119901166] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523436.119979590] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523436.123373949] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523436.124733039] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790523436.274043006] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[move_group-7] [0m[INFO] [1790523437.065549696] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[button_detector-6] [0m[INFO] [1790523437.072186771] [button_detector]: Performance: 13.6 FPS, debug=0.0 FPS, average=49.2 ms, max=58.7 ms, input_age=28.0 ms[0m
+[move_group-7] [0m[INFO] [1790523437.073029480] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523437.073141764] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523437.073203736] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790523437.173497626] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790523437.178825618] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523437.179182316] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523437.179241815] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790523437.474913913] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790523437.475197315] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790523437.475285498] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523437.475329275] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523437.475445390] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790523437.484365430] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790523437.484604905] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523437.484661736] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523437.485361579] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[move_group-7] [0m[INFO] [1790523437.486412737] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790523437.486443375] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[ign gazebo-1] [0m[INFO] [1790523437.485983890] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523437.486090781] [arm_controller]: Accepted new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523440.788038912] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523440.837580688] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790523440.838359165] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790523440.838598951] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m
+[move_group-7] [0m[INFO] [1790523441.842720309] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523441.843020376] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523441.845633923] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523441.845704151] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523441.848914082] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523441.849550502] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790523442.029997830] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[move_group-7] [0m[INFO] [1790523442.078328629] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790523442.078638878] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790523442.078730211] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523442.078771735] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523442.078877622] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790523442.081048743] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790523442.081198269] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523442.081231338] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523442.081716920] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[ign gazebo-1] [0m[INFO] [1790523442.082303349] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523442.082416501] [arm_controller]: Accepted new action goal[0m
+[move_group-7] [0m[INFO] [1790523442.082693413] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790523442.082730128] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[button_detector-6] [0m[INFO] [1790523442.126332472] [button_detector]: Performance: 13.5 FPS, debug=0.0 FPS, average=49.3 ms, max=62.1 ms, input_age=46.0 ms[0m
+[ign gazebo-1] [0m[INFO] [1790523445.470778579] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523445.483356974] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790523445.484928566] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790523445.485197008] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m
+[button_detector-6] [0m[INFO] [1790523446.175083538] [button_detector]: Button selection changed: open[0m
+[button_detector-6] [0m[INFO] [1790523447.201246037] [button_detector]: Performance: 13.6 FPS, debug=0.0 FPS, average=48.1 ms, max=62.4 ms, input_age=23.0 ms[0m
+[ign gazebo-1] [0m[INFO] [1790523447.233999253] [pika_gripper_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523447.234138654] [pika_gripper_controller]: Accepted new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523448.495317003] [pika_gripper_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523449.213117814] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523449.213286991] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523449.213461244] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523449.213475339] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523449.216607667] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523449.217158836] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790523449.447736012] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[move_group-7] [0m[INFO] [1790523450.248573300] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790523450.252850676] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523450.252953419] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523450.253032633] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790523450.351868680] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790523450.355390352] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523450.355463740] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523450.355527589] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790523450.713323000] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790523450.713581336] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790523450.713652164] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523450.713688375] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523450.713789335] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790523450.714808303] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790523450.714910175] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523450.714939657] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523450.715478043] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[ign gazebo-1] [0m[INFO] [1790523450.716113403] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523450.716245485] [arm_controller]: Accepted new action goal[0m
+[move_group-7] [0m[INFO] [1790523450.716605289] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790523450.716649464] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[button_detector-6] [0m[INFO] [1790523452.252535114] [button_detector]: Performance: 12.5 FPS, debug=0.0 FPS, average=51.1 ms, max=64.1 ms, input_age=27.0 ms[0m
+[ign gazebo-1] [0m[INFO] [1790523454.961981271] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523454.966880164] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790523454.967045431] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790523454.967190429] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m
+[move_group-7] [0m[INFO] [1790523455.930529070] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523455.930719332] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523455.935909250] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523455.936001192] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523455.938872038] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523455.939397508] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790523456.285449422] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[move_group-7] [0m[INFO] [1790523456.340155918] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790523456.340293539] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790523456.340334887] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523456.340353198] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523456.340462990] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790523456.342305933] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790523456.342375736] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523456.342391039] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523456.342550657] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[ign gazebo-1] [0m[INFO] [1790523456.342861814] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523456.342957268] [arm_controller]: Accepted new action goal[0m
+[move_group-7] [0m[INFO] [1790523456.343170953] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790523456.343196184] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[button_detector-6] [0m[INFO] [1790523457.280427050] [button_detector]: Performance: 12.7 FPS, debug=0.0 FPS, average=50.2 ms, max=81.0 ms, input_age=19.0 ms[0m
+[ign gazebo-1] [0m[INFO] [1790523460.643307739] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523460.643888006] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790523460.644199725] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790523460.644369586] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m
+[button_detector-6] [0m[INFO] [1790523461.382238017] [button_detector]: Button selection changed: up[0m
+[button_detector-6] [0m[INFO] [1790523462.294641687] [button_detector]: Performance: 13.4 FPS, debug=0.0 FPS, average=48.3 ms, max=59.3 ms, input_age=23.0 ms[0m
+[ign gazebo-1] [0m[INFO] [1790523462.486837632] [pika_gripper_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523462.487057058] [pika_gripper_controller]: Accepted new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523463.698792881] [pika_gripper_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523464.388632460] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523464.388922540] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523464.400053317] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523464.400141520] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523464.403980328] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523464.404866655] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790523464.564087587] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[move_group-7] [0m[INFO] [1790523465.387544596] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790523465.387998571] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523465.388048841] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523465.388123155] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790523465.460699328] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790523465.466710784] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523465.466840118] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523465.466899044] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790523465.855264961] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790523465.855484247] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790523465.855550760] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523465.855575628] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523465.855648570] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790523465.857761768] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790523465.857877035] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523465.857898956] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523465.858371055] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[ign gazebo-1] [0m[INFO] [1790523465.858873148] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523465.858973447] [arm_controller]: Accepted new action goal[0m
+[move_group-7] [0m[INFO] [1790523465.859204101] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790523465.859232993] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[button_detector-6] [0m[INFO] [1790523467.319636271] [button_detector]: Performance: 12.3 FPS, debug=0.0 FPS, average=49.6 ms, max=62.7 ms, input_age=21.0 ms[0m
+[ign gazebo-1] [0m[INFO] [1790523469.232031662] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523469.259814302] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790523469.282393620] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790523469.282567289] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m
+[move_group-7] [0m[INFO] [1790523470.260842993] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523470.261100352] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523470.261304912] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523470.261320333] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523470.265184767] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523470.265807079] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790523470.459555893] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[move_group-7] [0m[INFO] [1790523470.515445095] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790523470.515707644] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790523470.515803891] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523470.515837581] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523470.515916232] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790523470.522751040] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790523470.522930675] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523470.522984763] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523470.523451941] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[ign gazebo-1] [0m[INFO] [1790523470.524060807] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523470.524167490] [arm_controller]: Accepted new action goal[0m
+[move_group-7] [0m[INFO] [1790523470.524508154] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790523470.524531395] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[button_detector-6] [0m[INFO] [1790523472.346096009] [button_detector]: Performance: 12.7 FPS, debug=0.0 FPS, average=49.9 ms, max=69.8 ms, input_age=34.0 ms[0m
+[ign gazebo-1] [0m[INFO] [1790523473.847337400] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523473.875114472] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790523473.875457900] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790523473.875673306] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m
+[button_detector-6] [0m[INFO] [1790523474.626847657] [button_detector]: Button selection changed: open[0m
+[ign gazebo-1] [0m[INFO] [1790523475.521003953] [pika_gripper_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523475.521209142] [pika_gripper_controller]: Accepted new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523476.738062570] [pika_gripper_controller]: Goal reached, success![0m
+[button_detector-6] [0m[INFO] [1790523477.359301995] [button_detector]: Performance: 14.2 FPS, debug=0.0 FPS, average=50.3 ms, max=61.3 ms, input_age=47.0 ms[0m
+[move_group-7] [0m[INFO] [1790523477.430131833] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523477.430338699] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523477.432168333] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523477.432199838] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523477.435289213] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523477.435880536] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790523477.740664915] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[move_group-7] [0m[INFO] [1790523477.819808801] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523477.820107104] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523477.823056376] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523477.823121048] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523477.826040354] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523477.826487307] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790523478.056232902] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[move_group-7] [0m[INFO] [1790523478.855801447] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790523478.859291599] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523478.859438932] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523478.859620372] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790523478.954160478] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790523478.955638543] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523478.955760734] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523478.955826848] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790523479.365262054] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790523479.365472536] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790523479.365553165] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523479.365584731] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523479.365696008] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790523479.365975343] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790523479.366027727] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523479.366126820] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523479.366498492] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[ign gazebo-1] [0m[INFO] [1790523479.367044613] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523479.367159058] [arm_controller]: Accepted new action goal[0m
+[move_group-7] [0m[INFO] [1790523479.367445754] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790523479.367470936] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[button_detector-6] [0m[INFO] [1790523482.463640459] [button_detector]: Performance: 12.3 FPS, debug=0.0 FPS, average=50.3 ms, max=61.0 ms, input_age=21.0 ms[0m
+[ign gazebo-1] [0m[INFO] [1790523483.709005381] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523483.718033564] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790523483.721829597] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790523483.723865369] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m
+[move_group-7] [0m[INFO] [1790523484.823492474] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523484.823795358] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523484.825371435] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523484.825409694] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523484.828596461] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523484.829180680] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790523485.044739985] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[move_group-7] [0m[INFO] [1790523485.102109335] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790523485.102286526] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790523485.102346432] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523485.102370539] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523485.102481313] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790523485.106883114] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790523485.107112564] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523485.107157683] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523485.107656800] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[ign gazebo-1] [0m[INFO] [1790523485.108331174] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523485.108432117] [arm_controller]: Accepted new action goal[0m
+[move_group-7] [0m[INFO] [1790523485.108666385] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790523485.108691073] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[button_detector-6] [0m[INFO] [1790523487.504476928] [button_detector]: Performance: 12.9 FPS, debug=0.0 FPS, average=50.8 ms, max=66.7 ms, input_age=40.0 ms[0m
+[ign gazebo-1] [0m[INFO] [1790523489.351342749] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523489.359396601] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790523489.359673282] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790523489.360511292] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m
+[button_detector-6] [0m[INFO] [1790523490.118990622] [button_detector]: Button selection changed: up[0m
+[ign gazebo-1] [0m[INFO] [1790523490.944801767] [pika_gripper_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523490.944955229] [pika_gripper_controller]: Accepted new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523492.183092159] [pika_gripper_controller]: Goal reached, success![0m
+[button_detector-6] [0m[INFO] [1790523492.564967322] [button_detector]: Performance: 13.8 FPS, debug=0.0 FPS, average=49.6 ms, max=62.0 ms, input_age=29.0 ms[0m
+[move_group-7] [0m[INFO] [1790523492.873064629] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523492.873364928] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523492.878459462] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523492.878581487] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523492.882264228] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523492.882838954] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790523493.098279515] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[move_group-7] [0m[INFO] [1790523493.933850449] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790523493.934078168] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523493.934140564] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523493.934179265] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790523494.022268183] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790523494.024130079] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523494.024225309] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523494.024347946] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790523494.385889575] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790523494.386112032] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790523494.386189126] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523494.386226009] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523494.386345710] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790523494.386663234] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790523494.386756636] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523494.386784602] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523494.387310036] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[ign gazebo-1] [0m[INFO] [1790523494.387927183] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523494.388016376] [arm_controller]: Accepted new action goal[0m
+[move_group-7] [0m[INFO] [1790523494.388329901] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790523494.388345682] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[button_detector-6] [0m[INFO] [1790523497.619227361] [button_detector]: Performance: 13.9 FPS, debug=0.0 FPS, average=49.7 ms, max=60.6 ms, input_age=22.0 ms[0m
+[ign gazebo-1] [0m[INFO] [1790523497.729844338] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523497.738990486] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790523497.739232567] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790523497.739397726] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m
+[move_group-7] [0m[INFO] [1790523498.847684110] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523498.847904555] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523498.856725556] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523498.856795283] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523498.860534045] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523498.861289862] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790523499.118613536] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[move_group-7] [0m[INFO] [1790523499.167615093] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790523499.167923967] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790523499.168019575] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523499.168067010] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523499.168184353] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790523499.168367508] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790523499.168422117] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523499.168443306] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523499.168966578] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[ign gazebo-1] [0m[INFO] [1790523499.169546451] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523499.169660139] [arm_controller]: Accepted new action goal[0m
+[move_group-7] [0m[INFO] [1790523499.169937448] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790523499.169953570] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[button_detector-6] [0m[INFO] [1790523502.641091272] [button_detector]: Performance: 14.1 FPS, debug=0.0 FPS, average=49.8 ms, max=64.3 ms, input_age=41.0 ms[0m
+[ign gazebo-1] [0m[INFO] [1790523502.679529228] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523502.720511697] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790523502.736496806] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790523502.736822660] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m
+[button_detector-6] [0m[INFO] [1790523503.498189243] [button_detector]: Button selection changed: open[0m
+[ign gazebo-1] [0m[INFO] [1790523504.697255602] [pika_gripper_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523504.697311627] [pika_gripper_controller]: Accepted new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523505.887148926] [pika_gripper_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523506.547475605] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523506.547789210] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523506.549715001] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523506.549732445] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523506.552379369] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523506.552990937] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790523506.833287320] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[move_group-7] [0m[INFO] [1790523507.615458910] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790523507.615714998] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523507.615789735] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523507.615836583] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[button_detector-6] [0m[INFO] [1790523507.676914861] [button_detector]: Performance: 11.1 FPS, debug=0.0 FPS, average=50.0 ms, max=61.0 ms, input_age=26.0 ms[0m
+[move_group-7] [0m[INFO] [1790523507.726832717] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790523507.727449467] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523507.727514977] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523507.727566599] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790523508.133269488] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790523508.133645083] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790523508.133746940] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523508.133796504] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523508.133947839] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790523508.135647456] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790523508.135777476] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523508.135815929] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523508.136413766] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[ign gazebo-1] [0m[INFO] [1790523508.136908077] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523508.137012716] [arm_controller]: Accepted new action goal[0m
+[move_group-7] [0m[INFO] [1790523508.137311026] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790523508.137346164] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[ign gazebo-1] [0m[INFO] [1790523512.418717986] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523512.437717203] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790523512.446119172] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790523512.446348634] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m
+[button_detector-6] [0m[INFO] [1790523512.707442372] [button_detector]: Performance: 13.5 FPS, debug=0.0 FPS, average=49.8 ms, max=64.7 ms, input_age=23.0 ms[0m
+[move_group-7] [0m[INFO] [1790523513.648517580] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523513.648720427] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523513.654004626] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523513.654103398] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523513.657960552] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523513.658600187] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790523513.826406465] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[move_group-7] [0m[INFO] [1790523513.878183403] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790523513.878466060] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790523513.878549083] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523513.878586918] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523513.878686094] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790523513.878940721] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790523513.879042527] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523513.879065177] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523513.879482020] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[ign gazebo-1] [0m[INFO] [1790523513.879914104] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523513.880002511] [arm_controller]: Accepted new action goal[0m
+[move_group-7] [0m[INFO] [1790523513.880215662] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790523513.880231316] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[button_detector-6] [0m[INFO] [1790523517.743940687] [button_detector]: Performance: 13.1 FPS, debug=0.0 FPS, average=50.0 ms, max=69.8 ms, input_age=27.0 ms[0m
+[ign gazebo-1] [0m[INFO] [1790523518.232074226] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523518.280743052] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790523518.290256433] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790523518.290555322] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m
+[button_detector-6] [0m[INFO] [1790523519.054569494] [button_detector]: Button selection changed: up[0m
+[ign gazebo-1] [0m[INFO] [1790523519.993036107] [pika_gripper_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523519.993226578] [pika_gripper_controller]: Accepted new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523521.207214868] [pika_gripper_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523522.021487018] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523522.021733005] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523522.021966124] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523522.021986074] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523522.025437850] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523522.026095485] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790523522.225941445] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[button_detector-6] [0m[INFO] [1790523522.797324519] [button_detector]: Performance: 12.5 FPS, debug=0.0 FPS, average=49.7 ms, max=68.4 ms, input_age=27.0 ms[0m
+[move_group-7] [0m[INFO] [1790523522.992982301] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790523522.995146910] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523522.995252359] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523522.995296444] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790523523.063959340] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790523523.064173167] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523523.064256660] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523523.064306935] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790523523.442471211] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790523523.442737074] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790523523.442829609] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523523.442861065] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523523.442991397] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790523523.449146048] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790523523.449289113] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523523.449324941] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523523.449733472] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[move_group-7] [0m[INFO] [1790523523.450692894] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790523523.450723382] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[ign gazebo-1] [0m[INFO] [1790523523.450232802] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523523.450343999] [arm_controller]: Accepted new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523526.781289009] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523526.801384872] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790523526.817310447] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790523526.817594063] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m
+[move_group-7] [0m[INFO] [1790523527.899897036] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523527.900118508] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523527.904608140] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523527.904677439] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523527.907355738] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523527.907832303] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[button_detector-6] [0m[INFO] [1790523527.991042386] [button_detector]: Performance: 13.5 FPS, debug=0.0 FPS, average=47.9 ms, max=66.0 ms, input_age=23.0 ms[0m
+[move_group-7] [0m[INFO] [1790523528.108214285] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[move_group-7] [0m[INFO] [1790523528.148984627] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790523528.149259295] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790523528.149343128] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523528.149383516] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523528.149522111] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790523528.149752609] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790523528.149805577] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523528.150302461] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523528.150766381] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[ign gazebo-1] [0m[INFO] [1790523528.151097042] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523528.151208151] [arm_controller]: Accepted new action goal[0m
+[move_group-7] [0m[INFO] [1790523528.151494224] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790523528.151517435] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[ign gazebo-1] [0m[INFO] [1790523531.544521781] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523531.552199496] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790523531.559719079] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790523531.560064487] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m
+[button_detector-6] [0m[INFO] [1790523532.347832894] [button_detector]: Button selection changed: open[0m
+[button_detector-6] [0m[INFO] [1790523533.041874481] [button_detector]: Performance: 14.5 FPS, debug=0.0 FPS, average=48.5 ms, max=62.1 ms, input_age=33.0 ms[0m
+[ign gazebo-1] [0m[INFO] [1790523533.432797322] [pika_gripper_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523533.433016287] [pika_gripper_controller]: Accepted new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523534.641277324] [pika_gripper_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523535.311316168] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523535.311582300] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523535.318075510] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523535.318149305] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523535.321672442] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523535.322464490] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790523535.579825452] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[move_group-7] [0m[INFO] [1790523536.407670948] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790523536.410244316] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523536.410387941] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523536.410513672] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790523536.515477126] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790523536.517845722] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523536.518014215] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523536.518115612] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790523536.934306352] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790523536.934541723] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790523536.934608023] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523536.934651035] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523536.934773697] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790523536.935089751] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790523536.935161780] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523536.935181752] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523536.935849616] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[move_group-7] [0m[INFO] [1790523536.937166317] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790523536.937185684] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[ign gazebo-1] [0m[INFO] [1790523536.936441535] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523536.936599742] [arm_controller]: Accepted new action goal[0m
+[button_detector-6] [0m[INFO] [1790523538.052266302] [button_detector]: Performance: 13.0 FPS, debug=0.0 FPS, average=49.8 ms, max=64.5 ms, input_age=39.0 ms[0m
+[ign gazebo-1] [0m[INFO] [1790523541.281762985] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523541.287575414] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790523541.288530954] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790523541.288720817] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m
+[move_group-7] [0m[INFO] [1790523542.529224782] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523542.529551123] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523542.530068377] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523542.530090852] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523542.533586943] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523542.534246136] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790523542.715874996] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[move_group-7] [0m[INFO] [1790523542.780935066] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790523542.781167535] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790523542.781232936] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523542.781259156] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523542.781362047] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790523542.788751610] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790523542.788936631] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523542.788972046] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523542.789539363] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[move_group-7] [0m[INFO] [1790523542.790513396] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790523542.790551989] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[ign gazebo-1] [0m[INFO] [1790523542.790132031] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523542.790247239] [arm_controller]: Accepted new action goal[0m
+[button_detector-6] [0m[INFO] [1790523543.065925431] [button_detector]: Performance: 14.0 FPS, debug=0.0 FPS, average=49.4 ms, max=63.8 ms, input_age=23.0 ms[0m
+[ign gazebo-1] [0m[INFO] [1790523547.212292739] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523547.241240149] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790523547.259199030] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790523547.259471541] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m
+[button_detector-6] [0m[INFO] [1790523548.101419621] [button_detector]: Performance: 12.3 FPS, debug=0.0 FPS, average=49.9 ms, max=62.7 ms, input_age=40.0 ms[0m
+[button_detector-6] [0m[INFO] [1790523548.104006822] [button_detector]: Button selection changed: up[0m
+[ign gazebo-1] [0m[INFO] [1790523549.126123569] [pika_gripper_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523549.126342110] [pika_gripper_controller]: Accepted new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523550.508455210] [pika_gripper_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523551.237804515] [moveit_move_group_default_capabilities.move_action_capability]: Received request[0m
+[move_group-7] [0m[INFO] [1790523551.238126562] [moveit_move_group_default_capabilities.move_action_capability]: executing..[0m
+[move_group-7] [0m[INFO] [1790523551.240891035] [moveit_move_group_default_capabilities.move_action_capability]: Planning request received for MoveGroup action. Forwarding to planning pipeline.[0m
+[move_group-7] [0m[INFO] [1790523551.240962215] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'ompl'[0m
+[move_group-7] [33m[WARN] [1790523551.244465127] [moveit.ompl_planning.planning_context_manager]: Cannot find planning configuration for group 'arm' using planner 'RRTConnectkConfigDefault'. Will use defaults instead.[0m
+[move_group-7] [0m[INFO] [1790523551.245012744] [moveit.ompl_planning.model_based_planning_context]: Planner configuration 'arm' will use planner 'geometric::RRTConnect'. Additional configuration parameters will be set when the planner is constructed.[0m
+[move_group-7] [0m[INFO] [1790523551.429294589] [moveit_move_group_default_capabilities.move_action_capability]: Motion plan was computed successfully.[0m
+[move_group-7] [0m[INFO] [1790523552.282636186] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790523552.283976831] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523552.284054748] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523552.284107185] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790523552.357523557] [moveit_move_group_default_capabilities.plan_service_capability]: Received new planning service request...[0m
+[move_group-7] [0m[INFO] [1790523552.364085255] [moveit_move_group_capabilities_base.move_group_capability]: Using planning pipeline 'pilz_industrial_motion_planner'[0m
+[move_group-7] [0m[INFO] [1790523552.364219546] [moveit.pilz_industrial_motion_planner.trajectory_generator_ptp]: Initialized Point-to-Point Trajectory Generator.[0m
+[move_group-7] [0m[INFO] [1790523552.364276072] [moveit.pilz_industrial_motion_planner.trajectory_generator]: Generating PTP trajectory...[0m
+[move_group-7] [0m[INFO] [1790523552.780377173] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Received goal request[0m
+[move_group-7] [0m[INFO] [1790523552.780601819] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution request received[0m
+[move_group-7] [0m[INFO] [1790523552.780636799] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523552.780656341] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523552.780718670] [moveit_ros.trajectory_execution_manager]: Validating trajectory with allowed_start_tolerance 0.01[0m
+[move_group-7] [0m[INFO] [1790523552.784295325] [moveit_ros.trajectory_execution_manager]: Starting trajectory execution ...[0m
+[move_group-7] [0m[INFO] [1790523552.784438712] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523552.784495346] [moveit.plugins.moveit_simple_controller_manager]: Returned 2 controllers in list[0m
+[move_group-7] [0m[INFO] [1790523552.784899423] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: sending trajectory to arm_controller[0m
+[move_group-7] [0m[INFO] [1790523552.785651045] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: arm_controller started execution[0m
+[move_group-7] [0m[INFO] [1790523552.785679376] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Goal request accepted![0m
+[ign gazebo-1] [0m[INFO] [1790523552.785323116] [arm_controller]: Received new action goal[0m
+[ign gazebo-1] [0m[INFO] [1790523552.785439101] [arm_controller]: Accepted new action goal[0m
+[button_detector-6] [0m[INFO] [1790523553.129215493] [button_detector]: Performance: 12.5 FPS, debug=0.0 FPS, average=50.4 ms, max=98.7 ms, input_age=45.0 ms[0m
+[ign gazebo-1] [0m[INFO] [1790523556.216830550] [arm_controller]: Goal reached, success![0m
+[move_group-7] [0m[INFO] [1790523556.236336911] [moveit.simple_controller_manager.follow_joint_trajectory_controller_handle]: Controller 'arm_controller' successfully finished[0m
+[move_group-7] [0m[INFO] [1790523556.249626970] [moveit_ros.trajectory_execution_manager]: Completed trajectory execution with status SUCCEEDED ...[0m
+[move_group-7] [0m[INFO] [1790523556.249808259] [moveit_move_group_default_capabilities.execute_trajectory_action_capability]: Execution completed: SUCCEEDED[0m

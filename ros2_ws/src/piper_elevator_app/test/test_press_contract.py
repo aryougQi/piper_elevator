@@ -1,8 +1,15 @@
 """Configuration and integration contracts for guarded button pressing."""
 
 from pathlib import Path
+from types import SimpleNamespace
+import threading
 
+import numpy as np
+import pytest
 import yaml
+
+from piper_elevator_app.button_press_executor import ButtonPressExecutor
+from piper_elevator_app.button_press_executor import PressFailure
 
 
 PACKAGE_ROOT = Path(__file__).parents[1]
@@ -27,7 +34,9 @@ def test_real_press_is_disabled_until_six_joint_calibration():
     assert config['simulation_button_joint_topic'] == (
         '/elevator_button/joint_states'
     )
-    buttons = ['1', '2', '3', '4', 'up', 'down', 'open', 'close', 'alarm']
+    buttons = [
+        'alarm', 'intercom', '3', '2', '1', 'open', 'close', 'up', 'down'
+    ]
     assert config['simulation_button_names'] == buttons
     assert config['simulation_button_joint_names'] == [
         f'button_{button}_press_joint' for button in buttons
@@ -136,7 +145,7 @@ def test_stall_and_geometry_press_remove_the_torque_calibration_need():
         / 'button_press_executor.py'
     ).read_text()
 
-    # Defaults keep the existing behaviour on both sim and real.
+    # Shared defaults retain torque mode; the real stack overrides them.
     assert config['contact_detection_mode'] == 'torque'
     assert config['geometry_press_enabled'] is False
     assert config['stall_required_cycles'] >= 1
@@ -162,6 +171,94 @@ def test_stall_and_geometry_press_remove_the_torque_calibration_need():
     assert 'BUTTON_DEPRESSED' in source
     assert 'BUTTON_RELEASED' in source
     assert 'RETRACTING remaining=' in source
+
+
+def test_real_launch_selects_guarded_geometry_press_without_changing_simulation():
+    real = (PACKAGE_ROOT / 'launch' / 'button_approach_real.launch.py').read_text()
+    press = (PACKAGE_ROOT / 'launch' / 'button_press.launch.py').read_text()
+    assert "'contact_detection_mode': 'stall'" in real
+    assert "'geometry_press_enabled': 'true'" in real
+    assert "'geometry_press_surface_travel_m': LaunchConfiguration(" in real
+    assert "DeclareLaunchArgument('contact_detection_mode', default_value='torque')" in press
+    assert "DeclareLaunchArgument('geometry_press_enabled', default_value='false')" in press
+
+
+def test_geometry_press_rejects_stall_before_requested_travel():
+    statuses = []
+    zero_commands = []
+    press = SimpleNamespace(
+        _stop_event=threading.Event(),
+        get_parameter=lambda name: SimpleNamespace(value={
+            'simulation_mode': False,
+            'maximum_approach_travel_m': 0.038,
+            'geometry_press_surface_travel_m': 0.030,
+        }[name]),
+        _start_timed_phase=lambda *args: None,
+        _motion_timeout_seconds=lambda: 15.0,
+        _geometry_press_enabled=lambda: True,
+        _geometry_press_travel=lambda: 0.0325,
+        _stall_detection_enabled=lambda: True,
+        _make_stall_detector=lambda: SimpleNamespace(update=lambda *args: True),
+        _motion_speed=lambda name: 0.010,
+        _guard_motion=lambda start, direction: (np.array([0.01, 0.0, 0.0]), 0.01),
+        _publish_zero_twist=lambda: zero_commands.append(True),
+        _publish_status=statuses.append,
+    )
+    with pytest.raises(PressFailure, match='stalled before geometry press target'):
+        ButtonPressExecutor._approach_until_contact(
+            press, np.zeros(3), np.array([1.0, 0.0, 0.0]), None,
+        )
+    assert zero_commands
+    assert not any('GEOMETRY_PRESS_REACHED' in value for value in statuses)
+    press._guard_motion = lambda start, direction: (
+        np.array([0.035, 0.0, 0.0]), 0.035,
+    )
+    with pytest.raises(PressFailure, match='exceeded travel target'):
+        ButtonPressExecutor._approach_until_contact(
+            press, np.zeros(3), np.array([1.0, 0.0, 0.0]), None,
+        )
+
+
+def test_geometry_press_slows_at_estimated_surface_and_stops_at_total_travel():
+    travels = iter([0.029, 0.031, 0.0325])
+    speeds = []
+    statuses = []
+
+    def guard_motion(start, direction):
+        travel = next(travels)
+        return np.array([travel, 0.0, 0.0]), travel
+
+    press = SimpleNamespace(
+        _stop_event=threading.Event(),
+        get_parameter=lambda name: SimpleNamespace(value={
+            'simulation_mode': False,
+            'maximum_approach_travel_m': 0.038,
+            'geometry_press_surface_travel_m': 0.030,
+        }[name]),
+        _start_timed_phase=lambda *args: None,
+        _motion_timeout_seconds=lambda: 15.0,
+        _geometry_press_enabled=lambda: True,
+        _geometry_press_travel=lambda: 0.0325,
+        _stall_detection_enabled=lambda: False,
+        _motion_speed=lambda name: {'approach_speed_mps': 0.010,
+                                    'press_speed_mps': 0.004}[name],
+        _guard_motion=guard_motion,
+        _publish_zero_twist=lambda: None,
+        _publish_status=statuses.append,
+        _guard_deadline=lambda *args: None,
+        _refresh_gate_or_raise=lambda: None,
+        _line_tracking_command=lambda start, position, direction, name: (
+            speeds.append(name) or np.zeros(3)
+        ),
+        _publish_smoothed_linear=lambda command: None,
+        _wait_period=lambda: None,
+    )
+    travel = ButtonPressExecutor._approach_until_contact(
+        press, np.zeros(3), np.array([1.0, 0.0, 0.0]), None,
+    )
+    assert travel == pytest.approx(0.0325)
+    assert speeds == ['approach_speed_mps', 'press_speed_mps']
+    assert any('GEOMETRY_PRESS_REACHED' in value for value in statuses)
 
 
 def test_visual_servo_exposes_latched_completion_handshake():

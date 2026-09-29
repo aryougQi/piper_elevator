@@ -20,25 +20,31 @@ button_detector:
     button_selected_topic: /button_selected
     tracking_state_topic: /button_tracking_state
     selected_button_class: ''
-    # 仅供 Gazebo launch 覆盖。真机默认关闭，不假设现实面板固定为 3x3。
+    # 仅供 Gazebo launch 覆盖。真机默认关闭，不假设现实面板固定为竖版九键布局。
+    # 阅读顺序为参考照片的「从上到下、同一行从左到右」：警铃/对讲、3、2、1、
+    # 开门/关门、上行、下行。其中 alarm 与 intercom 不在 ONNX 类别里，所以重标注
+    # 会像以前一样安全跳过，仿真检测依赖模型原始输出。
     simulation_layout_relabel: false
-    simulation_panel_layout_labels: ['1', '2', '3', '4', up, down, open, close, alarm]
+    simulation_panel_layout_labels: ['alarm', intercom, '3', '2', '1', open, close, up, down]
 
     # 相对路径会从 piper_elevator_app 的安装目录解析。
-    model_path: models/elevator_buttons_yolov10s.onnx
-    model_input_size: 1280
+    # 自训 YOLO11-S，14 类：楼层 1-10、up、down、open、close；输入 640。
+    model_path: models/elevator_buttons_yolo11s.onnx
+    model_input_size: 640
     # cuda: 必须使用 RTX GPU，加载失败时直接报错，避免静默退回慢速 CPU。
     # 调试无 GPU 环境时可临时改为 cpu；auto 才允许自动回退。
     inference_device: cuda
     # 订阅相机前先预热 CUDA，消除首帧内核初始化卡顿。
     warmup_iterations: 2
-    # 完整三列面板在 home 视角下，中心 up 实测约 0.55；0.40 给帧间
-    # 波动留出余量，同时仍高于相邻 down 被误判成 up 的约 0.26。
+    # 自训模型置信度分布与旧 YOLOv10 模型不同：真实电梯图上主要类别
+    # 通常 0.6-0.9。0.40 偏向召回，配合类别过滤和 5 帧稳定确认兜底；
+    # 实机误检偏多时可提高到 0.5-0.6（运行时 ROS 参数，无需改代码）。
     confidence_threshold: 0.40
     nms_iou_threshold: 0.45
 
-    # 类别直接读取新 YOLOv10 ONNX 的元数据。该模型专门检测电梯按钮，
-    # 因此保留模型中的全部电梯按钮类别（上下、开关门、楼层等）。
+    # 类别直接读取 ONNX 元数据（14 类：1-10、up、down、open、close）。
+    # 注意：无 alarm 类，仿真 3x3 重标注因布局含 alarm 会自动跳过，
+    # 仿真检测依赖模型原始输出。
     class_names:
       - __model_metadata__
     target_classes:

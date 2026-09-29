@@ -70,6 +70,22 @@ def test_claim_returns_current_verified_near_view(verified_planner):
     assert payload['observation_stamp_ns'] == latest['stamp_ns']
 
 
+def test_short_rgbd_gap_keeps_verified_handover_usable(
+    verified_planner, monkeypatch,
+):
+    planner = verified_planner
+    planner.advance(2.0)
+    assert not planner._observation_is_fresh(planner._latest_observation)
+    result = claim(planner)
+    assert result.success, result.message
+    payload = json.loads(result.message)
+    servo = ServoStartHarness(payload, monkeypatch)
+    servo.now_ns += 2_000_000_000
+    response = start(servo)
+    assert response.success, response.message
+    assert servo._handover_initial[0].tolist() == payload['button']
+
+
 @pytest.mark.parametrize('state', [
     'busy', 'unconfirmed_stop', 'missing_token',
 ])
@@ -265,6 +281,9 @@ class ServoStartHarness(ButtonVisualServo):
         return decode_coarse_handover(
             json.dumps(self.payload), selected_button=self._selected_button,
             frame_id=self._base_frame, now_ns=self.now_ns,
+            maximum_age_seconds=self.values[
+                'cached_coarse_target_max_age_seconds'
+            ],
         )
 
     def _run_servo(self):

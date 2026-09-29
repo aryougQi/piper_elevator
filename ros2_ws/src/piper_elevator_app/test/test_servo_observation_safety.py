@@ -41,6 +41,10 @@ class Parameters:
         'maximum_target_jump_m': 0.015,
         'world_position_smoothing_alpha': 0.25,
         'world_normal_smoothing_alpha': 0.20,
+        'maximum_normal_change_rad': 0.21,
+        'target_correction_observations': 3,
+        'target_correction_consistency_m': 0.004,
+        'target_correction_max_step_m': 0.002,
         'tf_timeout_seconds': 0.25,
         'feedback_timeout_seconds': 0.25,
         'simulation_mode': False,
@@ -90,6 +94,9 @@ class VisualHarness(Parameters):
         self._observation_anchor = None
         self._filtered_world_position = None
         self._filtered_world_normal = None
+        self._correction_candidate = None
+        self._correction_count = 0
+        self._raw_observation_normal = None
         self._base_frame = 'base'
         self._camera_frame = 'camera'
         self._end_effector_link = 'tip'
@@ -170,6 +177,21 @@ def test_out_of_order_callback_completion_keeps_newer_frame():
     servo._surface_pose_callback(surface())
     assert servo._observation_stamp_ns == 9_960_000_000
     assert servo._observation_sequence == 1
+
+
+def test_locked_target_ignores_single_frame_jitter_and_limits_confirmed_correction():
+    servo = VisualHarness()
+    servo._surface_pose_callback(surface(9_950_000_000))
+    locked = servo._observation[0].copy()
+    servo._surface_pose_callback(surface(9_960_000_000, x=0.010))
+    np.testing.assert_array_equal(servo._observation[0], locked)
+    servo._surface_pose_callback(surface(9_970_000_000, x=0.001))
+    servo._surface_pose_callback(surface(9_980_000_000, x=0.010))
+    np.testing.assert_array_equal(servo._observation[0], locked)
+    servo._surface_pose_callback(surface(9_985_000_000, x=0.010))
+    servo._surface_pose_callback(surface(9_990_000_000, x=0.010))
+    assert 0.0 < servo._observation[0][0] <= 0.002
+    assert servo._observation_sequence == 6
 
 
 def test_changing_selection_stops_active_servo():
@@ -343,6 +365,53 @@ def test_press_handoff_is_consumed_and_requires_new_alignment(monkeypatch):
     press._visual_completion_callback(Bool(data=True))
     assert press._start_callback(None, Trigger.Response()).success
     assert len(workers) == 2
+
+
+@pytest.mark.parametrize('surface_travel', [float('nan'), -0.001, 0.040])
+def test_real_geometry_press_rejects_invalid_travel_before_handoff(
+    monkeypatch, surface_travel,
+):
+    monkeypatch.setattr(
+        Parameters, 'values', dict(
+            Parameters.values,
+            contact_detection_mode='stall',
+            geometry_press_enabled=True,
+            geometry_press_surface_travel_m=surface_travel,
+            press_extension_m=0.0025,
+            torque_thresholds_calibrated=False,
+        ),
+    )
+    press = PressHarness()
+    press._visual_completion_callback(Bool(data=True))
+    response = press._start_callback(None, Trigger.Response())
+    assert not response.success
+    assert 'Invalid press configuration' in response.message
+    assert not press._running
+
+
+def test_real_geometry_press_can_start_without_torque_calibration(monkeypatch):
+    monkeypatch.setattr(
+        Parameters, 'values', dict(
+            Parameters.values,
+            contact_detection_mode='stall',
+            geometry_press_enabled=True,
+            press_extension_m=0.0025,
+            torque_thresholds_calibrated=False,
+        ),
+    )
+    workers = []
+    monkeypatch.setattr(
+        threading, 'Thread',
+        lambda **kwargs: SimpleNamespace(start=lambda: workers.append(kwargs)),
+    )
+    press = PressHarness()
+    press._make_contact_detector = (
+        ButtonPressExecutor._make_contact_detector.__get__(press)
+    )
+    press._visual_completion_callback(Bool(data=True))
+    response = press._start_callback(None, Trigger.Response())
+    assert response.success
+    assert len(workers) == 1
 
 
 def test_press_rechecks_handoff_after_preflight():

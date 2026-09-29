@@ -83,6 +83,7 @@ class Planner(ButtonApproachPlanner):
             'target_max_age_seconds': 1.0,
             'surface_normal_max_age_seconds': 0.5,
             'max_target_drift_m': 0.015,
+            'cached_coarse_target_max_age_seconds': 10.0,
             'observation_normal_tolerance_rad': 0.08,
             'joint_state_max_age_seconds': 0.5,
             'simulation_future_stamp_tolerance_seconds': 0.02,
@@ -183,14 +184,26 @@ class Planner(ButtonApproachPlanner):
         return True, 'handover limits verified'
 
 
-def test_execution_rejects_recently_received_but_expired_capture():
+def test_stale_capture_within_cached_plan_window_uses_frozen_target():
     planner = Planner()
     planner._execution_button = planner._planned_button.copy()
     planner._execution_observation = dict(planner._planned_observation)
     planner._latest_observation['stamp_ns'] = 9_400_000_000
     valid, reason = planner._execution_target_is_current()
+    assert valid, reason
+
+
+def test_stale_capture_after_cached_plan_window_is_rejected():
+    planner = Planner()
+    planner._execution_button = planner._planned_button.copy()
+    planner._execution_observation = dict(planner._planned_observation)
+    planner._latest_observation['stamp_ns'] = 9_400_000_000
+    planner._plan_created_at -= (
+        planner.values['cached_coarse_target_max_age_seconds'] + 0.1
+    )
+    valid, reason = planner._execution_target_is_current()
     assert not valid
-    assert 'Paired observation is stale' in reason
+    assert 'stale' in reason
 
 
 class ArmLimitPlanner(Planner):
@@ -571,14 +584,23 @@ def test_execution_consumes_plan_on_controller_error():
     assert len(planner._execute_client.goals) == 1
 
 
-def test_stale_target_consumes_plan_without_sending():
+def test_stale_button_pose_does_not_hide_fresh_paired_observation():
     planner = Planner()
     planner._latest_received_at -= 2.0
     response = planner._execute_callback(None, SimpleNamespace())
-    assert not response.success
-    assert 'stale' in response.message
+    assert response.success, response.message
     assert planner._planned_trajectory is None
-    assert not planner._execute_client.goals
+    assert planner._execute_client.goals
+
+
+def test_fresh_observation_survives_temporary_button_pose_gap():
+    planner = Planner()
+    planner._execute_client.on_server_wait = lambda: setattr(
+        planner, '_latest_button', None
+    )
+    response = planner._execute_callback(None, SimpleNamespace())
+    assert response.success, response.message
+    assert planner._execute_client.goals
 
 
 def test_moved_target_consumes_plan_without_sending():
@@ -624,14 +646,28 @@ def test_changed_selection_at_same_position_is_rejected_before_motion():
     assert not planner._execute_client.goals
 
 
-def test_lost_stable_observation_is_rejected_before_motion():
+def test_temporary_loss_of_stable_observation_uses_frozen_target():
     planner = Planner()
     planner._execute_client.on_server_wait = lambda: setattr(
         planner, '_latest_observation', None
     )
     response = planner._execute_callback(None, SimpleNamespace())
+    assert response.success, response.message
+    assert 'verified' in response.message
+    assert planner._execute_client.goals
+
+
+def test_expired_cached_target_is_rejected_without_stable_observation():
+    planner = Planner()
+    planner._latest_observation = None
+    planner._latest_button = None
+    planner._latest_received_at -= 2.0
+    planner._plan_created_at -= (
+        planner.values['cached_coarse_target_max_age_seconds'] + 0.1
+    )
+    response = planner._execute_callback(None, SimpleNamespace())
     assert not response.success
-    assert 'Stable paired observation unavailable' in response.message
+    assert 'cached coarse target expired' in response.message
     assert not planner._execute_client.goals
 
 

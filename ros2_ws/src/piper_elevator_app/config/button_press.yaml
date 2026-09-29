@@ -14,27 +14,28 @@ button_press_executor:
     # 仿真按当前检测器选择的类别读取同名按钮的独立触点和关节。
     button_selected_topic: /button_selected
     simulation_button_joint_topic: /elevator_button/joint_states
-    simulation_button_names: ['1', '2', '3', '4', up, down, open, close, alarm]
+    # 三个列表按索引一一对应，顺序跟随竖版面板的阅读顺序。
+    simulation_button_names: ['alarm', intercom, '3', '2', '1', open, close, up, down]
     simulation_button_joint_names:
-      - button_1_press_joint
-      - button_2_press_joint
+      - button_alarm_press_joint
+      - button_intercom_press_joint
       - button_3_press_joint
-      - button_4_press_joint
-      - button_up_press_joint
-      - button_down_press_joint
+      - button_2_press_joint
+      - button_1_press_joint
       - button_open_press_joint
       - button_close_press_joint
-      - button_alarm_press_joint
+      - button_up_press_joint
+      - button_down_press_joint
     simulation_contacts_topics:
-      - /elevator_button/button_1/contacts
-      - /elevator_button/button_2/contacts
+      - /elevator_button/button_alarm/contacts
+      - /elevator_button/button_intercom/contacts
       - /elevator_button/button_3/contacts
-      - /elevator_button/button_4/contacts
-      - /elevator_button/button_up/contacts
-      - /elevator_button/button_down/contacts
+      - /elevator_button/button_2/contacts
+      - /elevator_button/button_1/contacts
       - /elevator_button/button_open/contacts
       - /elevator_button/button_close/contacts
-      - /elevator_button/button_alarm/contacts
+      - /elevator_button/button_up/contacts
+      - /elevator_button/button_down/contacts
 
     base_frame: base_link
     camera_frame: camera_color_optical_frame
@@ -60,7 +61,7 @@ button_press_executor:
     press_extension_m: 0.0025
     hold_seconds: 0.30
     maximum_approach_travel_m: 0.038
-    # 接触判据：torque（默认，需要标定六关节力矩阈值）/ stall（真机拿不到
+    # 接触判据：torque（独立启动默认，需要标定六关节力矩阈值）/ stall（真机拿不到
     # 可靠力矩时，用"命令前进但指尖不再前进"的堵转判据）/ stall_or_torque。
     contact_detection_mode: torque
     stall_minimum_travel_m: 0.005
@@ -69,7 +70,8 @@ button_press_executor:
     stall_minimum_command_speed_mps: 0.002
     # 几何行程按压：从交接站位（视觉伺服 30 mm）推到 surface + press_extension_m，
     # 完全不依赖力/力矩信号；stall 判据仍作为压过头的兜底。
-    # 真机推荐组合：contact_detection_mode: stall + geometry_press_enabled: true。
+    # 真机 launch 覆盖为 stall + geometry_press_enabled: true；仿真仍用触点/关节。
+    # 真机若在设定行程前堵转，按压失败并撤回，不把堵转误报为成功。
     geometry_press_enabled: false
     geometry_press_surface_travel_m: 0.030
     maximum_lateral_drift_m: 0.003

@@ -110,7 +110,7 @@ Pika 的部分定位/遥操作启动文件还会引用 `pika_locator`。官方�
 模型文件应位于：
 
 ```text
-ros2_ws/src/piper_elevator_app/models/elevator_buttons_yolov10s.onnx
+ros2_ws/src/piper_elevator_app/models/elevator_buttons_yolo11s.onnx
 ```
 
 模型来源、类别和跨场景准确率限制记录在 `models/README.md`。模型缺失时节点会直接报出期望路径，不会退回旧的 Hough 算法。
@@ -225,8 +225,20 @@ ros2 pkg list | grep -E 'pika|data_tools|sensor_tools|realsense2'
 这个入口只启动虚拟硬件：Piper、Pika、位于 Pika 内置镜头位置的 RGB-D
 仿真相机、物理按钮、
 `ros2_control` 和话题桥。它不会启动 MoveIt、RViz、YOLO、Planner、模拟
-`/button_pose` 或自动动作。场景只包含一个有 4 mm 行程、弹簧回位和接触事件
-的按钮，不模拟完整电梯、轿厢或门。
+`/button_pose` 或自动动作。场景是一块竖版轿厢面板：`130.8 x 280 mm` 拉丝不锈钢板
+（宽高比 `0.467`，与参考照片的板面一致）贴在深灰大理石墙上，面板中心在
+`z = 0.43 m`（板体 `0.290..0.570 m`，整块板都在 home 相机画面内），
+九个黑色机加工按钮自上而下排布为
+
+```text
+[ 警铃 ]  [ 对讲 ]
+    [ 3 ] [ 2 ] [ 1 ]
+[ 开门 ]  [ 关门 ]
+    [ ↑ ] [ ↓ ]
+```
+
+九个控件各有 4 mm 行程、弹簧回位和独立接触事件，但不模拟完整电梯、轿厢或门。
+大理石墙只有视觉几何、不参与碰撞，因此不会挡住机械臂或相机。
 
 对外接口与实机保持一致：
 
@@ -252,6 +264,87 @@ ros2 pkg list | grep -E 'pika|data_tools|sensor_tools|realsense2'
 ```bash
 ./scripts/check_gazebo.sh
 ```
+
+### 扫描不同机械臂角度的按钮识别
+
+先启动 Gazebo，再在另一终端启动检测器（需确保重新训练的 ONNX 已导出到
+`config/button_detector.yaml` 指向的位置，并重新 `./scripts/build.sh`）：
+
+```bash
+./scripts/gazebo_hardware.sh gui:=false
+# 另一个终端
+docker compose run --rm piper_ros2 bash -lc '
+  source /workspace/ros2_ws/install/setup.bash
+  ros2 launch piper_elevator_app button_detector.launch.py use_sim_time:=true \
+    simulation_layout_relabel:=false confidence_threshold:=0.40'
+```
+
+在第三个终端运行角度扫描；命令只接受仿真面板话题，扫描结束会尝试回到起始关节角：
+
+```bash
+docker compose run --rm piper_ros2 bash -lc '
+  source /workspace/ros2_ws/install/setup.bash
+  python3 /workspace/ros2_ws/src/piper_elevator_app/scripts/scan_button_recognition.py --execute \
+    --joint joint1 --angles=-15,-10,-5,0,5,10,15 --samples 20'
+```
+
+输出在 `ros2_ws/test_logs/button_angle_scan/<时间戳>/`：`summary.csv` 是每个角度、
+类别的逐帧出现率和平均置信度，`samples.jsonl` 保存每帧原始框、分数和时间戳，
+PNG 同时保存原图和检测框图，`metadata.json` 记录起始姿态与扫描参数。可以改用
+`--joint joint5` 扫俯仰角。角度是相对当前姿态的关节偏移，不是相机相对面板的
+几何入射角。不同角度可能让按钮离开视野，因此出现率需要结合 PNG 判断。
+仿真面板上的警铃（`alarm`）和对讲（`intercom`）按钮不在现有 14 类模型中，
+它们的检测率应作为模型类别缺口来看。
+
+### 采集仿真面板训练图片
+
+启动虚拟硬件后，在另一个终端运行（采集器使用相机、TF 和轨迹控制器，
+不需要启动 YOLO 检测器）：
+
+```bash
+# 两个终端都设置相同的隔离域，避免与其他 Gazebo 会话冲突
+export ROS_DOMAIN_ID=78 IGN_PARTITION=panel_capture_78
+./scripts/gazebo_hardware.sh gui:=false
+# 另一个终端，同样先执行上面的 export
+./scripts/collect_sim_panel_dataset.sh --execute \
+  --joint1-angles=-15,-10,-5,0,5,10,15 \
+  --joint5-angles=-5,0,5 --scene-id fixed_panel
+```
+
+原图写入 `../Yolo_Train/sim-dataset/Raw/<时间戳>/images/`，同一采集目录下
+的 `labels/` 是从仿真按钮几何、相机内参和拍摄时 TF 投影得到的 YOLO 标注，
+`review/` 是画框复核图，`metadata/` 与 `manifest.json` 保存姿态和诊断信息。
+只标注 `1`、`2`、`3`、`up`、`down`、`open`、`close`；警铃（`alarm`）和对讲
+（`intercom`）保留在原图中但不作为目标。某姿态下任一目标不完整、太小或被遮挡时，
+整帧会跳过并在 manifest 中记录原因。采集结束会尝试回到起始姿态。
+深度帧未在 20 ms 内匹配到彩色帧时仍可保存固定面板的几何投影标注，
+对应元数据的 `depth_check` 为 `false`，复核时应优先检查这些图片。
+
+批量采集 5 种面板外观、6 种光照、每种 2 个面板位置及 15 个关节视角：
+
+```bash
+./scripts/collect_sim_panel_batch.sh
+# 中断后可只重跑指定光照：LIGHTS='L3 L4 L5' ./scripts/collect_sim_panel_batch.sh
+```
+
+批量脚本自动启动和停止隔离的 Gazebo 会话，生成目录仍在 `sim-dataset/Raw/`；
+运行日志在 `Raw/batch_logs/`。样本名包含光照、外观、位置和关节角。
+它关闭可选的深度遮挡检查以加快采集，因此复核图像是必要的质量检查。
+对完整批次用当前 ONNX 模型做离线识别基线（置信度 0.4、IoU 0.5）：
+
+```bash
+docker compose run --rm \
+  -v "$(cd ../Yolo_Train/sim-dataset && pwd):/workspace/sim-dataset" \
+  piper_ros2 python3 \
+  /workspace/ros2_ws/src/piper_elevator_app/scripts/evaluate_sim_panel_dataset.py
+```
+
+评估结果写入 `../Yolo_Train/sim-dataset/evaluation.json`；只有带完整
+`manifest.json` 且 `scene_id` 为 `L0`–`L5` 的采集目录会被纳入。
+
+运行前请确认仿真世界仍是 `button_press.sdf` 中的固定面板；如果修改了
+面板模型或世界，应先核对 `review/` 中的投影框。采集目录是原始样本，
+需要按场景分组划分训练、验证和测试集后再并入现有数据集。
 
 该检查会验证三个控制器、相机尺寸和坐标系、米制深度、按钮回位，以及一条
 0.1 rad 的安全轨迹。Gazebo 直接桥接 `32FC1` 深度；检测器对浮点深度按米
@@ -310,3 +403,13 @@ FakeSystem 回归诊断，不再是支持的仿真流程。实机继续使用独
 才能显式打开硬件命令和应用执行锁。即使解锁，真机仍为手动规划、手动执行，
 不会使用仿真的自动执行模式。运行真机前还必须确认 CAN 接口、机械臂型号、
 末端执行器、工作空间和急停状态。
+
+真机入口的按压阶段使用固定行程模式：从视觉 Servo 的标称 30 mm 站位沿
+按钮法向移动 `geometry_press_surface_travel_m`（默认 30 mm）再加
+`press_extension_m`（默认 2.5 mm），合计标称 32.5 mm，然后保持并撤回。
+真机不要求力矩阈值标定；到估计表面后降至 4 mm/s，提前堵转或超程会报失败
+并尝试撤回。任务结果会标记 `actuation unverified`。该行程是按视觉估计
+表面计算的命令值，不证明按钮实际触发；首次执行前必须核对手眼、TCP、
+实际站位和按钮行程。可用 launch 参数 `geometry_press_surface_travel_m:=...`
+调整表面行程，总行程不能超过 `maximum_approach_travel_m`（默认 38 mm）。
+仿真按压仍以按钮触点与关节行程判断。

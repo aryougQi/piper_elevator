@@ -18,7 +18,7 @@ button_approach_planner:
     gripper_motion_seconds: 1.0
     approach_distance_m: 0.14
     maximum_camera_centering_shift_m: 0.045
-    maximum_uncompensated_camera_offset_m: 0.035
+    maximum_uncompensated_camera_offset_m: 0.05
     pointing_tolerance_rad: 0.13962634015954636
     roll_tolerance_rad: 0.26
     coarse_orientation_tolerance_rad: 0.0872665
@@ -40,7 +40,9 @@ button_approach_planner:
     - 0.15
     - 1.5
     wrist_singularity_joint: joint5
-    minimum_abs_wrist_bend_rad: 0.4
+    # 上排按钮在 joint5≈0.44 rad 处触发 Servo 奇异停机；
+    # 0.60 rad 保留腕部余量，同时保持下排按钮有可行 IK。
+    minimum_abs_wrist_bend_rad: 0.60
     wrist_joint_lower_limit_rad: -1.2217304
     wrist_joint_upper_limit_rad: 1.2217304
     servo_joint_limit_margin_rad: 0.1
@@ -76,6 +78,7 @@ button_approach_planner:
     target_max_age_seconds: 1.0
     surface_normal_max_age_seconds: 0.5
     plan_max_age_seconds: 120.0
+    cached_coarse_target_max_age_seconds: 10.0
     max_target_drift_m: 0.03
     maximum_execution_orientation_error_rad: 0.35
     workspace_min:
@@ -130,9 +133,15 @@ button_approach_planner:
     trajectory_boundary_tolerance_rad: 1.0e-09
     ik_timeout_seconds: 0.05
     ik_search_budget_seconds: 8.0
-    maximum_ik_solutions: 8
-    maximum_candidate_plans: 3
-    planning_budget_seconds: 30.0
+    maximum_ik_solutions: 16
+    maximum_candidate_plans: 16
+    coarse_success_history_max_age_seconds: 900.0
+    candidate_current_tcp_position_weight: 0.08
+    candidate_current_tcp_orientation_weight: 0.02
+    candidate_history_joint_weight: 0.35
+    candidate_history_position_weight: 0.08
+    candidate_history_orientation_weight: 0.02
+    planning_budget_seconds: 45.0
     planning_observation_wait_seconds: 6.0
     moveit_service_timeout_seconds: 1.0
     optimize_coarse_motion: true

@@ -34,7 +34,9 @@ FORBIDDEN_NODES = {
 }
 BUTTON_JOINTS = [
     f'button_{button}_press_joint'
-    for button in ('1', '2', '3', '4', 'up', 'down', 'open', 'close', 'alarm')
+    for button in (
+        'alarm', 'intercom', '3', '2', '1', 'open', 'close', 'up', 'down'
+    )
 ]
 
 

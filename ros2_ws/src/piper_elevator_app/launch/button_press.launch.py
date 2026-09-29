@@ -15,6 +15,11 @@ def generate_launch_description():
         DeclareLaunchArgument('use_sim_time', default_value='false'),
         DeclareLaunchArgument('simulation_mode', default_value='false'),
         DeclareLaunchArgument('allow_execution', default_value='false'),
+        DeclareLaunchArgument('contact_detection_mode', default_value='torque'),
+        DeclareLaunchArgument('geometry_press_enabled', default_value='false'),
+        DeclareLaunchArgument(
+            'geometry_press_surface_travel_m', default_value='0.030',
+        ),
         DeclareLaunchArgument(
             'hardware_gate_required',
             default_value='false',
@@ -34,6 +39,18 @@ def generate_launch_description():
                     'allow_execution': ParameterValue(
                         LaunchConfiguration('allow_execution'),
                         value_type=bool,
+                    ),
+                    'contact_detection_mode': ParameterValue(
+                        LaunchConfiguration('contact_detection_mode'),
+                        value_type=str,
+                    ),
+                    'geometry_press_enabled': ParameterValue(
+                        LaunchConfiguration('geometry_press_enabled'),
+                        value_type=bool,
+                    ),
+                    'geometry_press_surface_travel_m': ParameterValue(
+                        LaunchConfiguration('geometry_press_surface_travel_m'),
+                        value_type=float,
                     ),
                     'hardware_gate_required': ParameterValue(
                         LaunchConfiguration('hardware_gate_required'),
