@@ -7,8 +7,13 @@ from piper_elevator_app.motion_core import quaternion_to_matrix
 import rclpy
 from rclpy.duration import Duration
 from rclpy.node import Node
+from rclpy.qos import DurabilityPolicy
+from rclpy.qos import QoSProfile
+from rclpy.qos import ReliabilityPolicy
 from rclpy.time import Time
 from sensor_msgs.msg import CameraInfo
+from std_msgs.msg import Bool
+from std_msgs.msg import String
 from tf2_ros import Buffer
 from tf2_ros import ConnectivityException
 from tf2_ros import ExtrapolationException
@@ -66,6 +71,9 @@ class MockButtonPose(Node):
         self.declare_parameter('camera_width', 848)
         self.declare_parameter('camera_height', 480)
         self.declare_parameter('camera_horizontal_fov_rad', 1.518436)
+        self.declare_parameter('button_selection_topic', '/button_selection')
+        self.declare_parameter('button_selected_topic', '/button_selected')
+        self.declare_parameter('button_valid_topic', '/button_detection_valid')
         self._output_frame = str(self.get_parameter('frame_id').value)
         self._fixed_frame = str(
             self.get_parameter('fixed_frame_id').value
@@ -84,6 +92,28 @@ class MockButtonPose(Node):
             PoseStamped,
             str(self.get_parameter('surface_topic').value),
             10,
+        )
+        latched_qos = QoSProfile(
+            depth=1,
+            reliability=ReliabilityPolicy.RELIABLE,
+            durability=DurabilityPolicy.TRANSIENT_LOCAL,
+        )
+        self._selected_button = ''
+        self._selected_publisher = self.create_publisher(
+            String,
+            str(self.get_parameter('button_selected_topic').value),
+            latched_qos,
+        )
+        self._valid_publisher = self.create_publisher(
+            Bool,
+            str(self.get_parameter('button_valid_topic').value),
+            latched_qos,
+        )
+        self.create_subscription(
+            String,
+            str(self.get_parameter('button_selection_topic').value),
+            self._selection_callback,
+            latched_qos,
         )
         self._camera_info_publisher = None
         self._camera_info = None
@@ -108,8 +138,20 @@ class MockButtonPose(Node):
             f'{self._fixed_frame or self._output_frame}'
         )
 
+    def _selection_callback(self, message):
+        selected = str(message.data).strip()
+        if selected.casefold() in {'clear', 'none'}:
+            selected = ''
+        self._selected_button = selected
+
     def _publish(self):
         stamp = self.get_clock().now().to_msg()
+        self._selected_publisher.publish(
+            String(data=self._selected_button)
+        )
+        self._valid_publisher.publish(
+            Bool(data=bool(self._selected_button))
+        )
         position = np.array([
             float(self.get_parameter('x').value),
             float(self.get_parameter('y').value),

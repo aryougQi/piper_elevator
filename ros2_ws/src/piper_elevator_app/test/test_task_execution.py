@@ -106,6 +106,20 @@ def test_failed_execute_requires_confirmed_recovery_home(failure):
     assert task.selections == ['']
 
 
+def test_stale_execute_reacquires_and_replans_once():
+    task = TaskHarness({
+        ('execute', 1): 'execute rejected: Target is stale; replan required',
+    })
+    task._run_task(1, '2')
+
+    assert task.calls == [
+        'home', 'plan', 'execute', 'plan', 'execute',
+        'post_motion_target', 'visual', 'press', 'home',
+    ]
+    assert task.completed
+    assert task.result == 'COMPLETE: button=2 pressed; home reached'
+
+
 def test_failed_recovery_cannot_report_previous_home_as_current():
     task = TaskHarness({
         ('execute', 1): 'execute post-motion verification failed',

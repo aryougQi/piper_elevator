@@ -36,8 +36,10 @@ source /workspace/ros2_ws/install/setup.bash
 先选按钮（把 `up` 换成 `down`、`1`、`2`、`3`、`open` 或 `close`）：
 
 ```bash
-ros2 topic pub --once /button_selection std_msgs/msg/String "{data: 'up'}"
+ros2 run piper_elevator_app button_select up --timeout 12
 ```
+
+选择客户端会等待订阅者并确认 `/button_selected`。如果只启动了检测器，可加 `--min-subscribers 1`。
 
 分别在新终端查看二维检测、相机系 RGB-D 位姿、粗定位稳定后的 `base_link` 位姿和拒收原因。下面每行单独运行：
 
@@ -92,7 +94,7 @@ ros2 service call /elevator_task_manager/stop std_srvs/srv/Trigger "{}"
 ## 一条命令运行完整按钮任务
 
 ```bash
-ros2 topic pub --once /elevator_task/command std_msgs/msg/String "{data: 'press up'}"
+ros2 topic pub --rate 2 --times 3 /elevator_task/command std_msgs/msg/String "{data: 'press up'}"
 ```
 
 需要观察过程或结果时，在另外的容器 shell 中分别运行：
@@ -102,7 +104,7 @@ ros2 topic echo /elevator_task/status
 ros2 topic echo /elevator_task/result
 ```
 
-`press up` 可改成 `press down`、`press 1`、`press 2`、`press 3`、`press open` 或 `press close`。
+短时间重复发布可避免 ROS 发现连接建立前丢失首条消息。`press up` 可改成 `press down`、`press 1`、`press 2`、`press 3`、`press open` 或 `press close`。
 
 ## 重复性测试
 
@@ -124,6 +126,18 @@ ROS_DOMAIN_ID=42 ./scripts/test_button_stability.sh --execute --attach
 ```bash
 ROS_DOMAIN_ID=42 ./scripts/test_visual_servo.sh --execute --runs 5 --continue-on-failure
 ```
+
+
+### 远程版本的稳定性回归脚本
+
+合并的 `v1.1` 还提供两种完整链路回归模式。此脚本会自动启动无界面仿真，并把 CSV 和启动日志存入 `ros2_ws/diagnostics/data/stability/`：
+
+```bash
+cd /home/qi/Project/piper_elevator
+./scripts/stability_test.sh --mode both --runs 5 --button 3
+```
+
+`--mode stable` 使用固定的合成目标验证运动链路；`--mode yolo` 使用相机、YOLO 和深度检测链路；`both` 依次运行两种模式。
 
 ## 实机只读调试
 

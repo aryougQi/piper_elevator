@@ -10,6 +10,7 @@ from launch.conditions import IfCondition
 from launch.conditions import UnlessCondition
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
+from launch.substitutions import PythonExpression
 from launch_ros.actions import Node
 from launch_ros.parameter_descriptions import ParameterValue
 from moveit_configs_utils.launch_utils import DeclareBooleanLaunchArg
@@ -58,7 +59,36 @@ def generate_launch_description():
             # close-range tracking keeps using visual identity.
             'simulation_layout_relabel': 'true',
         },
-        condition=simulation_condition,
+        condition=IfCondition(PythonExpression([
+            "'", simulation, "'.lower() == 'true' and '",
+            LaunchConfiguration('stable_target_mode'),
+            "'.lower() == 'false'",
+        ])),
+    )
+    stable_target = Node(
+        package='piper_elevator_app',
+        executable='mock_button_pose',
+        name='stable_target_publisher',
+        output='screen',
+        parameters=[{
+            'use_sim_time': True,
+            'frame_id': 'camera_color_optical_frame',
+            'fixed_frame_id': 'base_link',
+            # Simulated button 3: panel pose (0.55, 0.03, 0.40) with the
+            # panel's pi-yaw and local button-3 offset (0.01, 0.075, 0.065).
+            'x': 0.54,
+            'y': -0.045,
+            'z': 0.465,
+            'normal_x': -1.0,
+            'normal_y': 0.0,
+            'normal_z': 0.0,
+            'publish_rate_hz': 15.0,
+            'publish_camera_info': True,
+            'camera_width': 848,
+            'camera_height': 480,
+            'camera_horizontal_fov_rad': 1.518436,
+        }],
+        condition=IfCondition(LaunchConfiguration('stable_target_mode')),
     )
     simulation_moveit = include(
         'piper_elevator_app',
@@ -161,12 +191,24 @@ def generate_launch_description():
                     simulation,
                     value_type=bool,
                 ),
+                'stable_target_mode': ParameterValue(
+                    LaunchConfiguration('stable_target_mode'),
+                    value_type=bool,
+                ),
             },
         ],
     )
 
     return LaunchDescription([
         DeclareBooleanLaunchArg('simulation_mode', default_value=True),
+        DeclareBooleanLaunchArg(
+            'stable_target_mode',
+            default_value=False,
+            description=(
+                'Replace YOLO with a deterministic synthetic button-3 target '
+                'for downstream motion-chain stability tests.'
+            ),
+        ),
         DeclareBooleanLaunchArg('gazebo_gui', default_value=True),
         DeclareBooleanLaunchArg('use_rviz', default_value=True),
         DeclareLaunchArgument(
@@ -214,6 +256,7 @@ def generate_launch_description():
         DeclareLaunchArgument('camera_yaw', default_value='1.2243363470'),
         gazebo,
         simulation_detector,
+        stable_target,
         simulation_moveit,
         simulation_planner,
         simulation_visual,
